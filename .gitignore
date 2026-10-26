@@ -1,0 +1,28 @@
+# dependencies & builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+.turbo/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+.env.secret.tmp
+
+# source material from BookLeaf (confidential brief) and personal notes — kept local
+BookLeaf_Technical_Assignment_1.pdf
+intruction.txt
+old context
+/bookleaf_sample_data.json
+docs/internal/
+
+# local tooling
+.DS_Store
+.mcp.json
+graphify-out/
+.claude/settings.local.json
+*.log
