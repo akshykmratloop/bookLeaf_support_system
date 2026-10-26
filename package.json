@@ -1,0 +1,21 @@
+{
+  "name": "bookleaf-support-portal",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.6.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web dev",
+    "build": "pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build",
+    "start": "pnpm --filter @bookleaf/api start",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r test",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "pnpm --filter @bookleaf/api db:migrate",
+    "db:seed": "pnpm --filter @bookleaf/api db:seed",
+    "eval": "pnpm --filter @bookleaf/api eval"
+  }
+}

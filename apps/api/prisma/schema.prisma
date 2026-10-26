@@ -1,0 +1,301 @@
+// BookLeaf Author Support Portal — database schema.
+// Money is stored as integer paise. Nullable columns mean "unknown", never zero.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  AUTHOR
+  ADMIN
+}
+
+enum BookStage {
+  MANUSCRIPT_RECEIVED
+  EDITING
+  COVER_DESIGN
+  TYPESETTING
+  PROOFREADING
+  ISBN_ASSIGNMENT
+  PRINTING
+  DISTRIBUTION_SETUP
+  PUBLISHED_LIVE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  ROYALTY_PAYMENTS
+  ISBN_METADATA
+  PRINTING_QUALITY
+  DISTRIBUTION_AVAILABILITY
+  BOOK_STATUS_PRODUCTION
+  GENERAL_INQUIRY
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum FieldSource {
+  AI
+  RULES
+  ADMIN
+}
+
+enum AiState {
+  PENDING
+  DONE
+  FALLBACK
+}
+
+enum MessageKind {
+  AUTHOR
+  REPLY
+  INTERNAL_NOTE
+  SYSTEM
+}
+
+enum AiJobKind {
+  TRIAGE
+  DRAFT
+}
+
+enum AiJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FALLBACK
+}
+
+enum DraftSource {
+  AI
+  TEMPLATE
+}
+
+enum AiRunOutcome {
+  OK
+  ERROR
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  author          Author?
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  messages        TicketMessage[]
+  auditEvents     AuditEvent[]
+
+  @@map("users")
+}
+
+model Author {
+  id         String   @id @default(uuid()) @db.Uuid
+  externalId String   @unique @map("external_id")
+  userId     String   @unique @map("user_id") @db.Uuid
+  phone      String
+  city       String
+  joinedDate DateTime @map("joined_date") @db.Date
+
+  user    User     @relation(fields: [userId], references: [id])
+  books   Book[]
+  tickets Ticket[]
+
+  @@map("authors")
+}
+
+model Book {
+  id                  String    @id @default(uuid()) @db.Uuid
+  externalId          String    @unique @map("external_id")
+  authorId            String    @map("author_id") @db.Uuid
+  title               String
+  isbn                String
+  genre               String
+  publicationDate     DateTime? @map("publication_date") @db.Date
+  stage               BookStage
+  mrpPaise            Int?      @map("mrp_paise")
+  royaltyPerCopyPaise Int?      @map("royalty_per_copy_paise")
+  copiesSold          Int       @map("copies_sold")
+  royaltyEarnedPaise  Int       @map("royalty_earned_paise")
+  royaltyPaidPaise    Int       @map("royalty_paid_paise")
+  royaltyPendingPaise Int       @map("royalty_pending_paise")
+  lastPayoutDate      DateTime? @map("last_payout_date") @db.Date
+  printPartner        String?   @map("print_partner")
+  availableOn         String[]  @map("available_on")
+
+  author  Author   @relation(fields: [authorId], references: [id])
+  tickets Ticket[]
+
+  @@index([authorId])
+  @@map("books")
+}
+
+model Ticket {
+  id              String       @id @default(uuid()) @db.Uuid
+  number          Int          @unique @default(autoincrement())
+  authorId        String       @map("author_id") @db.Uuid
+  bookId          String?      @map("book_id") @db.Uuid
+  subject         String
+  description     String
+  status          TicketStatus @default(OPEN)
+  category        TicketCategory?
+  categorySource  FieldSource? @map("category_source")
+  aiConfidence    Float?       @map("ai_confidence")
+  priority        Priority     @default(MEDIUM)
+  prioritySource  FieldSource  @default(RULES) @map("priority_source")
+  priorityReasons Json         @default("[]") @map("priority_reasons")
+  needsInfo       Json         @default("[]") @map("needs_info")
+  needsReview     Boolean      @default(false) @map("needs_review")
+  aiState         AiState      @default(PENDING) @map("ai_state")
+  assigneeId      String?      @map("assignee_id") @db.Uuid
+  slaDueAt        DateTime     @map("sla_due_at") @db.Timestamptz(3)
+  firstResponseAt DateTime?    @map("first_response_at") @db.Timestamptz(3)
+  resolvedAt      DateTime?    @map("resolved_at") @db.Timestamptz(3)
+  clientRequestId String?      @map("client_request_id")
+  version         Int          @default(0)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  author   Author          @relation(fields: [authorId], references: [id])
+  book     Book?           @relation(fields: [bookId], references: [id])
+  assignee User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages TicketMessage[]
+  aiJobs   AiJob[]
+  drafts   AiDraft[]
+  aiRuns   AiRun[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([status, priority, slaDueAt])
+  @@index([authorId, createdAt])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id              String      @id @default(uuid()) @db.Uuid
+  ticketId        String      @map("ticket_id") @db.Uuid
+  senderId        String?     @map("sender_id") @db.Uuid
+  kind            MessageKind
+  body            String
+  draftId         String?     @map("draft_id") @db.Uuid
+  clientRequestId String?     @map("client_request_id")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  sender User?  @relation(fields: [senderId], references: [id])
+
+  @@unique([ticketId, clientRequestId])
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
+}
+
+model AiJob {
+  id             String      @id @default(uuid()) @db.Uuid
+  ticketId       String      @map("ticket_id") @db.Uuid
+  kind           AiJobKind
+  generation     Int
+  status         AiJobStatus @default(QUEUED)
+  attempts       Int         @default(0)
+  maxAttempts    Int         @default(3) @map("max_attempts")
+  runAfter       DateTime    @default(now()) @map("run_after") @db.Timestamptz(3)
+  leaseExpiresAt DateTime?   @map("lease_expires_at") @db.Timestamptz(3)
+  lastErrorCode  String?     @map("last_error_code")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt     DateTime?   @map("finished_at") @db.Timestamptz(3)
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@unique([ticketId, kind, generation])
+  @@index([status, runAfter])
+  @@map("ai_jobs")
+}
+
+model AiDraft {
+  id            String      @id @default(uuid()) @db.Uuid
+  ticketId      String      @map("ticket_id") @db.Uuid
+  generation    Int
+  source        DraftSource
+  body          String
+  provider      String?
+  model         String?
+  promptVersion String?     @map("prompt_version")
+  factsSnapshot Json        @map("facts_snapshot")
+  claims        Json        @default("[]")
+  checkResults  Json        @map("check_results")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, generation])
+  @@map("ai_drafts")
+}
+
+model AiRun {
+  id               String       @id @default(uuid()) @db.Uuid
+  ticketId         String?      @map("ticket_id") @db.Uuid
+  task             String
+  provider         String
+  model            String
+  promptVersion    String?      @map("prompt_version")
+  inputTokens      Int          @default(0) @map("input_tokens")
+  outputTokens     Int          @default(0) @map("output_tokens")
+  cacheReadTokens  Int          @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Int          @default(0) @map("cache_write_tokens")
+  costMicros       Int?         @map("cost_micros")
+  latencyMs        Int          @map("latency_ms")
+  outcome          AiRunOutcome
+  errorCode        String?      @map("error_code")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ticket Ticket? @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@map("ai_runs")
+}
+
+model AiSettings {
+  id             Int      @id @default(1)
+  provider       String
+  triageModel    String   @map("triage_model")
+  draftModel     String   @map("draft_model")
+  simulateOutage Boolean  @default(false) @map("simulate_outage")
+  version        Int      @default(0)
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("ai_settings")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  before     Json?
+  after      Json?
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("audit_events")
+}

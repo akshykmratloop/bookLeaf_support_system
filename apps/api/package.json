@@ -1,0 +1,47 @@
+{
+  "name": "@bookleaf/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "build": "tsup",
+    "start": "node --env-file-if-exists=../../.env dist/server.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
+    "eval": "tsx --env-file-if-exists=../../.env ../../eval/run.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "@bookleaf/shared": "workspace:*",
+    "@fastify/cookie": "11.1.3",
+    "@fastify/helmet": "13.2.0",
+    "@fastify/rate-limit": "11.2.1",
+    "@fastify/static": "10.1.7",
+    "@fastify/swagger": "9.9.2",
+    "@fastify/swagger-ui": "6.1.2",
+    "@node-rs/argon2": "2.2.2",
+    "@prisma/client": "6.19.3",
+    "fastify": "5.12.7",
+    "fastify-plugin": "^6.0.1",
+    "fastify-type-provider-zod": "6.1.0",
+    "jose": "6.2.13",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "11.14.0",
+    "@types/node": "^22.20.5",
+    "prisma": "6.19.3",
+    "testcontainers": "11.14.0",
+    "tsup": "^9.0.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
