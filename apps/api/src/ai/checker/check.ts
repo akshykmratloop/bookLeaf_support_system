@@ -88,6 +88,8 @@ function claimIssues(claims: readonly DraftClaim[], facts: readonly Fact[]): Che
     overridable: true,
   });
   return claims.flatMap((c) => {
+    // A claim that is itself a placeholder asserts nothing; the PLACEHOLDER rule already blocks it.
+    if (/\[CONFIRM:/i.test(c.quote)) return [];
     if (c.factIds.length === 0) return [issue('CLAIM_WITHOUT_EVIDENCE', `Claim cites no evidence: "${c.quote}".`, c.quote)];
     return c.factIds.flatMap((id) => {
       const fact = byId.get(id);

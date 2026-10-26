@@ -77,6 +77,7 @@ describe('checkReply', () => {
         { quote: 'Your bank account is linked', factIds: ['author.bank_account_linked'] },
         { quote: 'Something', factIds: ['made.up'] },
         { quote: 'Nothing cited', factIds: [] },
+        { quote: 'Bank: [CONFIRM: is the bank linked?]', factIds: ['author.bank_account_linked'] },
       ],
     });
     expect(r.issues.map((i) => i.code)).toEqual(['CLAIM_ON_UNKNOWN', 'CLAIM_WITHOUT_EVIDENCE', 'CLAIM_WITHOUT_EVIDENCE']);

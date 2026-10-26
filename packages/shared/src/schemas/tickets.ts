@@ -101,7 +101,7 @@ export const TicketListQuerySchema = z.object({
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   q: z.string().trim().max(100).optional(),
-  cursor: z.string().max(200).optional(),
+  cursor: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type TicketListQuery = z.input<typeof TicketListQuerySchema>;

@@ -8,6 +8,8 @@ export const ProblemSchema = z.object({
   code: z.string(),
   detail: z.string().optional(),
   errors: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+  /** Extra machine-readable context, e.g. the checker result for CHECK_FAILED. */
+  details: z.unknown().optional(),
 });
 export type Problem = z.infer<typeof ProblemSchema>;
 
