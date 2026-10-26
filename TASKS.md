@@ -81,6 +81,30 @@
 
 ---
 
+## Phase QA — Production QA, adversarial testing & quality gate · morning 27 Oct · runs after `core-v1`
+
+> Requested by the user on 2026-10-27 00:50 IST. Full brief: [docs/qa-mission.md](docs/qa-mission.md).
+> **Starts only when the core (M0–M5) is done.** Fully autonomous: no questions to the user except the blocking
+> cases the brief lists (missing credential, destructive action, external decision). Core assignment only —
+> chat (Phase 2) and voice (Phase 3) are out of scope for this pass.
+> Rules: never weaken tests to get green; never fabricate results; reviewer models ≤ 30% of the session budget;
+> no secrets sent to reviewers; no changes outside this repo.
+
+| ID | Task | Status |
+| --- | --- | --- |
+| Q.0 | Baseline: read docs + code, run every suite, record current failures, flaky tests and timings before changing anything | ⬜ |
+| Q.1 | Requirements-to-evidence matrix (every brief requirement → code → test → status) in `docs/qa-report.md` | ⬜ |
+| Q.2 | Functional sweep: auth/session/CSRF/RBAC/IDOR on every route; author data vs sample JSON; full ticket lifecycle incl. duplicates and concurrent updates | ⬜ |
+| Q.3 | Real-browser E2E: find and use the existing `tester-army/e2e` setup (check it exists and how it runs; otherwise ego-browser per global rules); journeys 1–8 from the brief, repeated; screenshots + console + network evidence | ⬜ |
+| Q.4 | Adversarial tests: malformed/oversized/Unicode/RTL input, invalid JSON and content types, XSS/SQLi/HTML/prompt injection, brute force and AI-endpoint abuse, provider failures, DB outage and recovery; seeded randomized tests; a regression test for every defect found | ⬜ |
+| Q.5 | AI evaluation: versioned dataset (held-out split), category + priority accuracy / per-class P/R/F1 / confusion matrix, critical misclassification rate, unsupported-claim rate, injection robustness, schema-failure rate, repeat-run stability → `docs/eval-results.md` | ⬜ |
+| Q.6 | AI latency and cost: p50/p95/p99 end to end and per stage, tokens and cost per call from `ai_runs`, concurrency behaviour; optimise only with before/after numbers | ⬜ |
+| Q.7 | API/DB/security/reliability: status codes and schemas, constraints and indexes, migration on a disposable DB, headers/cookies/rate limits, dependency audit, graceful shutdown | ⬜ |
+| Q.8 | Independent UI/UX review (author + ops team perspectives, accessibility, responsive, states); implement evidence-backed fixes; re-run affected journeys | ⬜ |
+| Q.9 | Independent top-model quality gate (architecture, code quality, security, AI) within the 30% budget; verify each finding against the repo; fix substantiated ones | ⬜ |
+| Q.10 | The pasted brief was cut off in §11 ("…failure"). Check whether the user sent the rest; if not, finish §11 from its evident intent and record that assumption in the report | ⬜ |
+| Q.11 | Final QA report: what was tested, what passed, what failed and was fixed, what was not tested, what remains uncertain (no claims of 100% correctness) | ⬜ |
+
 ## Phase 2 — AI chat · Gate G7 · ⛔ BLOCKED until PLAN §18.2 "Phase 2 GO"
 
 Branch `feat/chat`; `FEATURE_CHAT=false` until G7 passes. Depends on: `core-v1` (all of M0–M5).

@@ -628,6 +628,7 @@ deployment, README, write-up.
 | Phase | Scope | Status gate | Can it affect the core? |
 | --- | --- | --- | --- |
 | **1 — Core assignment** | Everything in §1–§17 (R1–R30) | G1–G6 → release tag `core-v1`, deployed, README + write-up ready to submit | — |
+| **QA — Production QA & quality gate** | Benchmark-grade QA of the core: functional, real-browser E2E, adversarial, AI evaluation, latency/cost, security, UI/UX and independent-model review ([docs/qa-mission.md](docs/qa-mission.md)) | Starts after `core-v1`; morning of 27 Oct; autonomous | Yes, by design: fixes land on `main` only with a regression test and the full suite green |
 | **2 — AI chat** | Authors ask about their own books, royalties, payments, status and policy; create a ticket from the conversation | GO check §18.2 → G7 | No: separate branch, `FEATURE_CHAT=false` by default, additive migrations only |
 | **3 — Voice (speech-to-speech)** | "Talk to BookLeaf Support" using the existing Vocal platform | GO check §18.2 → G8 | No: separate branch, `FEATURE_VOICE=false` by default, SDK lazy-loaded |
 
