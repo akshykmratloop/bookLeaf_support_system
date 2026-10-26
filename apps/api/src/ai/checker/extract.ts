@@ -9,7 +9,7 @@ export interface Found<T> {
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const MONTH = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-const NUM = '(\\d{1,3}(?:,\\d{2,3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
+const NUM = '(\\d{1,3}(?:,\\d{2,3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
 
 const MONEY_PREFIX = new RegExp(`(?:₹|\\brs\\.?|\\binr)\\s*${NUM}`, 'gi');
 const MONEY_SUFFIX = new RegExp(`\\b${NUM}\\s*(?:rupees|inr)\\b`, 'gi');
@@ -19,7 +19,7 @@ const DATE_ISO = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
 const DATE_SLASH = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g;
 const DURATION = /\b(\d{1,3})(?:\s*(?:–|-|to)\s*(\d{1,3}))?\s*(business days|working days|days|hours|hrs|h)\b/gi;
 const PERCENT = /\b(\d{1,3})\s*(?:%|percent\b)/gi;
-const COPIES = /\b(\d{1,3}(?:,\d{3})*|\d+)\s+copies\b/gi;
+const COPIES = /\b(\d{1,3}(?:,\d{3})+|\d+)\s+copies\b/gi;
 export const PLACEHOLDER = /\[CONFIRM:[^\]]*\]/gi;
 
 /** Text that looks numeric but is not a claim: ISBNs, ticket numbers. */

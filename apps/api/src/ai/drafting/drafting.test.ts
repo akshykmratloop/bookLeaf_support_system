@@ -1,0 +1,75 @@
+import { describe, expect, it } from 'vitest';
+import type { TicketCategory } from '@bookleaf/shared';
+import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
+import { buildFactsPack } from '../facts/index.js';
+import { kbSectionsFor } from '../prompts/kb.js';
+import { fakeProvider } from '../providers/fake/provider.js';
+import { runAiDraft, templateDraft } from './service.js';
+import type { DraftInput } from './types.js';
+
+const AS_OF = new Date('2025-12-31T00:00:00Z');
+
+function draftInput(authorId: string, bookId: string | null, category: TicketCategory, text = 'Please help'): DraftInput {
+  const author = sampleAuthor(authorId);
+  const { facts, royalty } = buildFactsPack({ author, bookId, text, dataAsOf: AS_OF });
+  const book = author.books.find((b) => b.id === bookId) ?? null;
+  return {
+    category,
+    authorName: author.name,
+    book: book ? { externalId: book.externalId, title: book.title } : null,
+    facts,
+    royalty,
+    subject: 'Question',
+    authorMessages: [text],
+    lastTeamReply: null,
+    ignorePhrases: author.books.map((b) => b.title),
+  };
+}
+
+const figureIssues = (codes: string[]) => codes.filter((c) => c.startsWith('UNSUPPORTED') || c.startsWith('CLAIM'));
+
+describe('template fallback drafts', () => {
+  it.each([
+    ['AUTH009', 'BK016', 'ROYALTY_PAYMENTS'],
+    ['AUTH006', 'BK010', 'ROYALTY_PAYMENTS'],
+    ['AUTH001', 'BK002', 'ROYALTY_PAYMENTS'],
+    ['AUTH001', 'BK001', 'ISBN_METADATA'],
+    ['AUTH001', 'BK001', 'PRINTING_QUALITY'],
+    ['AUTH001', 'BK001', 'DISTRIBUTION_AVAILABILITY'],
+    ['AUTH009', 'BK015', 'BOOK_STATUS_PRODUCTION'],
+    ['AUTH001', null, 'GENERAL_INQUIRY'],
+  ] as const)('%s %s %s contains only verified figures', (author, book, category) => {
+    const d = templateDraft(draftInput(author, book, category));
+    expect(figureIssues(d.check.issues.map((i) => i.code))).toEqual([]);
+    expect(d.body).toMatch(/^Hi \w+,/);
+  });
+
+  it('Kavita: explains the ₹850 roll-over below the ₹1,000 threshold', () => {
+    const d = templateDraft(draftInput('AUTH009', 'BK016', 'ROYALTY_PAYMENTS'));
+    expect(d.body).toContain('₹850');
+    expect(d.body).toContain('rolls over');
+  });
+
+  it('Priya BK002: says nothing pending on this book but mentions ₹3,570 elsewhere', () => {
+    const d = templateDraft(draftInput('AUTH001', 'BK002', 'ROYALTY_PAYMENTS'));
+    expect(d.body).toContain('no royalty pending');
+    expect(d.body).toContain('₹3,570');
+    expect(d.body).not.toMatch(/fully paid/i);
+  });
+});
+
+describe('AI drafts', () => {
+  it('sends only this category\'s KB section and runs the checker on the result', async () => {
+    const provider = fakeProvider(() => ({
+      body: 'Hi Priya,\n\nYour pending royalty is ₹9,999 and will be paid soon.\n\nWarm regards,\nBookLeaf Author Support',
+      claims: [{ quote: 'Your pending royalty is ₹9,999', factIds: ['author.total_pending'] }],
+    }));
+    const r = await runAiDraft(provider, 'm', draftInput('AUTH001', 'BK001', 'PRINTING_QUALITY'));
+    const ctx = provider.calls[0]?.dynamicSystem ?? '';
+    expect(kbSectionsFor('PRINTING_QUALITY')).toEqual(['printing']);
+    expect(ctx).toContain('Printing & Quality');
+    expect(ctx).not.toContain('Royalty Policy');
+    expect(r.draft.check.passed).toBe(false);
+    expect(r.draft.check.issues.map((i) => i.code)).toContain('UNSUPPORTED_AMOUNT');
+  });
+});
