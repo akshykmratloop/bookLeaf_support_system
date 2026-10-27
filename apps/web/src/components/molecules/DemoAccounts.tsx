@@ -11,7 +11,7 @@ export function DemoAccounts({ onPick }: { onPick: (email: string) => void }) {
       <button
         type="button"
         onClick={() => onPick(ADMIN.email)}
-        className="w-full rounded-[9px] border border-line bg-inset px-3 py-2 text-left hover:border-brand"
+        className="w-full rounded-control border border-line bg-inset px-3 py-2 text-left hover:border-brand"
       >
         <span className="block text-[12.5px] font-semibold">{ADMIN.label}</span>
         <span className="block text-[11px] text-ink-3">{ADMIN.hint}</span>

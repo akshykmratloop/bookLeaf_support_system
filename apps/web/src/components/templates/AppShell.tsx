@@ -49,7 +49,7 @@ const LIVE_TEXT: Record<LiveState, string> = {
 };
 
 const navClass = (isActive: boolean) =>
-  `flex h-9 items-center gap-2.5 rounded-[9px] px-3 text-[13px] font-medium ${
+  `flex h-9 items-center gap-2.5 rounded-control px-3 text-[13px] font-medium ${
     isActive ? 'bg-brand-soft text-brand' : 'text-ink-2 hover:bg-panel-2 hover:text-ink'
   }`;
 
@@ -138,14 +138,14 @@ export function AppShell({ user, live, onSignOut, showAssistant = false, childre
               type="button"
               onClick={toggleTheme}
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-              className="grid h-9 w-9 place-items-center rounded-[9px] text-ink-2 hover:bg-panel-2"
+              className="grid h-9 w-9 place-items-center rounded-control text-ink-2 hover:bg-panel-2"
             >
               {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
             </button>
             <button
               type="button"
               onClick={onSignOut}
-              className="flex h-9 items-center gap-2 rounded-[9px] px-3 text-[12.5px] text-ink-2 hover:bg-panel-2"
+              className="flex h-9 items-center gap-2 rounded-control px-3 text-[12.5px] text-ink-2 hover:bg-panel-2"
             >
               <LogOut size={15} aria-hidden /> Sign out
             </button>

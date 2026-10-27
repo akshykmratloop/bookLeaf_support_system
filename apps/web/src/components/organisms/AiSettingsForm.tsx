@@ -36,7 +36,7 @@ function SelectField({ id, label, hint, value, onChange, children }: SelectField
 
 function OutageToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex items-start gap-3 rounded-[9px] border border-line bg-inset p-3">
+    <label className="flex items-start gap-3 rounded-control border border-line bg-inset p-3">
       <input
         type="checkbox"
         className="mt-1"

@@ -20,7 +20,7 @@ export function ChatBubble({
   return (
     <li className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[85%] rounded-[14px] border px-4 py-3 ${
+        className={`max-w-[85%] rounded-card border px-4 py-3 ${
           mine ? 'border-brand/30 bg-brand-soft' : 'border-line bg-panel'
         } ${pending ? 'opacity-70' : ''}`}
       >

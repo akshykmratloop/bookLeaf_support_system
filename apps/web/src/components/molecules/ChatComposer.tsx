@@ -40,7 +40,7 @@ export function ChatComposer({
   return (
     <form
       onSubmit={submit}
-      className="sticky bottom-0 flex flex-col gap-2 rounded-[14px] border border-line bg-panel p-3"
+      className="sticky bottom-0 flex flex-col gap-2 rounded-card border border-line bg-panel p-3"
     >
       <label htmlFor="chat-input" className="sr-only">
         Your question

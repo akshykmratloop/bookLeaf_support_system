@@ -6,7 +6,7 @@ import {
 } from 'react';
 
 export const controlClass =
-  'w-full rounded-[9px] border border-line bg-inset px-3 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-danger';
+  'w-full rounded-control border border-line bg-inset px-3 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-danger';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className = '', ...rest }, ref) {

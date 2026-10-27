@@ -19,7 +19,7 @@ export function AttachmentPicker({
     >
       <label
         htmlFor="files"
-        className="flex h-[38px] cursor-pointer items-center gap-2 rounded-[9px] border border-dashed border-line-strong bg-inset px-3 text-[13px] text-ink-2 hover:border-brand"
+        className="flex h-[38px] cursor-pointer items-center gap-2 rounded-control border border-dashed border-line-strong bg-inset px-3 text-[13px] text-ink-2 hover:border-brand"
       >
         <Paperclip size={14} aria-hidden />
         {files.length ? files.join(', ') : 'Choose up to 3 images or PDFs'}

@@ -1,5 +1,17 @@
 import type { HTMLAttributes } from 'react';
 
-export function Card({ className = '', ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...rest} className={`rounded-[14px] border border-line bg-panel ${className}`} />;
+type Variant = 'outline' | 'elevated' | 'flat';
+
+const VARIANTS: Record<Variant, string> = {
+  outline: 'border border-line bg-panel shadow-soft',
+  elevated: 'border border-line/60 bg-panel shadow-lift',
+  flat: 'bg-panel-2',
+};
+
+interface Props extends HTMLAttributes<HTMLDivElement> {
+  variant?: Variant;
+}
+
+export function Card({ variant = 'outline', className = '', ...rest }: Props) {
+  return <div {...rest} className={`rounded-card ${VARIANTS[variant]} ${className}`} />;
 }

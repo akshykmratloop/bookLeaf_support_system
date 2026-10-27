@@ -43,7 +43,7 @@ function Empty({ onStart, isStarting }: Pick<Props, 'onStart' | 'isStarting'>) {
 
 function SentNote({ ticket }: { ticket: NonNullable<TicketDraft['ticket']> }) {
   return (
-    <p className="flex items-start gap-2 rounded-[10px] bg-success-bg p-3 text-[13px] text-success">
+    <p className="flex items-start gap-2 rounded-control bg-success-bg p-3 text-[13px] text-success">
       <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0" />
       <span>
         Ticket{' '}
@@ -111,7 +111,7 @@ function DraftBody({
   return (
     <>
       {current.status === 'AWAITING_CONFIRMATION' ? (
-        <p role="status" className="rounded-[10px] bg-brand-soft p-3 text-[13px] text-brand">
+        <p role="status" className="rounded-control bg-brand-soft p-3 text-[13px] text-brand">
           Ask BookLeaf asked you to confirm. Check the ticket, then press Send or say yes.
         </p>
       ) : null}

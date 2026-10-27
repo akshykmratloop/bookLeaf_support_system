@@ -1,57 +1,96 @@
 @import 'tailwindcss';
 
-/* Rebookit dashboard tokens, recreated for BookLeaf. Dark is the default theme. */
+/* BookLeaf, bright & friendly. Light is the default theme; dark keeps the same roles. */
 :root,
-[data-theme='dark'] {
-  --app-bg: #080b17;
-  --panel: #10162a;
-  --panel-2: #161d34;
-  --panel-inset: #0b1020;
-  --sidebar-bg: #070a14;
-  --border: #212a44;
-  --border-strong: #2e3a5a;
-  --text-1: #e9edf7;
-  --text-2: #98a3be;
-  --text-3: #5f6b86;
-  --brand: #3b82f6;
-  --brand-strong: #2563eb;
-  --brand-soft: rgba(59, 130, 246, 0.15);
-  --accent: #ffc72c;
-  --success: #34d399;
-  --success-bg: rgba(52, 211, 153, 0.13);
-  --warning: #fbbf24;
-  --warning-bg: rgba(251, 191, 36, 0.13);
-  --danger: #f87171;
-  --danger-bg: rgba(248, 113, 113, 0.13);
-  --info: #60a5fa;
-  --info-bg: rgba(96, 165, 250, 0.13);
-  color-scheme: dark;
+[data-theme='light'] {
+  --app-bg: #f5f6fb;
+  --panel: #ffffff;
+  --panel-2: #f7f8fc;
+  --panel-inset: #f1f3f9;
+  --sidebar-bg: #ffffff;
+  --border: #e6e9f2;
+  --border-strong: #d5dae6;
+  --text-1: #171a33;
+  --text-2: #565d78;
+  --text-3: #8f96ad;
+  --brand: #0e8a55;
+  --brand-strong: #0a7547;
+  --brand-soft: #e5f6ee;
+  --accent: #f59e0b;
+  --accent-soft: #fff4dc;
+  --coral: #f2655a;
+  --coral-soft: #ffecea;
+  --success: #0f8a4f;
+  --success-bg: #e3f6ec;
+  --warning: #b45309;
+  --warning-bg: #fff3dc;
+  --danger: #d93a3a;
+  --danger-bg: #fdecec;
+  --info: #2f6fe4;
+  --info-bg: #e9f0fe;
+  --bone: #eceff6;
+  --shadow-1: 0 1px 2px rgb(23 26 51 / 0.05), 0 1px 3px rgb(23 26 51 / 0.06);
+  --shadow-2: 0 2px 4px rgb(23 26 51 / 0.04), 0 10px 24px -8px rgb(23 26 51 / 0.14);
+  --shadow-3: 0 24px 64px -16px rgb(23 26 51 / 0.28);
+  /* Issue-type colours: text on its soft background passes WCAG AA. */
+  --cat-royalty: #0f7a4a;
+  --cat-royalty-bg: #e2f5ea;
+  --cat-isbn: #6941c6;
+  --cat-isbn-bg: #f0ebfd;
+  --cat-printing: #c2410c;
+  --cat-printing-bg: #ffeddf;
+  --cat-distribution: #1d5fd1;
+  --cat-distribution-bg: #e6eefd;
+  --cat-production: #a15c07;
+  --cat-production-bg: #fff2d6;
+  --cat-general: #4a5470;
+  --cat-general-bg: #eef0f6;
+  color-scheme: light;
 }
 
-[data-theme='light'] {
-  --app-bg: #f3f6fb;
-  --panel: #ffffff;
-  --panel-2: #f8fafd;
-  --panel-inset: #eef2f8;
-  --sidebar-bg: #ffffff;
-  --border: #e4e9f1;
-  --border-strong: #d4dbe6;
-  --text-1: #15213b;
-  --text-2: #566179;
-  --text-3: #8c97ac;
-  --brand: #0161ab;
-  --brand-strong: #024d8a;
-  --brand-soft: #e6f0fa;
-  --accent: #b7791f;
-  --success: #047857;
-  --success-bg: rgba(4, 120, 87, 0.1);
-  --warning: #b45309;
-  --warning-bg: rgba(180, 83, 9, 0.1);
-  --danger: #dc2626;
-  --danger-bg: rgba(220, 38, 38, 0.1);
-  --info: #0161ab;
-  --info-bg: rgba(1, 97, 171, 0.1);
-  color-scheme: light;
+[data-theme='dark'] {
+  --app-bg: #0d1020;
+  --panel: #151a2e;
+  --panel-2: #1a2036;
+  --panel-inset: #111527;
+  --sidebar-bg: #11152a;
+  --border: #252c46;
+  --border-strong: #333b5c;
+  --text-1: #eef0fa;
+  --text-2: #a3aac4;
+  --text-3: #6c7491;
+  --brand: #34c98a;
+  --brand-strong: #1fae72;
+  --brand-soft: rgb(52 201 138 / 0.14);
+  --accent: #fbbf24;
+  --accent-soft: rgb(251 191 36 / 0.14);
+  --coral: #ff8a80;
+  --coral-soft: rgb(255 138 128 / 0.14);
+  --success: #4ade80;
+  --success-bg: rgb(74 222 128 / 0.13);
+  --warning: #fbbf24;
+  --warning-bg: rgb(251 191 36 / 0.13);
+  --danger: #f87171;
+  --danger-bg: rgb(248 113 113 / 0.13);
+  --info: #7aa7ff;
+  --info-bg: rgb(122 167 255 / 0.13);
+  --bone: #1e2440;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-2: 0 10px 28px -10px rgb(0 0 0 / 0.55);
+  --shadow-3: 0 24px 64px -16px rgb(0 0 0 / 0.7);
+  --cat-royalty: #5ee0a3;
+  --cat-royalty-bg: rgb(94 224 163 / 0.13);
+  --cat-isbn: #b9a2ff;
+  --cat-isbn-bg: rgb(185 162 255 / 0.13);
+  --cat-printing: #ffa66b;
+  --cat-printing-bg: rgb(255 166 107 / 0.13);
+  --cat-distribution: #7fb0ff;
+  --cat-distribution-bg: rgb(127 176 255 / 0.13);
+  --cat-production: #f7c65c;
+  --cat-production-bg: rgb(247 198 92 / 0.13);
+  --cat-general: #b6bdd6;
+  --cat-general-bg: rgb(182 189 214 / 0.12);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -69,6 +108,9 @@
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
   --color-warning: var(--warning);
@@ -77,12 +119,31 @@
   --color-danger-bg: var(--danger-bg);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
-  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --color-cat-royalty: var(--cat-royalty);
+  --color-cat-royalty-bg: var(--cat-royalty-bg);
+  --color-cat-isbn: var(--cat-isbn);
+  --color-cat-isbn-bg: var(--cat-isbn-bg);
+  --color-cat-printing: var(--cat-printing);
+  --color-cat-printing-bg: var(--cat-printing-bg);
+  --color-cat-distribution: var(--cat-distribution);
+  --color-cat-distribution-bg: var(--cat-distribution-bg);
+  --color-cat-production: var(--cat-production);
+  --color-cat-production-bg: var(--cat-production-bg);
+  --color-cat-general: var(--cat-general);
+  --color-cat-general-bg: var(--cat-general-bg);
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-serif: 'Lora', ui-serif, Georgia, serif;
-  --radius-card: 14px;
-  --radius-control: 9px;
-  --radius-modal: 20px;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-modal: 24px;
+  --shadow-soft: var(--shadow-1);
+  --shadow-lift: var(--shadow-2);
+  --shadow-float: var(--shadow-3);
+  --animate-fade-up: fade-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop-in: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-slide-up: slide-up 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-typing: typing 1.2s ease-in-out infinite;
 }
 
 /* Fixed app shell: the document never scrolls; only the content region does. */
@@ -111,5 +172,49 @@ body {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

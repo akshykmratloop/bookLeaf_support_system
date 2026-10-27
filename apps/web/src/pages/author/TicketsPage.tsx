@@ -11,7 +11,7 @@ import { useAuthorTickets } from '../../lib/queries';
 const newTicketLink = (
   <Link
     to="/tickets/new"
-    className="inline-flex h-9 items-center gap-2 rounded-[9px] bg-brand-strong px-4 text-[12.5px] font-semibold text-white hover:bg-brand"
+    className="inline-flex h-9 items-center gap-2 rounded-control bg-brand-strong px-4 text-[12.5px] font-semibold text-white hover:bg-brand"
   >
     <PlusCircle size={15} aria-hidden /> New ticket
   </Link>

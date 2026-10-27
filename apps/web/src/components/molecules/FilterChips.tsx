@@ -19,7 +19,7 @@ export function FilterChips({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex flex-wrap gap-1 rounded-[10px] border border-line bg-inset p-1"
+      className="inline-flex flex-wrap gap-1 rounded-control border border-line bg-inset p-1"
     >
       {options.map((o) => (
         <button

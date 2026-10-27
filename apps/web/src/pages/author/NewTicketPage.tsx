@@ -56,7 +56,7 @@ export function NewTicketPage() {
         {generalError ? (
           <p
             role="alert"
-            className="mt-4 rounded-[9px] bg-danger-bg px-3 py-2 text-[13px] text-danger"
+            className="mt-4 rounded-control bg-danger-bg px-3 py-2 text-[13px] text-danger"
           >
             {generalError}
           </p>

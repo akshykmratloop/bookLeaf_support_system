@@ -4,7 +4,7 @@ const DOT_DELAYS = ['0ms', '150ms', '300ms'];
 export function TypingBubble() {
   return (
     <li className="flex justify-start" role="status" aria-label="Ask BookLeaf is replying">
-      <div className="rounded-[14px] border border-line bg-panel px-4 py-3">
+      <div className="rounded-card border border-line bg-panel px-4 py-3">
         <p className="mb-1 text-[11.5px] font-semibold text-ink-3">Ask BookLeaf</p>
         <span className="flex h-5 items-center gap-1.5" aria-hidden>
           {DOT_DELAYS.map((delay) => (

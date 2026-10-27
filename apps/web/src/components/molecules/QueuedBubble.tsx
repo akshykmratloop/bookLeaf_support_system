@@ -16,7 +16,7 @@ export function QueuedBubble({
   return (
     <li className="flex flex-col items-end gap-1">
       <div
-        className={`max-w-[85%] rounded-[14px] border px-4 py-3 ${
+        className={`max-w-[85%] rounded-card border px-4 py-3 ${
           failed ? 'border-danger/40 bg-danger-bg' : 'border-brand/30 bg-brand-soft'
         } ${item.status === 'waiting' ? 'opacity-70' : ''}`}
       >

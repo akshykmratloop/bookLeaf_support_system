@@ -42,7 +42,7 @@ function ChannelCard(p: ChannelProps) {
     <Card className="flex flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-[9px] bg-brand-soft text-brand">
+          <span className="grid h-9 w-9 place-items-center rounded-control bg-brand-soft text-brand">
             {p.icon}
           </span>
           <div>

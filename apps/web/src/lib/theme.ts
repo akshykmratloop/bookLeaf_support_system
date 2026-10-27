@@ -1,11 +1,12 @@
 export type Theme = 'dark' | 'light';
-const KEY = 'bookleaf.theme';
+// v2: the bright redesign made light the default; an older saved choice of dark is not carried over.
+const KEY = 'bookleaf.theme.v2';
 
 export function readTheme(): Theme {
   try {
-    return localStorage.getItem(KEY) === 'light' ? 'light' : 'dark';
+    return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light';
   } catch {
-    return 'dark';
+    return 'light';
   }
 }
 
