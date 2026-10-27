@@ -6,7 +6,7 @@ export function Logo({ size = 'md' }: { size?: 'md' | 'lg' }) {
       alt="BookLeaf Publishing"
       width={609}
       height={189}
-      className={`brand-logo w-auto ${size === 'lg' ? 'h-14' : 'h-10'}`}
+      className={`brand-logo w-auto max-w-none shrink-0 object-contain ${size === 'lg' ? 'h-12' : 'h-10'}`}
     />
   );
 }

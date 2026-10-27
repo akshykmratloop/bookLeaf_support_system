@@ -90,6 +90,16 @@
   --radius-card: 18px;
   --shadow-card: var(--shadow);
   --animate-rise: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-grow: grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fill: fill 2.8s cubic-bezier(0.45, 0, 0.2, 1) both;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-sway: sway 14s ease-in-out infinite alternate;
+  --animate-blob: blob 18s ease-in-out infinite alternate;
+  --animate-leaf-next: leaf-next 0.9s cubic-bezier(0.45, 0.05, 0.25, 1) both;
+  --animate-leaf-prev: leaf-prev 0.9s cubic-bezier(0.45, 0.05, 0.25, 1) both;
+  --animate-shimmer: shimmer 1.1s ease-out;
+  --animate-shake: shake 0.4s ease-in-out both;
 }
 
 /* Fixed app shell: the document never scrolls; only <main> does. */
@@ -117,6 +127,115 @@ body {
     outline: 2px solid var(--brand-ink);
     outline-offset: 2px;
   }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(6px);
+  }
+}
+
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes sway {
+  from {
+    transform: translateX(-3%);
+  }
+  to {
+    transform: translateX(3%);
+  }
+}
+
+@keyframes blob {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(60px, 40px) scale(1.15);
+  }
+}
+
+/* A leaf turning over the spine: lifts, arcs past upright, lands on the other side. */
+@keyframes leaf-next {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-180deg);
+  }
+}
+
+@keyframes leaf-prev {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(560%);
+  }
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+/* The book is paper: it keeps light colours even in dark mode. */
+.light-scope [aria-roledescription='book'] {
+  --panel: #ffffff;
+  --panel-2: #fbf6f6;
+  --line: #eee6e8;
+  --ink: #2f2e2e;
+  --ink-2: #5e5e5e;
+  --ink-3: #8a8686;
+  --brand-ink: #c8384c;
+  --brand-soft: #fdecee;
+  --series-2: #ee5f70;
+}
+
+/* Browser autofill keeps our field colours instead of its own pale blue. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
+  caret-color: var(--ink);
+  transition: background-color 9999s ease-out 0s;
 }
 
 @keyframes rise {
