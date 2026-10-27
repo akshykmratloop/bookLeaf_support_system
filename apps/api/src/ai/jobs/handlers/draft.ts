@@ -11,19 +11,17 @@ import { loggedCall } from './logged-call.js';
 const draftInput = (ctx: TicketContext, deps: JobDeps): DraftInput =>
   draftInputFromContext(ctx, deps.clock.dataAsOf());
 
-interface Origin {
+/** One draft and everything it was written from. */
+interface DraftToSave {
+  ctx: TicketContext;
+  input: DraftInput;
+  draft: DraftResult;
   provider: string | null;
   model: string | null;
 }
 
-async function saveDraft(
-  job: ClaimedJob,
-  deps: JobDeps,
-  ctx: TicketContext,
-  input: DraftInput,
-  draft: DraftResult,
-  origin: Origin,
-) {
+async function saveDraft(job: ClaimedJob, deps: JobDeps, toSave: DraftToSave) {
+  const { ctx, input, draft } = toSave;
   const saved = await deps.db.$transaction(async (tx) => {
     if (!(await isLatestGeneration(tx, job))) return false;
     await tx.aiDraft.create({
@@ -32,8 +30,8 @@ async function saveDraft(
         generation: job.generation,
         source: draft.source,
         body: draft.body,
-        provider: origin.provider,
-        model: origin.model,
+        provider: toSave.provider,
+        model: toSave.model,
         promptVersion: draft.promptVersion,
         factsSnapshot: input.facts as unknown as Prisma.InputJsonValue,
         claims: draft.claims as unknown as Prisma.InputJsonValue,
@@ -66,11 +64,12 @@ export const draftHandler: JobHandler = {
       promptVersion: DRAFT_PROMPT_VERSION,
     };
     const result = await loggedCall(deps, meta, () => runAiDraft(provider, model, input));
-    await saveDraft(job, deps, ctx, input, result.draft, { provider: provider.id, model });
+    await saveDraft(job, deps, { ctx, input, draft: result.draft, provider: provider.id, model });
   },
   async fallback(job, deps) {
     const ctx = await loadTicketContext(deps.db, job.ticketId);
     const input = draftInput(ctx, deps);
-    await saveDraft(job, deps, ctx, input, templateDraft(input), { provider: null, model: null });
+    const draft = templateDraft(input);
+    await saveDraft(job, deps, { ctx, input, draft, provider: null, model: null });
   },
 };

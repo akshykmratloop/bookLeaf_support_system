@@ -26,8 +26,8 @@ export interface ContainerOverrides {
   voiceProvider?: VoiceProvider | null;
 }
 
-/** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
-export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
+/** Shared infrastructure every module uses: clock, database, events, AI runtime, sessions. */
+function createCore(env: Env, overrides: ContainerOverrides) {
   const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
   const db = overrides.db ?? createDb(env.DATABASE_URL);
   const events: EventBus = inMemoryEventBus();
@@ -35,18 +35,9 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
   const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now());
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
-  const ticketDeps = { db, clock, events };
-  const limits = limitsFromEnv(env);
-  const draftLive = draftLiveUpdates();
-  const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const voiceProvider =
     overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
-  const assistant = createAssistantService({
-    db,
-    ai,
-    limits,
-    voiceConfigured: voiceProvider !== null,
-  });
+  const ticketDeps = { db, clock, events };
   return {
     env,
     clock,
@@ -54,24 +45,43 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     events,
     ai,
     sessions,
-    auth: createAuthService(db, sessions),
-    books: createBooksRepository(db),
-    aiAdmin: createAiAdminService({ db, ai, clock }),
     ticketDeps,
+    limits: limitsFromEnv(env),
+    voiceProvider,
+  };
+}
+
+type Core = ReturnType<typeof createCore>;
+
+/** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
+function createAssistants({ db, ai, limits, ticketDeps, voiceProvider }: Core) {
+  const draftLive = draftLiveUpdates();
+  const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
+  const assistant = createAssistantService({
+    db,
+    ai,
     limits,
+    voiceConfigured: voiceProvider !== null,
+  });
+  const shared = { ...ticketDeps, assistant, limits, drafts: ticketDrafts };
+  return {
     assistant,
     draftLive,
     ticketDrafts,
-    chat: createChatService({ ...ticketDeps, assistant, limits, drafts: ticketDrafts }),
-    voiceProvider,
-    voice: createVoiceService({
-      ...ticketDeps,
-      assistant,
-      limits,
-      provider: voiceProvider,
-      drafts: ticketDrafts,
-      live: draftLive,
-    }),
+    chat: createChatService(shared),
+    voice: createVoiceService({ ...shared, provider: voiceProvider, live: draftLive }),
+  };
+}
+
+/** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
+export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
+  const core = createCore(env, overrides);
+  return {
+    ...core,
+    auth: createAuthService(core.db, core.sessions),
+    books: createBooksRepository(core.db),
+    aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),
+    ...createAssistants(core),
   };
 }
 

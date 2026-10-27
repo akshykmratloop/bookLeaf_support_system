@@ -47,5 +47,10 @@ export async function contextFor(
   const draft = await deps.drafts.forThread(authorId, threadId);
   const earlier = recentLines(await threadLines(deps.db, threadId, callId));
   const thread = { draft, earlier, resumed: threadId !== call.id };
-  return buildCallContext(deps.db, authorId, deps.clock.dataAsOf(), maxSeconds, thread);
+  return buildCallContext(deps.db, {
+    authorId,
+    dataAsOf: deps.clock.dataAsOf(),
+    maxSeconds,
+    thread,
+  });
 }

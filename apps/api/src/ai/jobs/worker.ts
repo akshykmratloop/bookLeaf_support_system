@@ -26,7 +26,7 @@ function retryDelay(err: unknown, attempts: number): number {
 
 async function applyFallback(job: ClaimedJob, deps: JobDeps, code: string): Promise<void> {
   await HANDLERS[job.kind].fallback(job, deps);
-  await finishJob(deps.db, job, 'FALLBACK', deps.clock.now(), code);
+  await finishJob(deps.db, job, { status: 'FALLBACK', now: deps.clock.now(), errorCode: code });
   deps.log.warn(
     { jobId: job.id, ticketId: job.ticketId, kind: job.kind, code },
     'ai job fell back to rules',
@@ -39,7 +39,7 @@ export async function processJob(job: ClaimedJob, deps: JobDeps): Promise<void> 
   if (job.attempts > job.maxAttempts) return applyFallback(job, deps, 'ATTEMPTS_EXHAUSTED');
   try {
     await HANDLERS[job.kind].runAi(job, deps);
-    await finishJob(deps.db, job, 'SUCCEEDED', deps.clock.now(), null);
+    await finishJob(deps.db, job, { status: 'SUCCEEDED', now: deps.clock.now(), errorCode: null });
   } catch (err) {
     const code = errorCodeOf(err);
     const retryable = err instanceof AiError ? err.retryable : true;

@@ -48,13 +48,13 @@ export async function isLatestGeneration(tx: Tx, job: ClaimedJob): Promise<boole
   return latest._max.generation === job.generation;
 }
 
-export async function finishJob(
-  db: Db,
-  job: ClaimedJob,
-  status: 'SUCCEEDED' | 'FALLBACK',
-  now: Date,
-  errorCode: string | null,
-) {
+export interface JobOutcome {
+  status: 'SUCCEEDED' | 'FALLBACK';
+  now: Date;
+  errorCode: string | null;
+}
+
+export async function finishJob(db: Db, job: ClaimedJob, { status, now, errorCode }: JobOutcome) {
   await db.aiJob.update({
     where: { id: job.id },
     data: {

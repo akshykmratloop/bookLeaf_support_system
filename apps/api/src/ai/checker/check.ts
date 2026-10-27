@@ -47,17 +47,32 @@ function allowedValues(facts: readonly Fact[]): Allowed {
   };
   for (const f of facts) {
     if (f.type === 'UNKNOWN') continue;
-    if (f.type === 'MONEY' && typeof f.value === 'number') a.money.add(f.value);
-    if (f.type === 'DATE' && typeof f.value === 'string') a.dates.add(f.value);
-    if (f.type === 'PERCENT' && typeof f.value === 'number') a.percents.add(f.value);
-    if (f.type === 'COUNT' && typeof f.value === 'number') a.counts.add(f.value);
-    if (f.type === 'DURATION' && typeof f.value === 'string') a.durations.add(f.value);
-    findMoney(f.display).forEach((m) => a.money.add(m.value));
-    findDates(f.display).forEach((d) => a.dates.add(d.value));
-    findDurations(f.display).forEach((d) => a.durations.add(d.value));
-    findCopyCounts(f.display).forEach((c) => a.counts.add(c.value));
+    addTypedValue(a, f);
+    addDisplayFigures(a, f.display);
   }
   return a;
+}
+
+/** The fact's own typed value goes into the set for its type. */
+function addTypedValue(a: Allowed, f: Fact): void {
+  const v = f.value;
+  if (typeof v === 'number') {
+    if (f.type === 'MONEY') a.money.add(v);
+    if (f.type === 'PERCENT') a.percents.add(v);
+    if (f.type === 'COUNT') a.counts.add(v);
+  }
+  if (typeof v === 'string') {
+    if (f.type === 'DATE') a.dates.add(v);
+    if (f.type === 'DURATION') a.durations.add(v);
+  }
+}
+
+/** Figures written inside the display text, e.g. "₹1,000" in a status sentence. */
+function addDisplayFigures(a: Allowed, display: string): void {
+  findMoney(display).forEach((m) => a.money.add(m.value));
+  findDates(display).forEach((d) => a.dates.add(d.value));
+  findDurations(display).forEach((d) => a.durations.add(d.value));
+  findCopyCounts(display).forEach((c) => a.counts.add(c.value));
 }
 
 function unsupported<T>(

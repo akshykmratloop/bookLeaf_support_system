@@ -11,6 +11,34 @@ import { assertTransition } from './status-machine.js';
 
 type Current = Awaited<ReturnType<typeof findTicketOrThrow>>;
 
+function statusChange(current: Current, input: UpdateTicketRequest, now: Date) {
+  if (!input.status || input.status === current.status) return {};
+  assertTransition(current.status, input.status);
+  const closed = input.status === 'RESOLVED' || input.status === 'CLOSED';
+  return { status: input.status, resolvedAt: closed ? now : null };
+}
+
+function priorityChange(current: Current, input: UpdateTicketRequest) {
+  if (!input.priority) return {};
+  return {
+    priority: input.priority,
+    prioritySource: 'ADMIN' as const,
+    needsReview: false,
+    ...(current.firstResponseAt ? {} : { slaDueAt: slaDueAt(current.createdAt, input.priority) }),
+  };
+}
+
+/** Admins can only take a ticket themselves or unassign it. */
+function assigneeChange(input: UpdateTicketRequest, session: Session) {
+  if (input.assigneeId === undefined) return {};
+  if (input.assigneeId !== null && input.assigneeId !== session.userId) {
+    throw new ValidationError('You can assign a ticket to yourself or unassign it', [
+      { path: 'assigneeId', message: 'Must be your own id or null' },
+    ]);
+  }
+  return { assigneeId: input.assigneeId };
+}
+
 /** Builds the change set. Admin choices are marked ADMIN so the AI never overwrites them. */
 function changesFor(
   current: Current,
@@ -18,27 +46,14 @@ function changesFor(
   session: Session,
   now: Date,
 ): Prisma.TicketUncheckedUpdateManyInput {
-  const data: Prisma.TicketUncheckedUpdateManyInput = {};
-  if (input.status && input.status !== current.status) {
-    assertTransition(current.status, input.status);
-    data.status = input.status;
-    data.resolvedAt = input.status === 'RESOLVED' || input.status === 'CLOSED' ? now : null;
-  }
-  if (input.category)
-    Object.assign(data, { category: input.category, categorySource: 'ADMIN', needsReview: false });
-  if (input.priority) {
-    Object.assign(data, { priority: input.priority, prioritySource: 'ADMIN', needsReview: false });
-    if (!current.firstResponseAt) data.slaDueAt = slaDueAt(current.createdAt, input.priority);
-  }
-  if (input.assigneeId !== undefined) {
-    if (input.assigneeId !== null && input.assigneeId !== session.userId) {
-      throw new ValidationError('You can assign a ticket to yourself or unassign it', [
-        { path: 'assigneeId', message: 'Must be your own id or null' },
-      ]);
-    }
-    data.assigneeId = input.assigneeId;
-  }
-  return data;
+  return {
+    ...statusChange(current, input, now),
+    ...(input.category
+      ? { category: input.category, categorySource: 'ADMIN' as const, needsReview: false }
+      : {}),
+    ...priorityChange(current, input),
+    ...assigneeChange(input, session),
+  };
 }
 
 const snapshot = (t: Current) => ({

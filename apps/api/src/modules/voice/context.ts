@@ -21,13 +21,17 @@ export interface ThreadContext {
   resumed: boolean;
 }
 
+export interface CallContextInput {
+  authorId: string;
+  dataAsOf: Date;
+  maxSeconds: number;
+  thread: ThreadContext;
+}
+
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   db: Db,
-  authorId: string,
-  dataAsOf: Date,
-  maxSeconds: number,
-  thread: ThreadContext,
+  { authorId, dataAsOf, maxSeconds, thread }: CallContextInput,
 ): Promise<CallContext> {
   const author = await loadAuthorRecord(db, authorId);
   const facts = buildAuthorFacts(author, '', dataAsOf);

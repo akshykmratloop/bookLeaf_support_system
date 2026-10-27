@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   type AuthorTicket,
   type CreateTicketRequestSchema,
@@ -8,6 +8,7 @@ import {
 import type { z } from 'zod';
 import { enqueueJob } from '../../ai/jobs/queue.js';
 import { higherPriority, priorityFloor } from '../../ai/triage/rules.js';
+import { isUniqueViolation } from '../../platform/db.js';
 import { ForbiddenError, NotFoundError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
 import type { TicketDeps } from './deps.js';
@@ -52,13 +53,15 @@ export async function getAuthorTicket(
   return toAuthorTicket(t, await findMessages(deps.db, t.id, false));
 }
 
-function ticketData(
-  authorId: string,
-  input: CreateTicketInput,
-  origin: TicketOrigin,
-  idempotencyKey: string | null,
-  now: Date,
-): Prisma.TicketUncheckedCreateInput {
+interface NewTicket {
+  authorId: string;
+  input: CreateTicketInput;
+  origin: TicketOrigin;
+  idempotencyKey: string | null;
+  now: Date;
+}
+
+function ticketData({ authorId, input, origin, idempotencyKey, now }: NewTicket) {
   const category = origin.category ?? null;
   const floor = priorityFloor({
     text: `${input.subject}\n${input.description}`,
@@ -81,7 +84,7 @@ function ticketData(
     chatSessionId: origin.chatSessionId ?? null,
     voiceSessionId: origin.voiceSessionId ?? null,
     createdAt: now,
-  };
+  } satisfies Prisma.TicketUncheckedCreateInput;
 }
 
 /** Ticket, acknowledgement, TRIAGE job and the caller's afterCreate step: all or nothing. */
@@ -102,6 +105,36 @@ async function insertTicket(
   });
 }
 
+export interface CreateTicketOptions {
+  /** Same key again returns the first ticket instead of a duplicate. */
+  idempotencyKey: string | null;
+  origin?: TicketOrigin;
+}
+
+interface Created {
+  ticket: AuthorTicket;
+  created: boolean;
+}
+
+function authorIdOf(session: Session): string {
+  if (session.role !== 'AUTHOR' || !session.authorId)
+    throw new ForbiddenError('Only authors can raise tickets');
+  return session.authorId;
+}
+
+async function requireOwnBook(deps: TicketDeps, authorId: string, bookId: string | null) {
+  if (!bookId) return;
+  const owns = await deps.db.book.count({ where: { id: bookId, authorId } });
+  if (!owns) throw new NotFoundError('Book');
+}
+
+/** A replayed request that lost the insert race gets the ticket the first one created. */
+async function replayOrThrow(deps: TicketDeps, session: Session, key: string | null, err: unknown) {
+  const prior = key && isUniqueViolation(err) ? await existingByKey(deps, session, key) : null;
+  if (!prior) throw err;
+  return { ticket: prior, created: false };
+}
+
 /**
  * Ticket, acknowledgement and the TRIAGE job are written in one transaction: either all exist
  * or none do, so a ticket can never be left without AI processing queued.
@@ -111,31 +144,18 @@ export async function createTicket(
   deps: TicketDeps,
   session: Session,
   input: CreateTicketInput,
-  idempotencyKey: string | null,
-  origin: TicketOrigin = { source: 'PORTAL' },
-): Promise<{ ticket: AuthorTicket; created: boolean }> {
-  if (session.role !== 'AUTHOR' || !session.authorId)
-    throw new ForbiddenError('Only authors can raise tickets');
-  const authorId = session.authorId;
-  if (idempotencyKey) {
-    const prior = await existingByKey(deps, session, idempotencyKey);
-    if (prior) return { ticket: prior, created: false };
-  }
-  if (input.bookId) {
-    const owns = await deps.db.book.count({ where: { id: input.bookId, authorId } });
-    if (!owns) throw new NotFoundError('Book');
-  }
-  const data = ticketData(authorId, input, origin, idempotencyKey, deps.clock.now());
+  { idempotencyKey, origin = { source: 'PORTAL' } }: CreateTicketOptions,
+): Promise<Created> {
+  const authorId = authorIdOf(session);
+  const prior = idempotencyKey ? await existingByKey(deps, session, idempotencyKey) : null;
+  if (prior) return { ticket: prior, created: false };
+  await requireOwnBook(deps, authorId, input.bookId);
+  const data = ticketData({ authorId, input, origin, idempotencyKey, now: deps.clock.now() });
   try {
     const id = await insertTicket(deps, data, origin);
     deps.events.publish({ type: 'ticket.created', ticketId: id, authorId, authorVisible: true });
     return { ticket: await getAuthorTicket(deps, session, id), created: true };
   } catch (err) {
-    const duplicate =
-      err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && idempotencyKey;
-    if (!duplicate) throw err;
-    const prior = await existingByKey(deps, session, idempotencyKey);
-    if (!prior) throw err;
-    return { ticket: prior, created: false };
+    return replayOrThrow(deps, session, idempotencyKey, err);
   }
 }

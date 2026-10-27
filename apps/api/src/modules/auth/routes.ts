@@ -1,4 +1,5 @@
 import type { FastifyRequest } from 'fastify';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { AuthUserSchema, LoginRequestSchema, ProblemSchema } from '@bookleaf/shared';
@@ -13,25 +14,29 @@ interface Opts {
   secureCookies: boolean;
 }
 
-const LOGIN_LIMIT = { max: 5, timeWindow: '1 minute' };
+/** Five sign-in tries a minute for each address and email. */
+const LOGIN_LIMIT = {
+  max: 5,
+  timeWindow: '1 minute',
+  keyGenerator: (req: FastifyRequest) =>
+    `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
+};
 
-export const authRoutes: FastifyPluginAsyncZod<Opts> = async (
-  app,
-  { auth, ttlSeconds, secureCookies },
-) => {
-  const cookie = { httpOnly: true, sameSite: 'lax' as const, secure: secureCookies, path: '/' };
+const cookieFor = (secure: boolean) => ({
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure,
+  path: '/',
+});
+
+/** Signing in and out: the session lives in an httpOnly cookie. */
+function registerSignIn(app: RouteApp, { auth, ttlSeconds, secureCookies }: Opts) {
+  const cookie = cookieFor(secureCookies);
 
   app.post(
     '/auth/login',
     {
-      config: {
-        public: true,
-        rateLimit: {
-          ...LOGIN_LIMIT,
-          keyGenerator: (req: FastifyRequest) =>
-            `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
-        },
-      },
+      config: { public: true, rateLimit: LOGIN_LIMIT },
       schema: {
         tags: ['auth'],
         summary: 'Sign in with email and password',
@@ -57,7 +62,10 @@ export const authRoutes: FastifyPluginAsyncZod<Opts> = async (
       return reply.status(204).send(null);
     },
   );
+}
 
+/** Who is signed in. */
+function registerMe(app: RouteApp) {
   app.get(
     '/auth/me',
     {
@@ -69,4 +77,9 @@ export const authRoutes: FastifyPluginAsyncZod<Opts> = async (
     },
     async (req) => ({ user: toAuthUser(sessionOf(req)) }),
   );
+}
+
+export const authRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
+  registerSignIn(app, opts);
+  registerMe(app);
 };

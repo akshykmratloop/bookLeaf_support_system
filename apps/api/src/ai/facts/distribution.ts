@@ -1,5 +1,5 @@
 import type { Fact } from '@bookleaf/shared';
-import { recordSource, textFact } from './evidence.js';
+import { recordSource, statusFact, textFact } from './evidence.js';
 import type { BookRecord } from './types.js';
 
 /** Platforms BookLeaf distributes to (KB), with patterns that match how authors write them. */
@@ -39,14 +39,13 @@ export function distributionFacts(book: BookRecord, text: string): Fact[] {
     const inRecord = book.availableOn.some((p) => p.toLowerCase() === platform.toLowerCase());
     const key = platform.toLowerCase().replace(/[^a-z]+/g, '_');
     facts.push(
-      textFact(
+      statusFact(
         `${id}.platform.${key}`,
         `${book.title} on ${platform}`,
         inRecord
           ? `${platform} is in BookLeaf's distribution record`
           : `${platform} is not in BookLeaf's distribution record (the record may be incomplete — confirm before stating)`,
         src,
-        'STATUS',
       ),
     );
   }

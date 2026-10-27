@@ -1,11 +1,18 @@
-import { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../../platform/db.js';
 import type { AuthorTicket, ChatTicketRequestSchema } from '@bookleaf/shared';
 import type { z } from 'zod';
 import { ConflictError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
 import { createTicket, getAuthorTicket } from '../tickets/create.js';
 import type { TicketDeps } from '../tickets/deps.js';
-import type { VoiceCallRow } from './repository.js';
+import { authorIdOf } from './deps.js';
+import { findOwnCall } from './repository.js';
+
+export interface CallTicketInput {
+  callId: string;
+  ticket: z.output<typeof ChatTicketRequestSchema>;
+  idempotencyKey: string | null;
+}
 
 /**
  * The older after-call ticket form: one ticket per ended call. Kept working while the live
@@ -14,10 +21,9 @@ import type { VoiceCallRow } from './repository.js';
 export async function raiseCallTicket(
   deps: TicketDeps,
   session: Session,
-  call: VoiceCallRow,
-  input: z.output<typeof ChatTicketRequestSchema>,
-  key: string | null,
+  input: CallTicketInput,
 ): Promise<{ ticket: AuthorTicket; created: boolean }> {
+  const call = await findOwnCall(deps.db, input.callId, authorIdOf(session));
   if (call.status !== 'ENDED')
     throw new ConflictError(
       'VOICE_CALL_NOT_ENDED',
@@ -26,13 +32,13 @@ export async function raiseCallTicket(
   if (call.ticket)
     return { ticket: await getAuthorTicket(deps, session, call.ticket.id), created: false };
   try {
-    return await createTicket(deps, session, input, key, {
-      source: 'VOICE',
-      voiceSessionId: call.id,
+    return await createTicket(deps, session, input.ticket, {
+      idempotencyKey: input.idempotencyKey,
+      origin: { source: 'VOICE', voiceSessionId: call.id },
     });
   } catch (err) {
-    const raced = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
-    const existing = raced
+    // Two requests raced to create the call's one ticket: return the winner's.
+    const existing = isUniqueViolation(err)
       ? await deps.db.ticket.findUnique({ where: { voiceSessionId: call.id } })
       : null;
     if (!existing) throw err;

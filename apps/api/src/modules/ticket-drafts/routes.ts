@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
@@ -32,10 +33,13 @@ const perUser = (max: number) => ({
 
 const authorIdOf = (req: FastifyRequest) => sessionOf(req).authorId ?? '';
 
-export const ticketDraftRoutes: FastifyPluginAsyncZod<{
+interface Deps {
   drafts: TicketDraftService;
   limits: AssistantLimits;
-}> = async (app, { drafts, limits }) => {
+}
+
+/** Reading and editing my draft. */
+function registerReadAndEdit(app: RouteApp, { drafts, limits }: Deps) {
   app.get(
     '/ticket-drafts/chat/:sessionId',
     {
@@ -64,7 +68,10 @@ export const ticketDraftRoutes: FastifyPluginAsyncZod<{
     },
     async (req) => drafts.edit(authorIdOf(req), req.params.id, req.body, 'AUTHOR'),
   );
+}
 
+/** Sending my draft as a ticket. */
+function registerSubmit(app: RouteApp, { drafts, limits }: Deps) {
   app.post(
     '/ticket-drafts/:id/submit',
     {
@@ -85,4 +92,9 @@ export const ticketDraftRoutes: FastifyPluginAsyncZod<{
       return reply.status(res.created ? 201 : 200).send({ draft: res.draft, ticket: res.ticket });
     },
   );
+}
+
+export const ticketDraftRoutes: FastifyPluginAsyncZod<Deps> = async (app, deps) => {
+  registerReadAndEdit(app, deps);
+  registerSubmit(app, deps);
 };

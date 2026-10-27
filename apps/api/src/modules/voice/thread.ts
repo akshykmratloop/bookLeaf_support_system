@@ -14,10 +14,23 @@ export const threadOf = (c: { id: string; threadId: string | null }) => c.thread
 
 const inThread = (threadId: string) => ({ OR: [{ id: threadId }, { threadId }] });
 
-const linesOf = (transcript: unknown): TranscriptLine[] => {
+/** A stored transcript, or no lines if it is not in the expected shape. */
+export const linesOf = (transcript: unknown): TranscriptLine[] => {
   const parsed = Lines.safeParse(transcript);
   return parsed.success ? parsed.data : [];
 };
+
+interface DraftFields {
+  subject: string;
+  description: string;
+  category: string | null;
+}
+
+/** Whether a call left anything worth continuing: the author spoke, or a draft was started. */
+function worthContinuing(transcript: unknown, draft: DraftFields | null): boolean {
+  const drafted = Boolean(draft && (draft.subject || draft.description || draft.category));
+  return drafted || linesOf(transcript).some((l) => l.role === 'AUTHOR');
+}
 
 /**
  * The author's last connected call, if it can be continued: it ended less than
@@ -34,9 +47,7 @@ export async function findResumable(db: Tx, authorId: string, now: Date) {
   if (!last?.endedAt || last.endedAt.getTime() < cutoff || last.ticket) return null;
   const draft = await db.ticketDraft.findUnique({ where: { voiceThreadId: threadOf(last) } });
   if (draft?.status === 'SUBMITTED') return null;
-  const drafted = Boolean(draft && (draft.subject || draft.description || draft.category));
-  const authorSpoke = linesOf(last.transcript).some((l) => l.role === 'AUTHOR');
-  return authorSpoke || drafted ? last : null;
+  return worthContinuing(last.transcript, draft) ? last : null;
 }
 
 /** Every line of the thread's calls, oldest first, optionally leaving out one call. */

@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import {
   AssistantAdminStatusSchema,
   AssistantAvailabilitySchema,
@@ -10,12 +11,13 @@ import { sessionOf } from '../../platform/http/auth-guard.js';
 import type { AssistantService } from './service.js';
 
 const ADMIN = { roles: ['ADMIN'] as const };
+interface Deps {
+  assistant: AssistantService;
+}
 const errors = { 401: ProblemSchema, 403: ProblemSchema, 409: ProblemSchema, 422: ProblemSchema };
 
-export const assistantRoutes: FastifyPluginAsyncZod<{ assistant: AssistantService }> = async (
-  app,
-  { assistant },
-) => {
+/** Any signed-in user: is chat or voice usable right now? */
+function registerAvailability(app: RouteApp, { assistant }: Deps) {
   app.get(
     '/assistant/availability',
     {
@@ -27,7 +29,10 @@ export const assistantRoutes: FastifyPluginAsyncZod<{ assistant: AssistantServic
     },
     async () => assistant.availability(),
   );
+}
 
+/** Admins read and change the switches. */
+function registerAdminRoutes(app: RouteApp, { assistant }: Deps) {
   app.get(
     '/admin/assistant',
     {
@@ -54,4 +59,9 @@ export const assistantRoutes: FastifyPluginAsyncZod<{ assistant: AssistantServic
     },
     async (req) => assistant.update(sessionOf(req), req.body),
   );
+}
+
+export const assistantRoutes: FastifyPluginAsyncZod<Deps> = async (app, deps) => {
+  registerAvailability(app, deps);
+  registerAdminRoutes(app, deps);
 };

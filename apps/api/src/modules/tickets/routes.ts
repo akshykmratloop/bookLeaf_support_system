@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import { z } from 'zod';
 import {
   AdminTicketListItemSchema,
@@ -33,7 +34,7 @@ const errors = {
   422: ProblemSchema,
 };
 
-export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (app, { deps }) => {
+function listTickets(app: RouteApp, deps: TicketDeps) {
   app.get(
     '/tickets',
     {
@@ -55,7 +56,9 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
         : listAuthorTickets(deps, session, req.query);
     },
   );
+}
 
+function raiseTicket(app: RouteApp, deps: TicketDeps) {
   app.post(
     '/tickets',
     {
@@ -68,16 +71,15 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
       },
     },
     async (req, reply) => {
-      const { ticket, created } = await createTicket(
-        deps,
-        sessionOf(req),
-        req.body,
-        idempotencyKey(req),
-      );
+      const { ticket, created } = await createTicket(deps, sessionOf(req), req.body, {
+        idempotencyKey: idempotencyKey(req),
+      });
       return reply.status(created ? 201 : 200).send(ticket);
     },
   );
+}
 
+function getTicket(app: RouteApp, deps: TicketDeps) {
   app.get(
     '/tickets/:id',
     {
@@ -95,7 +97,9 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
         : getAuthorTicket(deps, session, req.params.id);
     },
   );
+}
 
+function changeTicket(app: RouteApp, deps: TicketDeps) {
   app.patch(
     '/tickets/:id',
     {
@@ -110,7 +114,9 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
     },
     async (req) => updateTicket(deps, sessionOf(req), req.params.id, req.body),
   );
+}
 
+function addMessage(app: RouteApp, deps: TicketDeps) {
   app.post(
     '/tickets/:id/messages',
     {
@@ -124,15 +130,17 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
     },
     async (req, reply) => {
       const session = sessionOf(req);
-      const key = idempotencyKey(req);
+      const message = { ...req.body, idempotencyKey: idempotencyKey(req) };
       const result =
         session.role === 'ADMIN'
-          ? await addAdminMessage(deps, session, req.params.id, req.body, key)
-          : await addAuthorMessage(deps, session, req.params.id, req.body.body, key);
+          ? await addAdminMessage(deps, session, req.params.id, message)
+          : await addAuthorMessage(deps, session, req.params.id, message);
       return reply.status(201).send(result);
     },
   );
+}
 
+function retryTicketAi(app: RouteApp, deps: TicketDeps) {
   app.post(
     '/tickets/:id/ai/retry',
     {
@@ -147,4 +155,13 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
     async (req, reply) =>
       reply.status(202).send(await retryAi(deps, sessionOf(req), req.params.id)),
   );
+}
+
+export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (app, { deps }) => {
+  listTickets(app, deps);
+  raiseTicket(app, deps);
+  getTicket(app, deps);
+  changeTicket(app, deps);
+  addMessage(app, deps);
+  retryTicketAi(app, deps);
 };

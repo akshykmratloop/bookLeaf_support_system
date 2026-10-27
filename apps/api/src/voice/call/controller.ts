@@ -28,30 +28,45 @@ function runTool(st: CallState, callId: string, name: string, argumentsJson: str
   }
 }
 
-function onProviderEvent(st: CallState, e: VoiceEvent): void {
-  if (st.ended) return;
-  const { caller } = st.deps;
-  if (e.type === 'audio') {
+type EventHandlers = {
+  [K in VoiceEvent['type']]: (st: CallState, e: Extract<VoiceEvent, { type: K }>) => void;
+};
+
+/** What the call does with each provider event. */
+const ON_EVENT: EventHandlers = {
+  audio: (st, e) => {
     markActivity(st);
     if (st.endRequested) st.goodbyeStarted = true;
-    caller.sendAudio(e.pcm16);
-  } else if (e.type === 'transcript') {
+    st.deps.caller.sendAudio(e.pcm16);
+  },
+  transcript: (st, e) => {
     markActivity(st);
     if (e.role === 'AUTHOR') st.answeredSinceConfirm = true;
     st.transcript.push({ role: e.role, text: e.text, at: st.deps.now().toISOString() });
-    caller.send({ type: 'transcript', role: e.role, text: e.text });
-  } else if (e.type === 'barge_in') {
+    st.deps.caller.send({ type: 'transcript', role: e.role, text: e.text });
+  },
+  barge_in: (st) => {
     markActivity(st);
     st.answeredSinceConfirm = true;
-    caller.send({ type: 'interrupt' });
-  } else if (e.type === 'tool_call') runTool(st, e.callId, e.name, e.argumentsJson);
-  else if (e.type === 'reply_done') {
+    st.deps.caller.send({ type: 'interrupt' });
+  },
+  tool_call: (st, e) => runTool(st, e.callId, e.name, e.argumentsJson),
+  reply_done: (st) => {
     markActivity(st);
     if (st.goodbyeStarted) endSoon(st, 'ASSISTANT_ENDED');
-  } else if (e.type === 'usage') {
+  },
+  usage: (st, e) => {
     st.usage.inputTokens += e.inputTokens;
     st.usage.outputTokens += e.outputTokens;
-  } else if (e.type === 'error' || e.type === 'closed') endSoon(st, 'PROVIDER_ERROR');
+  },
+  error: (st) => endSoon(st, 'PROVIDER_ERROR'),
+  closed: (st) => endSoon(st, 'PROVIDER_ERROR'),
+};
+
+function onProviderEvent(st: CallState, e: VoiceEvent): void {
+  if (st.ended) return;
+  const handle = ON_EVENT[e.type] as (st: CallState, e: VoiceEvent) => void;
+  handle(st, e);
 }
 
 function newState(deps: CallDeps): CallState {

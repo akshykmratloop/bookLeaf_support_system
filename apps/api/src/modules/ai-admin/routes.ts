@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import {
   AiSettingsSchema,
   AiStatusSchema,
@@ -10,12 +11,13 @@ import { sessionOf } from '../../platform/http/auth-guard.js';
 import type { AiAdminService } from './service.js';
 
 const ADMIN = { roles: ['ADMIN'] as const };
+interface Deps {
+  aiAdmin: AiAdminService;
+}
 const errors = { 401: ProblemSchema, 403: ProblemSchema, 409: ProblemSchema, 422: ProblemSchema };
 
-export const aiAdminRoutes: FastifyPluginAsyncZod<{ aiAdmin: AiAdminService }> = async (
-  app,
-  { aiAdmin },
-) => {
+/** Reading the current AI choice and provider status. */
+function registerReadRoutes(app: RouteApp, { aiAdmin }: Deps) {
   app.get(
     '/admin/ai/status',
     {
@@ -41,7 +43,10 @@ export const aiAdminRoutes: FastifyPluginAsyncZod<{ aiAdmin: AiAdminService }> =
     },
     async () => (await aiAdmin.status()).settings,
   );
+}
 
+/** Changing the AI choice and testing the provider. */
+function registerChangeRoutes(app: RouteApp, { aiAdmin }: Deps) {
   app.put(
     '/admin/ai/settings',
     {
@@ -68,4 +73,9 @@ export const aiAdminRoutes: FastifyPluginAsyncZod<{ aiAdmin: AiAdminService }> =
     },
     async () => aiAdmin.test(),
   );
+}
+
+export const aiAdminRoutes: FastifyPluginAsyncZod<Deps> = async (app, deps) => {
+  registerReadRoutes(app, deps);
+  registerChangeRoutes(app, deps);
 };

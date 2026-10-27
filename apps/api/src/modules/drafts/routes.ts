@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import {
   CheckRequestSchema,
   CheckResultSchema,
@@ -15,7 +16,12 @@ import { latestDraft, regenerateDraft } from './service.js';
 const ADMIN = { roles: ['ADMIN'] as const };
 const AI_LIMIT = { max: 20, timeWindow: '1 minute' };
 
-export const draftRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (app, { deps }) => {
+interface Opts {
+  deps: TicketDeps;
+}
+
+/** The AI reply draft of a ticket: read it or ask for a new one. */
+function registerDraftRoutes(app: RouteApp, { deps }: Opts) {
   app.get(
     '/tickets/:id/draft',
     {
@@ -44,7 +50,10 @@ export const draftRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (a
     async (req, reply) =>
       reply.status(202).send(await regenerateDraft(deps, sessionOf(req), req.params.id)),
   );
+}
 
+/** Checking an edited reply before it is sent. */
+function registerCheckRoute(app: RouteApp, { deps }: Opts) {
   app.post(
     '/tickets/:id/check',
     {
@@ -62,4 +71,9 @@ export const draftRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (a
       return checkReplyForTicket(deps, req.params.id, req.body.body);
     },
   );
+}
+
+export const draftRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
+  registerDraftRoutes(app, opts);
+  registerCheckRoute(app, opts);
 };

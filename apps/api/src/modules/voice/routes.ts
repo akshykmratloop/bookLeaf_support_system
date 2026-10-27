@@ -1,4 +1,5 @@
 import type { FastifyRequest } from 'fastify';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
@@ -37,23 +38,20 @@ interface Opts {
   now: () => Date;
 }
 
-export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
-  const { voice } = opts;
-  // Same normalisation as the CSRF guard, so a trailing slash in APP_ORIGIN cannot break calls.
-  const allowedOrigin = new URL(opts.appOrigin).origin;
+/** Starting a call is limited per signed-in user, after the auth guard has run. */
+const START_LIMIT = {
+  max: 10,
+  timeWindow: '1 minute',
+  hook: 'preHandler' as const,
+  keyGenerator: (req: FastifyRequest) => `voice:${req.session?.userId ?? req.ip}`,
+};
 
+/** Starting a call, or continuing the last one. */
+function registerStartRoutes(app: RouteApp, { voice }: Opts) {
   app.post(
     '/voice/calls',
     {
-      config: {
-        ...AUTHOR,
-        rateLimit: {
-          max: 10,
-          timeWindow: '1 minute',
-          hook: 'preHandler',
-          keyGenerator: (req: FastifyRequest) => `voice:${req.session?.userId ?? req.ip}`,
-        },
-      },
+      config: { ...AUTHOR, rateLimit: START_LIMIT },
       schema: {
         tags: ['voice'],
         summary:
@@ -80,7 +78,10 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
     },
     async (req) => voice.resumable(sessionOf(req)),
   );
+}
 
+/** Reading one of my calls and raising its ticket. */
+function registerCallRoutes(app: RouteApp, { voice }: Opts) {
   app.get(
     '/voice/calls/:id',
     {
@@ -117,7 +118,10 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
       return reply.status(res.created ? 201 : 200).send(res.ticket);
     },
   );
+}
 
+/** Support staff read the call behind a ticket. */
+function registerAdminRoutes(app: RouteApp, { voice }: Opts) {
   app.get(
     '/admin/voice/calls/:id',
     {
@@ -131,6 +135,13 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
     },
     async (req) => voice.adminGet(req.params.id),
   );
+}
+
+/** The live call: browser audio bridged to the speech provider. */
+function registerStreamRoute(app: RouteApp, opts: Opts) {
+  const { voice } = opts;
+  // Same normalisation as the CSRF guard, so a trailing slash in APP_ORIGIN cannot break calls.
+  const allowedOrigin = new URL(opts.appOrigin).origin;
 
   app.get(
     '/voice/calls/:id/stream',
@@ -158,4 +169,11 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
       });
     },
   );
+}
+
+export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
+  registerStartRoutes(app, opts);
+  registerCallRoutes(app, opts);
+  registerAdminRoutes(app, opts);
+  registerStreamRoute(app, opts);
 };

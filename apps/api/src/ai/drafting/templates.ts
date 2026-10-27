@@ -10,30 +10,49 @@ const show = (facts: readonly Fact[], id: string): string | null => {
   return f && f.type !== 'UNKNOWN' ? f.display : null;
 };
 
+interface RoyaltyWords {
+  total: string;
+  deadline: string;
+  pending: string | null;
+  title: string;
+}
+
+function royaltyWords({ facts, book }: DraftInput): RoyaltyWords {
+  return {
+    total: show(facts, 'author.total_pending') ?? '[CONFIRM: total pending]',
+    deadline: show(facts, 'payout.next_cycle_deadline') ?? '[CONFIRM: next payout date]',
+    pending: book ? show(facts, `book.${book.externalId}.royalty_pending`) : null,
+    title: book?.title ?? 'your books',
+  };
+}
+
+function nothingPendingText(input: DraftInput, w: RoyaltyWords): string {
+  const others =
+    input.royalty.authorTotalPendingPaise > 0
+      ? ` You do have ${w.total} pending across your other books, due in the payout cycle that closes by ${w.deadline}.`
+      : '';
+  return `${w.title} has no royalty pending at the moment.${others}`;
+}
+
+function totalOnlyText(input: DraftInput, w: RoyaltyWords): string {
+  return input.royalty.payoutEligible
+    ? `Your total pending royalty across your books is ${w.total}, due in the payout cycle that closes by ${w.deadline}.`
+    : `Your total pending royalty across your books is ${w.total}, below the ₹1,000 minimum payout, so it rolls over to the next quarter.`;
+}
+
 function royaltyParagraph(input: DraftInput): string {
-  const { facts, royalty, book } = input;
-  const total = show(facts, 'author.total_pending') ?? '[CONFIRM: total pending]';
-  const deadline = show(facts, 'payout.next_cycle_deadline') ?? '[CONFIRM: next payout date]';
-  const pending = book ? show(facts, `book.${book.externalId}.royalty_pending`) : null;
-  const title = book?.title ?? 'your books';
-  switch (royalty.bookStatus) {
+  const w = royaltyWords(input);
+  switch (input.royalty.bookStatus) {
     case 'POSSIBLY_OVERDUE':
-      return `Our records show ${pending} pending on ${title} and no payout recorded, although a payout deadline has passed. That should not have happened, and I have escalated it to our royalties team. Our team will look into this and get back to you within 48 hours.`;
+      return `Our records show ${w.pending} pending on ${w.title} and no payout recorded, although a payout deadline has passed. That should not have happened, and I have escalated it to our royalties team. Our team will look into this and get back to you within 48 hours.`;
     case 'BELOW_THRESHOLD':
-      return `Your total pending royalty across your books is ${total}. This is below the ₹1,000 minimum payout, so it rolls over to the next quarter and will be paid once your total reaches ₹1,000.`;
+      return `Your total pending royalty across your books is ${w.total}. This is below the ₹1,000 minimum payout, so it rolls over to the next quarter and will be paid once your total reaches ₹1,000.`;
     case 'SCHEDULED':
-      return `${title} has ${pending} pending. Your total pending across your books is ${total}, which is due in the payout cycle that closes by ${deadline}.`;
-    case 'NOTHING_PENDING': {
-      const others =
-        royalty.authorTotalPendingPaise > 0
-          ? ` You do have ${total} pending across your other books, due in the payout cycle that closes by ${deadline}.`
-          : '';
-      return `${title} has no royalty pending at the moment.${others}`;
-    }
+      return `${w.title} has ${w.pending} pending. Your total pending across your books is ${w.total}, which is due in the payout cycle that closes by ${w.deadline}.`;
+    case 'NOTHING_PENDING':
+      return nothingPendingText(input, w);
     default:
-      return royalty.payoutEligible
-        ? `Your total pending royalty across your books is ${total}, due in the payout cycle that closes by ${deadline}.`
-        : `Your total pending royalty across your books is ${total}, below the ₹1,000 minimum payout, so it rolls over to the next quarter.`;
+      return totalOnlyText(input, w);
   }
 }
 

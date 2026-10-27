@@ -50,7 +50,9 @@ const CSP = {
   objectSrc: ["'none'"],
 };
 
-export async function buildApp(c: Container): Promise<FastifyInstance> {
+type App = FastifyInstance;
+
+function createServer(c: Container) {
   const app = Fastify({
     logger:
       c.env.NODE_ENV === 'test'
@@ -62,13 +64,21 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
+  return app;
+}
 
+/** Headers, cookies, rate limits, WebSockets, CSRF and the session guard. */
+async function registerSecurity(app: App, c: Container) {
   await app.register(helmet, { contentSecurityPolicy: { directives: CSP } });
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
   await app.register(authGuard, { sessions: c.sessions });
+}
+
+/** OpenAPI document generated from the route schemas, browsable at /api/docs. */
+async function registerDocs(app: App) {
   await app.register(swagger, {
     openapi: {
       info: {
@@ -80,32 +90,37 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
     transform: jsonSchemaTransform,
   });
   await app.register(swaggerUi, { routePrefix: '/api/docs' });
+}
 
+/** Every module's routes, mounted under /api/v1. */
+async function registerRoutes(api: App, c: Container) {
+  await api.register(authRoutes, {
+    auth: c.auth,
+    ttlSeconds: c.sessions.ttlSeconds,
+    secureCookies: c.env.NODE_ENV === 'production',
+  });
+  await api.register(booksRoutes, { books: c.books });
+  await api.register(ticketRoutes, { deps: c.ticketDeps });
+  await api.register(draftRoutes, { deps: c.ticketDeps });
+  await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
+  await api.register(assistantRoutes, { assistant: c.assistant });
+  await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
+  await api.register(ticketDraftRoutes, { drafts: c.ticketDrafts, limits: c.limits });
+  await api.register(voiceRoutes, {
+    voice: c.voice,
+    provider: c.voiceProvider,
+    appOrigin: c.env.APP_ORIGIN,
+    now: () => c.clock.now(),
+  });
+  await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
+}
+
+export async function buildApp(c: Container): Promise<FastifyInstance> {
+  const app = createServer(c);
+  await registerSecurity(app, c);
+  await registerDocs(app);
   await app.register(healthRoutes, { db: c.db });
-  await app.register(
-    async (api) => {
-      await api.register(authRoutes, {
-        auth: c.auth,
-        ttlSeconds: c.sessions.ttlSeconds,
-        secureCookies: c.env.NODE_ENV === 'production',
-      });
-      await api.register(booksRoutes, { books: c.books });
-      await api.register(ticketRoutes, { deps: c.ticketDeps });
-      await api.register(draftRoutes, { deps: c.ticketDeps });
-      await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
-      await api.register(assistantRoutes, { assistant: c.assistant });
-      await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
-      await api.register(ticketDraftRoutes, { drafts: c.ticketDrafts, limits: c.limits });
-      await api.register(voiceRoutes, {
-        voice: c.voice,
-        provider: c.voiceProvider,
-        appOrigin: c.env.APP_ORIGIN,
-        now: () => c.clock.now(),
-      });
-      await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
-    },
-    { prefix: '/api/v1' },
-  );
+  await app.register((api) => registerRoutes(api, c), { prefix: '/api/v1' });
   await registerSpa(app, c.env.WEB_DIST_DIR);
   return app;
 }

@@ -21,14 +21,13 @@ export function countFact(id: string, label: string, n: number, source: FactSour
   return { id, label, type: 'COUNT', value: n, display: String(n), source };
 }
 
-export function textFact(
-  id: string,
-  label: string,
-  text: string,
-  source: FactSource,
-  type: Fact['type'] = 'TEXT',
-): Fact {
-  return { id, label, type, value: text, display: text, source };
+export function textFact(id: string, label: string, text: string, source: FactSource): Fact {
+  return { id, label, type: 'TEXT', value: text, display: text, source };
+}
+
+/** A status sentence (e.g. a royalty or production state) rather than free text. */
+export function statusFact(id: string, label: string, text: string, source: FactSource): Fact {
+  return { id, label, type: 'STATUS', value: text, display: text, source };
 }
 
 /** A fact BookLeaf does not have. Drafts must ask an admin to confirm instead of guessing. */

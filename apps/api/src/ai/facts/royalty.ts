@@ -1,6 +1,6 @@
-import { formatInr, type Fact } from '@bookleaf/shared';
+import { formatInr, type Fact, type FactSource } from '@bookleaf/shared';
 import { toIsoDate } from '../../platform/clock.js';
-import { derived, dateFact, moneyFact, recordSource, textFact, unknownFact } from './evidence.js';
+import { derived, dateFact, moneyFact, recordSource, statusFact, unknownFact } from './evidence.js';
 import { PAYOUT_THRESHOLD_PAISE } from './kb-constants.js';
 import { addDays, daysBetween, payoutDeadlineFor } from './payout-calendar.js';
 import type { AuthorRecord, BookRecord } from './types.js';
@@ -60,55 +60,70 @@ const STATUS_TEXT: Record<BookRoyaltyStatus, string> = {
   SCHEDULED: 'Pending amount is due in the next payout cycle',
 };
 
+type Source = (field: string) => FactSource;
+
+function perCopyFact(book: BookRecord, id: string, src: Source): Fact {
+  const label = `${book.title}: royalty per copy`;
+  return book.royaltyPerCopyPaise === null
+    ? unknownFact(`${id}.royalty_per_copy`, label, 'Not set until the book is published')
+    : moneyFact(
+        `${id}.royalty_per_copy`,
+        label,
+        book.royaltyPerCopyPaise,
+        src('author_royalty_per_copy'),
+      );
+}
+
+function lastPayoutFact(book: BookRecord, id: string, src: Source): Fact {
+  const label = `${book.title}: last payout`;
+  const source = src('last_royalty_payout_date');
+  return book.lastPayoutDate === null
+    ? statusFact(`${id}.last_payout`, label, 'No payout has been made yet', source)
+    : dateFact(`${id}.last_payout`, label, book.lastPayoutDate, source);
+}
+
 export function bookRoyaltyFacts(book: BookRecord): Fact[] {
   const id = `book.${book.externalId}`;
-  const src = (field: string) => recordSource('books', book.externalId, field);
+  const src: Source = (field) => recordSource('books', book.externalId, field);
+  const money = (key: string, what: string, paise: number, field: string) =>
+    moneyFact(`${id}.${key}`, `${book.title}: ${what}`, paise, src(field));
   return [
-    moneyFact(
-      `${id}.royalty_earned`,
-      `${book.title}: royalty earned`,
-      book.royaltyEarnedPaise,
-      src('royalty_earned'),
-    ),
-    moneyFact(
-      `${id}.royalty_paid`,
-      `${book.title}: royalty paid`,
-      book.royaltyPaidPaise,
-      src('royalty_paid'),
-    ),
-    moneyFact(
-      `${id}.royalty_pending`,
-      `${book.title}: royalty pending`,
-      book.royaltyPendingPaise,
-      src('royalty_pending'),
-    ),
-    book.royaltyPerCopyPaise === null
-      ? unknownFact(
-          `${id}.royalty_per_copy`,
-          `${book.title}: royalty per copy`,
-          'Not set until the book is published',
-        )
-      : moneyFact(
-          `${id}.royalty_per_copy`,
-          `${book.title}: royalty per copy`,
-          book.royaltyPerCopyPaise,
-          src('author_royalty_per_copy'),
-        ),
-    book.lastPayoutDate === null
-      ? textFact(
-          `${id}.last_payout`,
-          `${book.title}: last payout`,
-          'No payout has been made yet',
-          src('last_royalty_payout_date'),
-          'STATUS',
-        )
-      : dateFact(
-          `${id}.last_payout`,
-          `${book.title}: last payout`,
-          book.lastPayoutDate,
-          src('last_royalty_payout_date'),
-        ),
+    money('royalty_earned', 'royalty earned', book.royaltyEarnedPaise, 'royalty_earned'),
+    money('royalty_paid', 'royalty paid', book.royaltyPaidPaise, 'royalty_paid'),
+    money('royalty_pending', 'royalty pending', book.royaltyPendingPaise, 'royalty_pending'),
+    perCopyFact(book, id, src),
+    lastPayoutFact(book, id, src),
   ];
+}
+
+function eligibilityFact(a: RoyaltyAssessment): Fact {
+  const total = formatInr(a.authorTotalPendingPaise);
+  return statusFact(
+    'author.payout_eligibility',
+    'Payout eligibility',
+    a.payoutEligible
+      ? `Eligible (total pending ${total} ≥ ₹1,000)`
+      : `Not yet eligible (total pending ${total} < ₹1,000; rolls over)`,
+    derived(
+      'total pending ≥ ₹1,000 threshold',
+      ['author.total_pending', 'kb.payout_threshold'],
+      ["Threshold applies to the author's total across books"],
+    ),
+  );
+}
+
+function bookStatusFact(status: BookRoyaltyStatus, book: BookRecord): Fact {
+  const id = `book.${book.externalId}`;
+  return statusFact(
+    `${id}.royalty_status`,
+    `${book.title}: royalty status`,
+    STATUS_TEXT[status],
+    derived(
+      'book royalty status rule',
+      [`${id}.royalty_pending`, 'author.payout_eligibility', `${id}.last_payout`],
+      ['Earnings accrual dates are not in the data; "possibly overdue" needs a human check'],
+    ),
+  );
 }
 
 export function royaltyAssessmentFacts(a: RoyaltyAssessment, book: BookRecord | null): Fact[] {
@@ -119,19 +134,7 @@ export function royaltyAssessmentFacts(a: RoyaltyAssessment, book: BookRecord | 
       a.authorTotalPendingPaise,
       derived("sum of royalty_pending over the author's books", ['books.*.royalty_pending']),
     ),
-    textFact(
-      'author.payout_eligibility',
-      'Payout eligibility',
-      a.payoutEligible
-        ? `Eligible (total pending ${formatInr(a.authorTotalPendingPaise)} ≥ ₹1,000)`
-        : `Not yet eligible (total pending ${formatInr(a.authorTotalPendingPaise)} < ₹1,000; rolls over)`,
-      derived(
-        'total pending ≥ ₹1,000 threshold',
-        ['author.total_pending', 'kb.payout_threshold'],
-        ["Threshold applies to the author's total across books"],
-      ),
-      'STATUS',
-    ),
+    eligibilityFact(a),
     dateFact(
       'payout.next_cycle_deadline',
       'Next payout cycle closes by',
@@ -148,24 +151,6 @@ export function royaltyAssessmentFacts(a: RoyaltyAssessment, book: BookRecord | 
       "Bank details are not in BookLeaf's support data",
     ),
   ];
-  if (book && a.bookStatus) {
-    facts.push(
-      textFact(
-        `book.${book.externalId}.royalty_status`,
-        `${book.title}: royalty status`,
-        STATUS_TEXT[a.bookStatus],
-        derived(
-          'book royalty status rule',
-          [
-            `book.${book.externalId}.royalty_pending`,
-            'author.payout_eligibility',
-            `book.${book.externalId}.last_payout`,
-          ],
-          ['Earnings accrual dates are not in the data; "possibly overdue" needs a human check'],
-        ),
-        'STATUS',
-      ),
-    );
-  }
+  if (book && a.bookStatus) facts.push(bookStatusFact(a.bookStatus, book));
   return facts;
 }

@@ -1,4 +1,5 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import type { RouteApp } from '../../platform/http/route-app.js';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
@@ -35,10 +36,13 @@ const perUser = (max: number, timeWindow: string) => ({
   keyGenerator: (req: FastifyRequest) => `chat:${req.session?.userId ?? req.ip}`,
 });
 
-export const chatRoutes: FastifyPluginAsyncZod<{
+interface Deps {
   chat: ChatService;
   limits: AssistantLimits;
-}> = async (app, { chat, limits }) => {
+}
+
+/** Reading and starting conversations. */
+function registerSessionRoutes(app: RouteApp, { chat, limits }: Deps) {
   app.get(
     '/chat/sessions/current',
     {
@@ -78,7 +82,10 @@ export const chatRoutes: FastifyPluginAsyncZod<{
     },
     async (req) => chat.get(sessionOf(req), req.params.id),
   );
+}
 
+/** Talking in a conversation and raising its ticket. */
+function registerMessageRoutes(app: RouteApp, { chat, limits }: Deps) {
   app.post(
     '/chat/sessions/:id/messages',
     {
@@ -117,7 +124,10 @@ export const chatRoutes: FastifyPluginAsyncZod<{
       return reply.status(res.created ? 201 : 200).send(res.ticket);
     },
   );
+}
 
+/** Support staff read the transcript behind a chat ticket. */
+function registerAdminRoutes(app: RouteApp, { chat }: Deps) {
   app.get(
     '/admin/chat/sessions/:id',
     {
@@ -131,4 +141,10 @@ export const chatRoutes: FastifyPluginAsyncZod<{
     },
     async (req) => chat.transcript(req.params.id),
   );
+}
+
+export const chatRoutes: FastifyPluginAsyncZod<Deps> = async (app, deps) => {
+  registerSessionRoutes(app, deps);
+  registerMessageRoutes(app, deps);
+  registerAdminRoutes(app, deps);
 };

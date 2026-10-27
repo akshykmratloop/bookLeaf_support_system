@@ -1,4 +1,5 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../../platform/db.js';
 import type { AuthorTicket, AdminTicket, CheckResult } from '@bookleaf/shared';
 import { canOverride, checkReply } from '../../ai/checker/index.js';
 import { draftInputFromContext } from '../../ai/drafting/from-context.js';
@@ -68,22 +69,34 @@ async function findByKey(deps: TicketDeps, ticketId: string, key: string | null)
   return (await deps.db.ticketMessage.count({ where: { ticketId, clientRequestId: key } })) > 0;
 }
 
-function isDuplicateKey(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+export interface AuthorMessage {
+  body: string;
+  /** Same key again returns the ticket without adding a second message. */
+  idempotencyKey: string | null;
+}
+
+export type AdminMessage = MessageInput & { idempotencyKey: string | null };
+
+/** A replay that lost the insert race is not an error: the first request already wrote it. */
+async function writeOnce(write: () => Promise<void>): Promise<void> {
+  try {
+    await write();
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+  }
 }
 
 export async function addAuthorMessage(
   deps: TicketDeps,
   session: Session,
   ticketId: string,
-  body: string,
-  key: string | null,
+  { body, idempotencyKey: key }: AuthorMessage,
 ): Promise<AuthorTicket> {
   const ticket = await findTicketOrThrow(deps.db, session, ticketId);
   if (await findByKey(deps, ticketId, key)) return getAuthorTicket(deps, session, ticketId);
   const now = deps.clock.now();
-  try {
-    await deps.db.$transaction(async (tx) => {
+  await writeOnce(() =>
+    deps.db.$transaction(async (tx) => {
       await tx.ticketMessage.create({
         data: {
           ticketId,
@@ -99,10 +112,8 @@ export async function addAuthorMessage(
         data: { status: statusAfterAuthorMessage(ticket.status), version: { increment: 1 } },
       });
       await enqueueJob(tx, ticketId, 'DRAFT', now);
-    });
-  } catch (err) {
-    if (!isDuplicateKey(err)) throw err;
-  }
+    }),
+  );
   deps.events.publish({
     type: 'ticket.updated',
     ticketId,
@@ -112,21 +123,33 @@ export async function addAuthorMessage(
   return getAuthorTicket(deps, session, ticketId);
 }
 
+/** The first reply moves an open ticket to In progress and stops the first-response clock. */
+async function markReplied(tx: Prisma.TransactionClient, ticket: Ticket, now: Date) {
+  await tx.ticket.update({
+    where: { id: ticket.id },
+    data: {
+      status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
+      firstResponseAt: ticket.firstResponseAt ?? now,
+      version: { increment: 1 },
+    },
+  });
+}
+
 /** An admin reply is the only way text reaches the author, and it always passes the checker gate. */
 export async function addAdminMessage(
   deps: TicketDeps,
   session: Session,
   ticketId: string,
-  input: MessageInput,
-  key: string | null,
+  input: AdminMessage,
 ): Promise<AdminTicket> {
   const ticket = await findTicketOrThrow(deps.db, session, ticketId);
+  const key = input.idempotencyKey;
   if (await findByKey(deps, ticketId, key)) return getAdminTicket(deps, session, ticketId);
   const kind = input.kind ?? 'REPLY';
   if (kind === 'REPLY') await gateReply(deps, session, ticket, input);
   const now = deps.clock.now();
-  try {
-    await deps.db.$transaction(async (tx) => {
+  await writeOnce(() =>
+    deps.db.$transaction(async (tx) => {
       await tx.ticketMessage.create({
         data: {
           ticketId,
@@ -137,21 +160,9 @@ export async function addAdminMessage(
           createdAt: now,
         },
       });
-      if (kind === 'REPLY') {
-        const status = ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status;
-        await tx.ticket.update({
-          where: { id: ticketId },
-          data: {
-            status,
-            firstResponseAt: ticket.firstResponseAt ?? now,
-            version: { increment: 1 },
-          },
-        });
-      }
-    });
-  } catch (err) {
-    if (!isDuplicateKey(err)) throw err;
-  }
+      if (kind === 'REPLY') await markReplied(tx, ticket, now);
+    }),
+  );
   const authorVisible = kind === 'REPLY';
   deps.events.publish({
     type: authorVisible ? 'ticket.replied' : 'ticket.note_added',

@@ -2,6 +2,7 @@ import {
   VoiceProviderError,
   type VoiceEvent,
   type VoiceProvider,
+  type VoiceSession,
   type VoiceSessionConfig,
 } from '../types.js';
 
@@ -18,6 +19,23 @@ export interface FakeVoiceProvider extends VoiceProvider {
   closed: boolean;
   /** Make the next connect fail with this code. */
   failNextConnect: VoiceProviderError['code'] | null;
+}
+
+/** The session handed to the call: it only records what the call sent. */
+function recordingSession(fake: FakeVoiceProvider, stop: () => void): VoiceSession {
+  return {
+    sendAudio: (pcm16) => fake.audioIn.push(pcm16),
+    sendToolResult: (callId, result) => fake.toolResults.push({ callId, result }),
+    say: (text) => fake.said.push(text),
+    addContext: (text) => fake.context.push(text),
+    greet: () => {
+      fake.greeted += 1;
+    },
+    close: () => {
+      fake.closed = true;
+      stop();
+    },
+  };
 }
 
 /** In-memory speech-to-speech provider for tests and keyless local runs. */
@@ -46,19 +64,9 @@ export function fakeVoiceProvider(): FakeVoiceProvider {
       fake.config = config;
       fake.closed = false;
       listener = onEvent;
-      return {
-        sendAudio: (pcm16) => fake.audioIn.push(pcm16),
-        sendToolResult: (callId, result) => fake.toolResults.push({ callId, result }),
-        say: (text) => fake.said.push(text),
-        addContext: (text) => fake.context.push(text),
-        greet: () => {
-          fake.greeted += 1;
-        },
-        close: () => {
-          fake.closed = true;
-          listener = null;
-        },
-      };
+      return recordingSession(fake, () => {
+        listener = null;
+      });
     },
   };
   return fake;

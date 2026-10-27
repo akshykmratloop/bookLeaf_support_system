@@ -14,6 +14,7 @@ import {
   requestReply,
   sessionUpdate,
   type ClientEvent,
+  type ProtocolState,
 } from './protocol.js';
 
 export interface OpenAiVoiceOptions {
@@ -38,20 +39,37 @@ export function openAiVoiceProvider(opts: OpenAiVoiceOptions): VoiceProvider {
   };
 }
 
-function connect(
+/** One open socket and the protocol state that goes with it. */
+interface Link {
+  ws: WebSocket;
+  state: ProtocolState;
+  update: ClientEvent;
+  send: (events: ClientEvent[]) => void;
+  onEvent: (e: VoiceEvent) => void;
+}
+
+interface Gate {
+  fail: (err: VoiceProviderError) => void;
+  ready: () => void;
+  isSettled: () => boolean;
+}
+
+function openLink(
   opts: OpenAiVoiceOptions,
   config: VoiceSessionConfig,
   onEvent: (e: VoiceEvent) => void,
-): Promise<VoiceSession> {
+): Link {
   const url = `${opts.url ?? DEFAULT_URL}?model=${encodeURIComponent(opts.model)}`;
   const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${opts.apiKey}` } });
-  const state = initialState();
-  const update = sessionUpdate(config, opts.voice);
   const send = (events: ClientEvent[]) => {
     if (ws.readyState !== WebSocket.OPEN) return;
     for (const e of events) ws.send(JSON.stringify(e));
   };
-  const session: VoiceSession = {
+  return { ws, state: initialState(), update: sessionUpdate(config, opts.voice), send, onEvent };
+}
+
+function createSession({ ws, state, send }: Link, config: VoiceSessionConfig): VoiceSession {
+  return {
     sendAudio: (pcm16) => {
       if (pcm16.length > 0)
         send([{ type: 'input_audio_buffer.append', audio: pcm16.toString('base64') }]);
@@ -70,15 +88,71 @@ function connect(
     addContext: (text) => send([contextItem(text)]),
     close: () => ws.close(1000),
   };
+}
 
+const refusalError = (status: number | undefined) =>
+  new VoiceProviderError(
+    status === 401 || status === 403 ? 'VOICE_AUTH' : 'VOICE_UNAVAILABLE',
+    `Voice provider refused the connection (${status ?? 'unknown'})`,
+  );
+
+/** The protocol only sends JSON text frames; anything else is not a server event and is skipped. */
+function parseFrame(text: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function watchSocket(link: Link, gate: Gate): void {
+  const { ws, onEvent } = link;
+  ws.on('unexpected-response', (_req, res) => gate.fail(refusalError(res.statusCode)));
+  ws.on('error', () =>
+    gate.fail(new VoiceProviderError('VOICE_UNAVAILABLE', 'Voice provider unreachable')),
+  );
+  ws.on('close', () => {
+    if (gate.isSettled()) return onEvent({ type: 'closed' });
+    gate.fail(new VoiceProviderError('VOICE_UNAVAILABLE', 'Voice provider closed the connection'));
+  });
+  ws.on('message', (data, isBinary) => {
+    const msg = isBinary ? null : parseFrame(data.toString());
+    if (!msg) return;
+    // Elapsed time only (for barge-in truncation), so a monotonic clock is right here.
+    const step = handleServerEvent(link.state, msg, performance.now(), { update: link.update });
+    link.send(step.send);
+    gate.ready();
+    for (const e of step.events) onEvent(e);
+  });
+}
+
+/**
+ * Resolves once the session is configured, or rejects if it fails first. After that, failures
+ * arrive as `error` events instead.
+ */
+function connect(
+  opts: OpenAiVoiceOptions,
+  config: VoiceSessionConfig,
+  onEvent: (e: VoiceEvent) => void,
+): Promise<VoiceSession> {
+  const link = openLink(opts, config, onEvent);
+  const session = createSession(link, config);
   return new Promise((resolve, reject) => {
     let settled = false;
-    const fail = (err: VoiceProviderError) => {
-      if (settled) return onEvent({ type: 'error', code: err.code, message: err.message });
+    const settle = () => {
       settled = true;
       clearTimeout(timer);
-      ws.terminate();
+    };
+    const fail = (err: VoiceProviderError) => {
+      if (settled) return onEvent({ type: 'error', code: err.code, message: err.message });
+      settle();
+      link.ws.terminate();
       reject(err);
+    };
+    const ready = () => {
+      if (settled || !link.state.ready) return;
+      settle();
+      resolve(session);
     };
     const timer = setTimeout(
       () =>
@@ -87,39 +161,6 @@ function connect(
         ),
       opts.connectTimeoutMs ?? 10_000,
     );
-    ws.on('unexpected-response', (_req, res) =>
-      fail(
-        new VoiceProviderError(
-          res.statusCode === 401 || res.statusCode === 403 ? 'VOICE_AUTH' : 'VOICE_UNAVAILABLE',
-          `Voice provider refused the connection (${res.statusCode ?? 'unknown'})`,
-        ),
-      ),
-    );
-    ws.on('error', () =>
-      fail(new VoiceProviderError('VOICE_UNAVAILABLE', 'Voice provider unreachable')),
-    );
-    ws.on('close', () => {
-      if (!settled)
-        fail(new VoiceProviderError('VOICE_UNAVAILABLE', 'Voice provider closed the connection'));
-      else onEvent({ type: 'closed' });
-    });
-    ws.on('message', (data, isBinary) => {
-      if (isBinary) return;
-      let msg: Record<string, unknown>;
-      try {
-        msg = JSON.parse(data.toString()) as Record<string, unknown>;
-      } catch {
-        return;
-      }
-      // Elapsed time only (for barge-in truncation), so a monotonic clock is right here.
-      const step = handleServerEvent(state, msg, performance.now(), { update });
-      send(step.send);
-      if (!settled && state.ready) {
-        settled = true;
-        clearTimeout(timer);
-        resolve(session);
-      }
-      for (const e of step.events) onEvent(e);
-    });
+    watchSocket(link, { fail, ready, isSettled: () => settled });
   });
 }

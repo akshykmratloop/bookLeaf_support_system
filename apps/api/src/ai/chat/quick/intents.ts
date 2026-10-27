@@ -46,8 +46,18 @@ export function detectQuickIntent(message: string): QuickIntent | null {
   if (GREETING.test(t)) return 'GREETING';
   if (THANKS.test(t)) return 'THANKS';
   if (NEEDS_CARE.test(t)) return null;
+  return recordIntent(t);
+}
+
+/** Questions answered straight from the author's records. */
+function recordIntent(t: string): QuickIntent | null {
   if (NEXT_PAYOUT.test(t)) return 'NEXT_PAYOUT';
-  if ((PENDING.test(t) && MONEY.test(t)) || /\bhow much royalt/.test(t)) return 'PENDING_ROYALTY';
-  if (STAGE.test(t) && BOOK.test(t) && !NOT_STAGE.test(t)) return 'BOOK_STAGE';
+  if (isPendingQuestion(t)) return 'PENDING_ROYALTY';
+  if (isStageQuestion(t)) return 'BOOK_STAGE';
   return null;
 }
+
+const isPendingQuestion = (t: string) =>
+  (PENDING.test(t) && MONEY.test(t)) || /\bhow much royalt/.test(t);
+
+const isStageQuestion = (t: string) => STAGE.test(t) && BOOK.test(t) && !NOT_STAGE.test(t);
