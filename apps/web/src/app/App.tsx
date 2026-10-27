@@ -2,10 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { ToastProvider } from '../components/molecules/Toast';
 import { isApiError } from '../lib/api';
-import { AiSettingsPage } from '../pages/admin/AiSettingsPage';
-import { AssistantSettingsPage } from '../pages/admin/AssistantSettingsPage';
-import { QueuePage } from '../pages/admin/QueuePage';
-import { TicketWorkspacePage } from '../pages/admin/TicketWorkspacePage';
 import { AssistantPage } from '../pages/author/AssistantPage';
 import { ConversationPage } from '../pages/author/ConversationPage';
 import { HistoryPage } from '../pages/author/HistoryPage';
@@ -16,7 +12,8 @@ import { EmbedGate } from '../pages/embed/EmbedGate';
 import { EmbedHomePage } from '../pages/embed/EmbedHomePage';
 import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
-import { AuthedLayout, HomeRedirect } from './AuthedLayout';
+import { adminRoutes } from './adminRoutes';
+import { HomeRedirect } from './AuthedLayout';
 
 const MAX_RETRIES = 2;
 
@@ -70,12 +67,7 @@ export function App() {
             <Route path="/auth/host" element={<HostSignInPage />} />
             {authorRoutes}
             {oldAuthorRoutes}
-            <Route element={<AuthedLayout role="ADMIN" />}>
-              <Route path="/admin" element={<QueuePage />} />
-              <Route path="/admin/tickets/:id" element={<TicketWorkspacePage />} />
-              <Route path="/admin/ai" element={<AiSettingsPage />} />
-              <Route path="/admin/assistant" element={<AssistantSettingsPage />} />
-            </Route>
+            {adminRoutes}
             <Route path="/" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
