@@ -12,6 +12,7 @@ interface Item {
   category: string | null;
   slaDueAt: string;
   createdAt: string;
+  assignee: { id: string } | null;
 }
 const STATUS_RANK = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 const PRIORITY_RANK = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -66,7 +67,11 @@ describe('admin queue', () => {
     const critical = await list('&priority=CRITICAL');
     expect(critical.length).toBeGreaterThan(0);
     expect(critical.every((t) => t.priority === 'CRITICAL')).toBe(true);
-    expect((await list('&assignee=me')).length).toBe(0);
+    const me = (await call(h, 'GET', '/auth/me', admin)).json<{ user: { id: string } }>().user.id;
+    expect((await list('&assignee=me')).every((t) => t.assignee?.id === me)).toBe(true);
+    const unassigned = await list('&assignee=unassigned');
+    expect(unassigned.length).toBeGreaterThan(0);
+    expect(unassigned.every((t) => t.assignee === null)).toBe(true);
   });
 
   it('filters by created date (inclusive day range)', async () => {
