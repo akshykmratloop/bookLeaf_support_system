@@ -5,6 +5,7 @@ import { Navigate, Outlet, useNavigate, useOutletContext } from 'react-router';
 import { LoadingState } from '../components/molecules/States';
 import { AppShell } from '../components/templates/AppShell';
 import { api } from '../lib/api';
+import { useAssistantAvailability } from '../lib/assistant';
 import { useLiveUpdates } from '../lib/live-updates';
 import { useMe } from '../lib/queries';
 
@@ -21,6 +22,10 @@ function Shell({ user }: { user: AuthUser }) {
     navigate('/login', { replace: true });
   }, [qc, navigate]);
   const live = useLiveUpdates(toLogin);
+  const assistant = useAssistantAvailability(user.role === 'AUTHOR');
+  const showAssistant =
+    assistant.data !== undefined &&
+    (assistant.data.chat.state !== 'DISABLED' || assistant.data.voice.state !== 'DISABLED');
   const signOut = async () => {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -29,7 +34,12 @@ function Shell({ user }: { user: AuthUser }) {
     }
   };
   return (
-    <AppShell user={user} live={live} onSignOut={() => void signOut()}>
+    <AppShell
+      user={user}
+      live={live}
+      showAssistant={showAssistant}
+      onSignOut={() => void signOut()}
+    >
       <Outlet context={user} />
     </AppShell>
   );

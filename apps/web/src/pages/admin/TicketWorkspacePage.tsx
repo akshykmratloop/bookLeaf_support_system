@@ -6,6 +6,7 @@ import { Card } from '../../components/atoms/Card';
 import { AiBadge, PriorityPill, StatusPill } from '../../components/molecules/DomainPills';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
+import { ChatTranscriptPanel } from '../../components/organisms/ChatTranscriptPanel';
 import { EvidencePanel } from '../../components/organisms/EvidencePanel';
 import { MessageThread } from '../../components/organisms/MessageThread';
 import { ReplyComposer } from '../../components/organisms/ReplyComposer';
@@ -81,6 +82,9 @@ export function TicketWorkspacePage() {
       <Header t={t} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-4">
+          {t.source === 'CHAT' && t.chatSessionId ? (
+            <ChatTranscriptPanel sessionId={t.chatSessionId} />
+          ) : null}
           <Card className="p-4">
             <MessageThread description={t.description} messages={t.messages} audience="ADMIN" />
           </Card>

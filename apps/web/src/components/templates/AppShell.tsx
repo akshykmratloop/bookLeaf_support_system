@@ -1,5 +1,15 @@
 import type { AuthUser } from '@bookleaf/shared';
-import { BookOpen, Bot, Inbox, LifeBuoy, LogOut, Moon, PlusCircle, Sun } from 'lucide-react';
+import {
+  BookOpen,
+  Bot,
+  Inbox,
+  LifeBuoy,
+  LogOut,
+  MessagesSquare,
+  Moon,
+  PlusCircle,
+  Sun,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import type { LiveState } from '../../lib/live-updates';
@@ -20,7 +30,17 @@ const AUTHOR_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin', label: 'Ticket Queue', icon: <Inbox size={16} aria-hidden />, end: true },
   { to: '/admin/ai', label: 'AI Settings', icon: <Bot size={16} aria-hidden /> },
+  {
+    to: '/admin/assistant',
+    label: 'Author Assistant',
+    icon: <MessagesSquare size={16} aria-hidden />,
+  },
 ];
+const ASSISTANT_NAV: NavItem = {
+  to: '/assistant',
+  label: 'Ask BookLeaf',
+  icon: <MessagesSquare size={16} aria-hidden />,
+};
 
 const LIVE_TEXT: Record<LiveState, string> = {
   connecting: 'Connecting…',
@@ -59,13 +79,16 @@ interface Props {
   user: AuthUser;
   live: LiveState;
   onSignOut: () => void;
+  /** Show the author's "Ask BookLeaf" entry (an admin has switched an assistant channel on). */
+  showAssistant?: boolean;
   children: ReactNode;
 }
 
 /** Fixed frame: sidebar and header never move; only <main> scrolls. */
-export function AppShell({ user, live, onSignOut, children }: Props) {
+export function AppShell({ user, live, onSignOut, showAssistant = false, children }: Props) {
   const [theme, setTheme] = useState<Theme>(readTheme);
-  const nav = user.role === 'ADMIN' ? ADMIN_NAV : AUTHOR_NAV;
+  const nav =
+    user.role === 'ADMIN' ? ADMIN_NAV : showAssistant ? [...AUTHOR_NAV, ASSISTANT_NAV] : AUTHOR_NAV;
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);

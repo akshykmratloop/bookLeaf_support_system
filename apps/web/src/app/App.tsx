@@ -3,8 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { ToastProvider } from '../components/molecules/Toast';
 import { isApiError } from '../lib/api';
 import { AiSettingsPage } from '../pages/admin/AiSettingsPage';
+import { AssistantSettingsPage } from '../pages/admin/AssistantSettingsPage';
 import { QueuePage } from '../pages/admin/QueuePage';
 import { TicketWorkspacePage } from '../pages/admin/TicketWorkspacePage';
+import { AssistantPage } from '../pages/author/AssistantPage';
 import { BooksPage } from '../pages/author/BooksPage';
 import { NewTicketPage } from '../pages/author/NewTicketPage';
 import { TicketDetailPage } from '../pages/author/TicketDetailPage';
@@ -38,11 +40,13 @@ export function App() {
               <Route path="/tickets" element={<TicketsPage />} />
               <Route path="/tickets/new" element={<NewTicketPage />} />
               <Route path="/tickets/:id" element={<TicketDetailPage />} />
+              <Route path="/assistant" element={<AssistantPage />} />
             </Route>
             <Route element={<AuthedLayout role="ADMIN" />}>
               <Route path="/admin" element={<QueuePage />} />
               <Route path="/admin/tickets/:id" element={<TicketWorkspacePage />} />
               <Route path="/admin/ai" element={<AiSettingsPage />} />
+              <Route path="/admin/assistant" element={<AssistantSettingsPage />} />
             </Route>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
