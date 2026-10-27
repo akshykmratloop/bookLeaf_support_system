@@ -27,6 +27,7 @@ import {
   findOwnCall,
   lockAuthor,
   markCallFailed,
+  replaceUnconnectedCalls,
 } from './repository.js';
 
 interface Deps extends TicketDeps {
@@ -66,6 +67,7 @@ export function createVoiceService(deps: Deps) {
       await expireStale(db, authorId, now, maxSeconds);
       const call = await db.$transaction(async (tx) => {
         await lockAuthor(tx, authorId);
+        await replaceUnconnectedCalls(tx, authorId);
         await checkQuota(tx, limits.voice, authorId, now);
         return tx.voiceSession.create({
           data: {

@@ -93,13 +93,31 @@ describe('voice: admin control and limits', () => {
     expect(av.voice).toMatchObject({ state: 'AVAILABLE', maxCallSeconds: 300 });
   });
 
-  it('allows one call at a time per author (409) and admins cannot call (403)', async () => {
+  it('a call that never connected is replaced by a new one, not blocking the author', async () => {
+    const abandoned = await startCall(kavita);
+    const retry = await call(h, 'POST', '/voice/calls', kavita);
+    expect(retry.statusCode).toBe(201);
+    const old = await h.db.voiceSession.findUniqueOrThrow({ where: { id: abandoned.id } });
+    expect(old.status).toBe('EXPIRED');
+    const stale = connect(abandoned.socketPath, kavita);
+    expect(await stale.closed).toBe(4409);
+    await h.db.voiceSession.update({
+      where: { id: retry.json<StartVoiceCall>().id },
+      data: { status: 'EXPIRED' },
+    });
+  });
+
+  it('allows one connected call at a time per author (409) and admins cannot call (403)', async () => {
     const first = await startCall(kavita);
+    await h.db.voiceSession.update({
+      where: { id: first.id },
+      data: { status: 'ACTIVE', startedAt: new Date() },
+    });
     const second = await call(h, 'POST', '/voice/calls', kavita);
     expect(second.statusCode).toBe(409);
     expect(second.json<{ code: string }>().code).toBe('VOICE_CALL_ACTIVE');
     expect((await call(h, 'POST', '/voice/calls', admin)).statusCode).toBe(403);
-    await h.db.voiceSession.update({ where: { id: first.id }, data: { status: 'EXPIRED' } });
+    await h.db.voiceSession.update({ where: { id: first.id }, data: { status: 'ENDED' } });
   });
 
   it('allows 5 connected calls per hour, then refuses the 6th (429)', async () => {

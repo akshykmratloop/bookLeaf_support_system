@@ -70,3 +70,14 @@ export function markCallFailed(db: Db, id: string, now: Date) {
     data: { status: 'FAILED', endReason: 'PROVIDER_ERROR', endedAt: now },
   });
 }
+
+/**
+ * Starting a new call replaces the author's calls that never connected (mic denied, tab
+ * closed, double click), so they never block the author. Run inside the author-row lock.
+ */
+export function replaceUnconnectedCalls(tx: Prisma.TransactionClient, authorId: string) {
+  return tx.voiceSession.updateMany({
+    where: { authorId, status: 'PENDING' },
+    data: { status: 'EXPIRED' },
+  });
+}

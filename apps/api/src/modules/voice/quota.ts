@@ -5,16 +5,15 @@ import { countCallsSince } from './repository.js';
 
 const HOUR_MS = 3_600_000;
 
-/** One live call per author, plus hourly and daily caps. Run inside the author-row lock. */
+/** One connected call per author, plus hourly and daily caps. Run inside the author-row lock. */
 export async function checkQuota(
   tx: Prisma.TransactionClient,
   limits: AssistantLimits['voice'],
   authorId: string,
   now: Date,
 ): Promise<void> {
-  const active = await tx.voiceSession.count({
-    where: { authorId, status: { in: ['PENDING', 'ACTIVE'] } },
-  });
+  // Only a connected call is "in progress"; unconnected ones were replaced just before this.
+  const active = await tx.voiceSession.count({ where: { authorId, status: 'ACTIVE' } });
   if (active > 0)
     throw new ConflictError('VOICE_CALL_ACTIVE', 'You already have a call in progress.');
   const lastHour = await countCallsSince(tx, authorId, new Date(now.getTime() - HOUR_MS));
