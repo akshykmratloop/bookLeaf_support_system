@@ -16,6 +16,11 @@ const callsOf = (db: Db, threadIds: string[]) =>
   });
 type CallRow = Awaited<ReturnType<typeof callsOf>>[number];
 
+/** The first call of a thread: the voice module saves it with threadId = its own id (older rows: null). */
+const firstCall = (db: Db) => ({
+  OR: [{ threadId: null }, { threadId: { equals: db.voiceSession.fields.id } }],
+});
+
 function summarise(calls: CallRow[], draft?: { status: string; subject: string }) {
   const lines = calls.flatMap((c) => linesOf(c.transcript));
   return {
@@ -28,7 +33,7 @@ function summarise(calls: CallRow[], draft?: { status: string; subject: string }
 /** Connected calls, one row per thread (a continued call joins its first call), newest first. */
 export async function listCalls(db: Db, authorId: string, from: Cursor | null, take: number) {
   const roots = await db.voiceSession.findMany({
-    where: { authorId, threadId: null, startedAt: { not: null }, ...after(from) },
+    where: { authorId, startedAt: { not: null }, AND: [firstCall(db), after(from)] },
     orderBy: NEWEST_FIRST,
     take,
     select: { id: true, createdAt: true },
@@ -58,7 +63,7 @@ export async function listCalls(db: Db, authorId: string, from: Cursor | null, t
 
 /** One call thread with every line in spoken order and the ticket draft it built. */
 export async function getCall(db: Db, authorId: string, id: string): Promise<ConversationDetail> {
-  const root = await db.voiceSession.findFirst({ where: { id, authorId, threadId: null } });
+  const root = await db.voiceSession.findFirst({ where: { id, authorId, ...firstCall(db) } });
   if (!root) throw new NotFoundError('Conversation');
   const [calls, draft] = await Promise.all([
     callsOf(db, [id]),

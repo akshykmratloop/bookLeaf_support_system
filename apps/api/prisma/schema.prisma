@@ -436,7 +436,7 @@ model VoiceSession {
   spokenCheck     Json?           @map("spoken_check")
   inputTokens     Int             @default(0) @map("input_tokens")
   outputTokens    Int             @default(0) @map("output_tokens")
-  /// Calls continued with "Continue last call" share the first call's id here (null = own id).
+  /// The first call of a thread (its own id for a first call; older rows: null). Continued calls share it.
   threadId        String?         @map("thread_id") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 

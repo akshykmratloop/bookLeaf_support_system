@@ -39,7 +39,8 @@ async function addChat(id: string, minutes: number, firstWords: string, turns = 
 async function addCall(
   id: string,
   minutes: number,
-  opts: { threadId?: string; started?: boolean },
+  /** A first call is its own thread (as the voice module saves it); null is the older form. */
+  opts: { threadId?: string | null; started?: boolean },
 ) {
   await h.db.voiceSession.create({
     data: {
@@ -49,7 +50,7 @@ async function addCall(
       model: 'fake',
       maxSeconds: 300,
       status: 'ENDED',
-      threadId: opts.threadId ?? null,
+      threadId: opts.threadId === undefined ? id : opts.threadId,
       startedAt: opts.started === false ? null : at(minutes),
       createdAt: at(minutes),
       transcript: [
@@ -91,11 +92,19 @@ beforeAll(async () => {
     data: { authorId, chatSessionId: ID(4), subject: 'Book not on Amazon' },
   });
   await addChat(ID(5), 0, 'tie with a call');
-  await addCall(ID(6), 0, {}); // same time as chat 5: the larger id comes first
+  await addCall(ID(6), 0, { threadId: null }); // older form; same time as chat 5: larger id first
   await addChat(ID(7), 40, 'never written in', 0); // left out: no messages
   await addCall(ID(8), 50, { started: false }); // left out: never connected
 });
-afterAll(() => h.close());
+afterAll(async () => {
+  // Leave no future-dated rows behind: other files count this author's recent calls.
+  const ids = Array.from({ length: 8 }, (_, i) => ID(i + 1));
+  await h.db.ticketDraft.deleteMany({ where: { chatSessionId: { in: ids } } });
+  await h.db.chatMessage.deleteMany({ where: { sessionId: { in: ids } } });
+  await h.db.chatSession.deleteMany({ where: { id: { in: ids } } });
+  await h.db.voiceSession.deleteMany({ where: { id: { in: ids } } });
+  await h.close();
+});
 
 describe('GET /conversations', () => {
   it('lists chats and calls together, newest first, one row per call thread', async () => {
