@@ -17,6 +17,7 @@ import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { booksRoutes } from './modules/books/routes.js';
 import { chatRoutes } from './modules/chat/routes.js';
+import { conversationRoutes } from './modules/conversations/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
@@ -105,6 +106,7 @@ async function registerRoutes(api: App, c: Container) {
   await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
   await api.register(assistantRoutes, { assistant: c.assistant });
   await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
+  await api.register(conversationRoutes, { conversations: c.conversations });
   await api.register(ticketDraftRoutes, { drafts: c.ticketDrafts, limits: c.limits });
   await api.register(voiceRoutes, {
     voice: c.voice,

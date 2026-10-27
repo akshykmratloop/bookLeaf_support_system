@@ -10,6 +10,7 @@ import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
 import { createBooksRepository } from './modules/books/repository.js';
 import { createChatService } from './modules/chat/service.js';
+import { createConversationService } from './modules/conversations/service.js';
 import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
 import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
@@ -80,6 +81,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     ...core,
     auth: createAuthService(core.db, core.sessions),
     books: createBooksRepository(core.db),
+    conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),
     ...createAssistants(core),
   };
