@@ -1,16 +1,9 @@
 import type { VoiceEndReason } from '@bookleaf/shared';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import { Link } from 'react-router';
-import { errorMessage } from '../../lib/api';
-import { assistantKeys, raiseVoiceTicket, useVoiceCallRecord } from '../../lib/assistant';
-import { newRequestKey } from '../../lib/ids';
-import { keys, useBooks } from '../../lib/queries';
+import { useVoiceCallRecord } from '../../lib/assistant';
 import { Card } from '../atoms/Card';
 import { ChatBubble } from '../molecules/ChatBubble';
 import { LoadingState } from '../molecules/States';
-import { useToast } from '../molecules/Toast';
-import { ChatTicketCard } from './ChatTicketCard';
 
 const ENDED_TEXT: Record<VoiceEndReason, string> = {
   USER_HANGUP: 'You ended the call.',
@@ -23,7 +16,7 @@ const ENDED_TEXT: Record<VoiceEndReason, string> = {
   SERVER_RESTART: 'The call was interrupted.',
 };
 
-/** After a call: what was said, and the ticket the assistant prepared (author confirms). */
+/** After a call: what was said. The call's ticket stays in the panel beside it. */
 export function VoiceAfterCall({
   callId,
   reason,
@@ -31,25 +24,10 @@ export function VoiceAfterCall({
   callId: string;
   reason: VoiceEndReason | null;
 }) {
-  const toast = useToast();
-  const qc = useQueryClient();
-  const books = useBooks();
   const record = useVoiceCallRecord(callId);
-  const [key] = useState(newRequestKey);
-  const [dismissed, setDismissed] = useState(false);
-  const raise = useMutation({
-    mutationFn: (v: Parameters<typeof raiseVoiceTicket>[1]) => raiseVoiceTicket(callId, v, key),
-    onSuccess: async (t) => {
-      toast('success', `Ticket ${t.number} raised`);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: assistantKeys.voiceCall(callId) }),
-        qc.invalidateQueries({ queryKey: keys.tickets() }),
-      ]);
-    },
-    onError: (e) => toast('error', errorMessage(e)),
-  });
   if (record.isPending) return <LoadingState label="Saving the call…" />;
   const call = record.data;
+  const ticket = call?.ticket ?? call?.draft?.ticket ?? null;
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] text-ink-2">
@@ -65,23 +43,18 @@ export function VoiceAfterCall({
           ))}
         </ol>
       ) : null}
-      {call?.ticket ? (
+      {ticket ? (
         <Card className="p-3 text-[13px]">
           Ticket{' '}
-          <Link className="font-semibold text-brand underline" to={`/tickets/${call.ticket.id}`}>
-            {call.ticket.number}
+          <Link className="font-semibold text-brand underline" to={`/tickets/${ticket.id}`}>
+            {ticket.number}
           </Link>{' '}
-          was raised from this call. The team will reply there.
+          was sent from this call. The team will reply there.
         </Card>
-      ) : null}
-      {call?.proposal && !call.ticket && !dismissed ? (
-        <ChatTicketCard
-          proposal={call.proposal}
-          books={books.data ?? []}
-          isSubmitting={raise.isPending}
-          onDismiss={() => setDismissed(true)}
-          onConfirm={(v) => raise.mutate(v)}
-        />
+      ) : call?.draft?.subject ? (
+        <p className="text-[12.5px] text-ink-2">
+          Your ticket from this call is on the right. You can still edit it and press Send.
+        </p>
       ) : null}
     </div>
   );

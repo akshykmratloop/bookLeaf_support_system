@@ -4,10 +4,8 @@ import type {
   AssistantAdminStatus,
   AssistantAvailability,
   AssistantSettings,
-  AuthorTicket,
   ChatReply,
   ChatSession,
-  ChatTicketRequest,
   ChatTranscript,
   ChannelState,
   VoiceCall,
@@ -64,13 +62,6 @@ export const startChat = () => api<ChatSession>('/chat/sessions', { method: 'POS
 export const sendChatMessage = (sessionId: string, body: string) =>
   api<ChatReply>(`/chat/sessions/${sessionId}/messages`, { method: 'POST', body: { body } });
 
-export const raiseChatTicket = (sessionId: string, body: ChatTicketRequest, key: string) =>
-  api<AuthorTicket>(`/chat/sessions/${sessionId}/ticket`, {
-    method: 'POST',
-    body,
-    idempotencyKey: key,
-  });
-
 export const CHANNEL_LABEL: Record<ChannelState, string> = {
   AVAILABLE: 'Available to authors',
   DISABLED: 'Switched off',
@@ -93,11 +84,4 @@ export const useAdminVoiceCall = (id: string | null) =>
     queryKey: assistantKeys.adminVoiceCall(id ?? ''),
     queryFn: () => api<AdminVoiceCall>(`/admin/voice/calls/${id ?? ''}`),
     enabled: id !== null,
-  });
-
-export const raiseVoiceTicket = (callId: string, body: ChatTicketRequest, key: string) =>
-  api<AuthorTicket>(`/voice/calls/${callId}/ticket`, {
-    method: 'POST',
-    body,
-    idempotencyKey: key,
   });

@@ -1,23 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ChatSession, TicketProposal } from '@bookleaf/shared';
+import type { ChatSession } from '@bookleaf/shared';
 import { useState, useSyncExternalStore } from 'react';
 import { errorMessage } from './api';
-import {
-  assistantKeys,
-  raiseChatTicket,
-  sendChatMessage,
-  startChat,
-  useCurrentChat,
-} from './assistant';
+import { assistantKeys, sendChatMessage, startChat, useCurrentChat } from './assistant';
 import { MessageQueue } from './chatQueue';
-import { newRequestKey } from './ids';
-import { keys } from './queries';
 
-/** Chat state for the author: the latest conversation, the send queue, new conversation, ticket. */
+/** Chat state for the author: the latest conversation, the send queue and new conversation. */
 export function useChat(enabled: boolean) {
   const qc = useQueryClient();
   const current = useCurrentChat(enabled);
-  const [ticketKey, setTicketKey] = useState(newRequestKey);
   const setSession = (s: ChatSession) => qc.setQueryData(assistantKeys.currentChat, s);
 
   const [queue] = useState(
@@ -33,26 +24,7 @@ export function useChat(enabled: boolean) {
   );
   const queued = useSyncExternalStore(queue.subscribe, queue.snapshot);
 
-  const restart = useMutation({
-    mutationFn: startChat,
-    onSuccess: (s) => {
-      setSession(s);
-      setTicketKey(newRequestKey());
-    },
-  });
+  const restart = useMutation({ mutationFn: startChat, onSuccess: setSession });
 
-  const raise = useMutation({
-    mutationFn: (values: TicketProposal) => {
-      if (!current.data) throw new Error('No conversation');
-      return raiseChatTicket(current.data.id, values, ticketKey);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: assistantKeys.currentChat }),
-        qc.invalidateQueries({ queryKey: keys.tickets() }),
-      ]);
-    },
-  });
-
-  return { current, session: current.data ?? null, queue, queued, restart, raise };
+  return { current, session: current.data ?? null, queue, queued, restart };
 }

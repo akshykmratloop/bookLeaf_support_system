@@ -1,8 +1,6 @@
-import type { ChatMessage } from '@bookleaf/shared';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { errorMessage } from '../../lib/api';
-import { useBooks } from '../../lib/queries';
 import { useChat } from '../../lib/useChat';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
@@ -10,9 +8,7 @@ import { ChatBubble } from '../molecules/ChatBubble';
 import { ChatComposer } from '../molecules/ChatComposer';
 import { QueuedBubble } from '../molecules/QueuedBubble';
 import { ErrorState, LoadingState } from '../molecules/States';
-import { useToast } from '../molecules/Toast';
 import { TypingBubble } from '../molecules/TypingBubble';
-import { ChatTicketCard } from './ChatTicketCard';
 
 const SUGGESTIONS = [
   'How much royalty is pending on my books?',
@@ -20,14 +16,8 @@ const SUGGESTIONS = [
   'What stage is my book in?',
 ];
 
-const lastAnswer = (messages: ChatMessage[]) =>
-  [...messages].reverse().find((m) => m.role === 'ASSISTANT') ?? null;
-
 export function ChatPanel({ maxChars }: { maxChars: number }) {
-  const toast = useToast();
-  const books = useBooks();
-  const { current, session, queue, queued, restart, raise } = useChat(true);
-  const [dismissed, setDismissed] = useState<string | null>(null);
+  const { current, session, queue, queued, restart } = useChat(true);
   const endRef = useRef<HTMLDivElement>(null);
   const messages = session?.messages ?? [];
   const count = messages.length;
@@ -44,9 +34,6 @@ export function ChatPanel({ maxChars }: { maxChars: number }) {
     );
 
   const ask = (question: string) => queue.add(question);
-  const answer = lastAnswer(messages);
-  const proposal =
-    answer?.proposal && !session?.ticket && dismissed !== answer.id ? answer.proposal : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,21 +69,6 @@ export function ChatPanel({ maxChars }: { maxChars: number }) {
           </Link>{' '}
           was raised from this conversation. The team will reply there.
         </Card>
-      ) : null}
-      {proposal && answer && queued.length === 0 ? (
-        <ChatTicketCard
-          key={answer.id}
-          proposal={proposal}
-          books={books.data ?? []}
-          isSubmitting={raise.isPending}
-          onDismiss={() => setDismissed(answer.id)}
-          onConfirm={(v) =>
-            raise.mutate(v, {
-              onSuccess: (t) => toast('success', `Ticket ${t.number} raised`),
-              onError: (e) => toast('error', errorMessage(e)),
-            })
-          }
-        />
       ) : null}
       <ChatComposer
         maxChars={maxChars}

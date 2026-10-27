@@ -10,8 +10,10 @@ export function useVoiceCall() {
   }, [session]);
   return {
     view,
-    start: () => void session.start(),
+    start: (opts: { resume?: boolean } = {}) => void session.start(opts),
     hangup: () => session.hangup(),
     toggleMute: () => session.toggleMute(),
   };
 }
+
+export type VoiceCallControls = ReturnType<typeof useVoiceCall>;
