@@ -28,12 +28,7 @@ function Ring({ percent }: { percent: number }) {
         transform="rotate(-90 64 64)"
         style={{ transition: 'stroke-dasharray .8s cubic-bezier(.2,.8,.2,1)' }}
       />
-      <text
-        x="64"
-        y="62"
-        textAnchor="middle"
-        className="fill-[var(--ink)] text-[24px] font-extrabold"
-      >
+      <text x="64" y="62" textAnchor="middle" className="fill-[var(--ink)] text-[24px] font-bold">
         {percent}%
       </text>
       <text x="64" y="82" textAnchor="middle" className="fill-[var(--ink-3)] text-[11px]">
@@ -56,9 +51,9 @@ export function PayoutCard({
       <div className="flex flex-wrap items-center gap-5">
         <Ring percent={payout.progressPercent} />
         <div className="flex min-w-[180px] flex-1 flex-col gap-3">
-          <p className="text-[24px] font-extrabold">{rupees(pendingPaise)}</p>
+          <p className="text-[24px] font-bold">{rupees(pendingPaise)}</p>
           {payout.eligible ? (
-            <p className="flex items-start gap-2 text-[13px] text-brand">
+            <p className="flex items-start gap-2 text-[13px] text-brand-ink">
               <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0" />
               Above the {rupees(payout.thresholdPaise)} minimum: due in the next payout.
             </p>

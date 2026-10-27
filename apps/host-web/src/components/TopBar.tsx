@@ -33,7 +33,7 @@ export function TopBar({ name, onSignOut }: { name: string; onSignOut: () => voi
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-panel/80 px-4 backdrop-blur lg:px-8">
       <Logo />
-      <span className="ml-2 hidden rounded-full bg-brand-soft px-2.5 py-1 text-[11.5px] font-bold text-brand sm:inline">
+      <span className="ml-2 hidden rounded-full bg-brand-soft px-2.5 py-1 text-[11.5px] font-bold text-brand-ink sm:inline">
         Author dashboard
       </span>
       <span className="flex-1" />

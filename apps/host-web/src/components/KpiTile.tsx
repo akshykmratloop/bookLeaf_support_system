@@ -19,7 +19,7 @@ export function KpiTile({ label, value, hint, Icon, tone }: Props) {
           <Icon size={16} aria-hidden />
         </span>
       </div>
-      <p className="text-[26px] leading-none font-extrabold tracking-tight">{value}</p>
+      <p className="text-[26px] leading-none font-bold tracking-tight">{value}</p>
       <p className="text-[12px] text-ink-3">{hint}</p>
     </div>
   );

@@ -9,6 +9,7 @@ import { OverdueAlert } from '../components/OverdueAlert';
 import { PayoutCard } from '../components/PayoutCard';
 import { RoyaltyChart } from '../components/RoyaltyChart';
 import { TopBar } from '../components/TopBar';
+import { Waves } from '../components/Waves';
 import { signOut } from '../lib/api';
 import { day, firstName, plural, rupees } from '../lib/format';
 import { DASHBOARD_KEY } from '../lib/keys';
@@ -22,7 +23,7 @@ function Kpis({ totals }: { totals: Dashboard['totals'] }) {
         value={rupees(totals.earnedPaise)}
         hint="All time, all books"
         Icon={IndianRupee}
-        tone="bg-brand-soft text-brand"
+        tone="bg-brand-soft text-brand-ink"
       />
       <KpiTile
         label="Paid out"
@@ -64,11 +65,12 @@ export function DashboardPage({ data }: { data: Dashboard }) {
       <TopBar name={data.profile.name} onSignOut={() => void leave()} />
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-none">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-6 pb-28 lg:px-8">
-          <div className="animate-rise">
-            <h1 className="font-serif text-[30px] leading-tight font-semibold lg:text-[36px]">
-              Hello, {firstName(data.profile.name)}
+          <div className="relative animate-rise overflow-hidden rounded-card border border-line bg-[linear-gradient(120deg,var(--brand-soft),var(--panel)_55%,var(--cream))] px-6 pt-6 pb-10 lg:px-8">
+            <Waves />
+            <h1 className="relative text-[30px] leading-tight font-light tracking-tight lg:text-[40px]">
+              Hello, <span className="text-brand-ink">{firstName(data.profile.name)}</span>
             </h1>
-            <p className="text-ink-2">
+            <p className="relative mt-1 text-ink-2">
               {plural(data.totals.books, 'book')} · figures as of {day(data.asOf)}
             </p>
           </div>
@@ -79,7 +81,7 @@ export function DashboardPage({ data }: { data: Dashboard }) {
             <RoyaltyChart books={data.books} />
           </div>
           <section aria-label="Your books" className="flex flex-col gap-3">
-            <h2 className="text-[18px] font-extrabold">Your books</h2>
+            <h2 className="text-[18px] font-bold">Your books</h2>
             <div className="grid gap-4 xl:grid-cols-2">
               {data.books.map((b) => (
                 <BookCard key={b.id} book={b} />

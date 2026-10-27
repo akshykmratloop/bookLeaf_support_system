@@ -1,10 +1,12 @@
+/** BookLeaf Publishing's own logo, taken from bookleafpub.in (white chip behind it in dark mode). */
 export function Logo({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (
-    <span className="flex items-center gap-2.5">
-      <img src="/favicon.svg" alt="" className={size === 'lg' ? 'h-10 w-10' : 'h-8 w-8'} />
-      <span className={`font-serif font-semibold ${size === 'lg' ? 'text-[26px]' : 'text-[19px]'}`}>
-        BookLeaf
-      </span>
-    </span>
+    <img
+      src="/bookleaf-logo.png"
+      alt="BookLeaf Publishing"
+      width={609}
+      height={189}
+      className={`brand-logo w-auto ${size === 'lg' ? 'h-14' : 'h-10'}`}
+    />
   );
 }

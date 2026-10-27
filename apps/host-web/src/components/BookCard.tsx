@@ -16,7 +16,7 @@ function Fact({
   return (
     <div>
       <dt className="text-[11.5px] text-ink-3">{label}</dt>
-      <dd className={`text-[13.5px] ${strong ? 'font-extrabold' : 'font-semibold'}`}>{value}</dd>
+      <dd className={`text-[13.5px] ${strong ? 'font-bold' : 'font-semibold'}`}>{value}</dd>
     </div>
   );
 }
@@ -27,17 +27,17 @@ export function BookCard({ book: b }: { book: DashboardBook }) {
   return (
     <article className="flex animate-rise flex-col gap-4 rounded-card border border-line bg-panel p-5 shadow-card">
       <header className="flex items-start gap-3">
-        <span className="grid h-14 w-11 shrink-0 place-items-center rounded-md bg-gradient-to-br from-brand to-[#0b5e3b] text-white shadow-card">
+        <span className="grid h-14 w-11 shrink-0 place-items-center rounded-md bg-gradient-to-br from-brand-bright to-navy text-white shadow-card">
           <BookOpen size={18} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="font-serif text-[18px] leading-snug font-semibold">{b.title}</h3>
+          <h3 className="text-[17px] leading-snug font-semibold">{b.title}</h3>
           <p className="text-[12.5px] text-ink-3">
             {b.genre} · ISBN {b.isbn}
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${b.live ? 'bg-brand-soft text-brand' : 'bg-warn-soft text-warn'}`}
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${b.live ? 'bg-brand-soft text-brand-ink' : 'bg-warn-soft text-warn'}`}
         >
           {b.live ? 'Live' : 'In production'}
         </span>

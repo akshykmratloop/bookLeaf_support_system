@@ -2,11 +2,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Logo } from '../components/Logo';
+import { Waves } from '../components/Waves';
 import { signIn } from '../lib/api';
 import { DASHBOARD_KEY } from '../lib/keys';
 
 const field =
-  'h-11 w-full rounded-xl border border-line bg-panel px-3.5 text-[14px] focus:border-brand focus:outline-none';
+  'h-11 w-full rounded-xl border border-line bg-panel px-3.5 text-[14px] focus:border-brand focus:ring-4 focus:ring-brand/15 focus:outline-none';
 
 /** BookLeaf's own sign-in. Demo accounts share HOST_DEMO_PASSWORD (see the README). */
 export function LoginPage() {
@@ -30,23 +31,27 @@ export function LoginPage() {
   };
   return (
     <div className="grid h-full overflow-y-auto lg:grid-cols-2">
-      <section className="hidden flex-col justify-between bg-gradient-to-br from-brand to-[#0b5e3b] p-12 text-white lg:flex">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-[linear-gradient(160deg,var(--brand-soft),var(--panel)_50%,var(--cream))] p-12 lg:flex">
         <Logo size="lg" />
-        <div>
-          <p className="font-serif text-[40px] leading-tight italic">Your books, your royalties,</p>
-          <p className="font-serif text-[40px] leading-tight italic">all in one place.</p>
-          <p className="mt-4 max-w-md text-white/80">
+        <div className="relative">
+          <p className="text-[44px] leading-tight font-light tracking-tight text-brand-ink">
+            Your books, your royalties,
+            <br />
+            all in one place.
+          </p>
+          <p className="mt-4 max-w-md text-[15px] text-ink-2">
             See sales, payouts and production at a glance, and get help without leaving the page.
           </p>
         </div>
-        <p className="text-[12px] text-white/60">A demo of BookLeaf's author platform.</p>
+        <p className="relative text-[12px] text-ink-3">A demo of BookLeaf's author platform.</p>
+        <Waves />
       </section>
       <section className="grid place-items-center p-6">
         <form onSubmit={(e) => void submit(e)} className="w-full max-w-sm animate-rise">
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
-          <h1 className="text-[26px] font-extrabold">Welcome back</h1>
+          <h1 className="text-[30px] font-light tracking-tight">Welcome back</h1>
           <p className="mb-6 text-ink-2">Sign in to your author dashboard.</p>
           <label htmlFor="email" className="mb-1.5 block text-[13px] font-semibold">
             Email
