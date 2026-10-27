@@ -6,13 +6,16 @@ import { findOwnSession, findSessionById } from './repository.js';
 
 /** One of the author's own conversations, with its limit applied. */
 export async function loadChat(deps: ChatDeps, session: Session, id: string) {
-  const s = await findOwnSession(deps.db, id, authorIdOf(session));
-  return toChatSession(s, deps.limits.chat.maxTurnsPerSession);
+  const [s, cfg] = await Promise.all([
+    findOwnSession(deps.db, id, authorIdOf(session)),
+    deps.assistant.config(session.workspaceId),
+  ]);
+  return toChatSession(s, cfg.limits.chat.maxTurnsPerSession);
 }
 
 /** The author's latest conversation, or null. */
 export async function currentChat(deps: ChatDeps, session: Session): Promise<ChatSession | null> {
-  await deps.assistant.requireChatEnabled();
+  await deps.assistant.requireChatEnabled(session.workspaceId);
   const latest = await deps.db.chatSession.findFirst({
     where: { authorId: authorIdOf(session) },
     orderBy: { createdAt: 'desc' },
@@ -22,7 +25,7 @@ export async function currentChat(deps: ChatDeps, session: Session): Promise<Cha
 }
 
 export async function startChat(deps: ChatDeps, session: Session): Promise<ChatSession> {
-  await deps.assistant.requireChatEnabled();
+  await deps.assistant.requireChatEnabled(session.workspaceId);
   const authorId = authorIdOf(session);
   const created = await deps.db.chatSession.create({
     data: { workspaceId: session.workspaceId, authorId, createdAt: deps.clock.now() },
@@ -31,7 +34,7 @@ export async function startChat(deps: ChatDeps, session: Session): Promise<ChatS
 }
 
 export async function getChat(deps: ChatDeps, session: Session, id: string): Promise<ChatSession> {
-  await deps.assistant.requireChatEnabled();
+  await deps.assistant.requireChatEnabled(session.workspaceId);
   return loadChat(deps, session, id);
 }
 

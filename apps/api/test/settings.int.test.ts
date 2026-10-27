@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 import { call, createHarness, deleteWorkspace, EMAILS, type Harness } from './helpers/app.js';
 
 let h: Harness;
@@ -132,6 +133,27 @@ describe('workspace settings', () => {
       (await call(h, 'PUT', '/workspace/settings', acme, { version: 1, brandColor: 'red' }))
         .statusCode,
     ).toBe(422);
+  });
+
+  it("runs chat and voice on the workspace's own switches and limits, not another's", async () => {
+    const acmeId = (await h.db.workspace.findUniqueOrThrow({ where: { slug: OWNER.slug } })).id;
+    const before = await h.container.assistant.config(DEFAULT_WORKSPACE_ID);
+    const { settings } = (await call(h, 'GET', '/workspace/settings', acme)).json<{
+      settings: { version: number };
+    }>();
+    const saved = await call(h, 'PUT', '/workspace/settings', acme, {
+      version: settings.version,
+      voiceEnabled: true,
+      maxTurnsPerSession: 4,
+      messagesPerMinute: 7,
+      maxCallSeconds: 120,
+    });
+    expect(saved.statusCode).toBe(200);
+    const mine = await h.container.assistant.config(acmeId);
+    expect(mine).toMatchObject({ chatEnabled: true, voiceEnabled: true });
+    expect(mine.limits.chat).toMatchObject({ maxTurnsPerSession: 4, messagesPerMinute: 7 });
+    expect(mine.limits.voice.maxCallSeconds).toBe(120);
+    expect(await h.container.assistant.config(DEFAULT_WORKSPACE_ID)).toEqual(before);
   });
 
   it("never shows one workspace's settings to another, and keeps authors out (403)", async () => {

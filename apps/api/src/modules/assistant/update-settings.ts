@@ -1,7 +1,8 @@
 import type { AssistantSettings, UpdateAssistantSettings } from '@bookleaf/shared';
 import { findModel } from '../../ai/providers/catalog.js';
-import { ConflictError, ValidationError } from '../../platform/errors.js';
+import { ValidationError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import { updateWorkspaceSettings } from '../settings/workspace-settings.js';
 import { loadSettings, toSettingsDto, type AssistantDeps } from './deps.js';
 
 async function assertAllowedModel(deps: AssistantDeps, chatModel: string | undefined) {
@@ -13,41 +14,18 @@ async function assertAllowedModel(deps: AssistantDeps, chatModel: string | undef
     ]);
 }
 
-/** Switches chat or voice on or off, or picks the chat model. Stale versions conflict. */
+/**
+ * Switches chat or voice on or off, or picks the chat model, for the admin's own workspace (the
+ * same settings the Workspace Settings screen edits). Stale versions conflict; the change and its
+ * audit record commit together.
+ */
 export async function updateSettings(
   deps: AssistantDeps,
   session: Session,
   input: UpdateAssistantSettings,
 ): Promise<AssistantSettings> {
-  const current = await loadSettings(deps.db);
   await assertAllowedModel(deps, input.chatModel);
-  const data = {
-    chatEnabled: input.chatEnabled ?? current.chatEnabled,
-    voiceEnabled: input.voiceEnabled ?? current.voiceEnabled,
-    chatModel: input.chatModel ?? current.chatModel,
-    updatedById: session.userId,
-  };
-  // The change and its audit record commit together, or neither does.
-  await deps.db.$transaction(async (tx) => {
-    const res = await tx.assistantSettings.updateMany({
-      where: { id: 1, version: input.version },
-      data: { ...data, version: { increment: 1 } },
-    });
-    if (res.count === 0)
-      throw new ConflictError(
-        'VERSION_CONFLICT',
-        'Assistant settings were changed by someone else. Reload and try again.',
-      );
-    await tx.auditEvent.create({
-      data: {
-        actorId: session.userId,
-        entityType: 'assistant_settings',
-        entityId: '1',
-        action: 'assistant_settings.updated',
-        before: toSettingsDto(current),
-        after: data,
-      },
-    });
-  });
-  return toSettingsDto(await loadSettings(deps.db));
+  const row = await updateWorkspaceSettings(deps.db, session, input, deps.configs.seed);
+  deps.configs.invalidate(session.workspaceId);
+  return toSettingsDto(row, (await loadSettings(deps.db)).chatModel);
 }

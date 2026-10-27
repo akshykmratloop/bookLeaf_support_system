@@ -75,7 +75,8 @@ function listen(socket: WebSocket, line: Line): void {
 function saver(callId: string, ctx: CallContext, deps: GatewayDeps) {
   return async (outcome: CallOutcome) => {
     try {
-      await deps.voice.finish(callId, outcome, ctx);
+      const maxTurns = ctx.limits.chat.maxTurnsPerSession;
+      await deps.voice.finish(callId, outcome, { ...ctx, maxTurns });
     } catch (err) {
       deps.log.error({ err, callId }, 'failed to save voice call');
       await deps.voice.markFailed(callId);
@@ -112,10 +113,10 @@ export async function bridgeCall(
     provider: deps.provider,
     config: ctx.config,
     draft: deps.voice.draftPort(session, ctx),
-    limits: { ...deps.voice.callLimits(), turnsLeft: ctx.turnsLeft },
+    limits: { ...deps.voice.callLimits(ctx), turnsLeft: ctx.turnsLeft },
     caller: channelFor(socket),
     now: deps.now,
-    isStillAllowed: () => deps.voice.isVoiceStillOn(),
+    isStillAllowed: () => deps.voice.isVoiceStillOn(session),
     onEnd: saver(callId, ctx, deps),
     lines: ctx.lines,
     warn: (message, err) => deps.log.warn({ err, callId }, message),

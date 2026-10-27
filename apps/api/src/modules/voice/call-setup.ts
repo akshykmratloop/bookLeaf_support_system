@@ -80,5 +80,12 @@ export async function contextFor(
   if (left === 0) throw turnLimitError(maxTurns);
   const maxSeconds = limits.voice.maxCallSeconds;
   const style = deps.voiceStyle;
-  return buildCallContext(deps, { authorId, maxSeconds, thread, turnsLeft: left, style });
+  return buildCallContext(deps, {
+    authorId,
+    maxSeconds,
+    thread,
+    turnsLeft: left,
+    style,
+    limits,
+  });
 }

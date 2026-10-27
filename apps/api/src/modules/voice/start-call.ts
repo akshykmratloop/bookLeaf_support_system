@@ -1,5 +1,6 @@
 import type { StartVoiceCall } from '@bookleaf/shared';
 import { AppError } from '../../platform/errors.js';
+import type { AssistantLimits } from '../assistant/limits.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { newCallIds } from './call-setup.js';
@@ -35,15 +36,15 @@ interface NewCall extends StartOptions {
  * One call at a time per author: the lock makes the quota check and insert atomic. A call that
  * joins a chat is a fresh thread: the chat already holds the earlier conversation.
  */
-function insertCall(deps: VoiceDeps, call: NewCall) {
+function insertCall(deps: VoiceDeps, call: NewCall, limits: AssistantLimits) {
   const { workspaceId, authorId, provider, resume, chatSessionId, now } = call;
-  const maxSeconds = deps.limits.voice.maxCallSeconds;
-  const maxTurns = deps.limits.chat.maxTurnsPerSession;
+  const maxSeconds = limits.voice.maxCallSeconds;
+  const maxTurns = limits.chat.maxTurnsPerSession;
   return deps.db.$transaction(async (tx) => {
     await repo.lockAuthor(tx, authorId);
     const chatId = chatSessionId ? await joinableChat(tx, authorId, chatSessionId, maxTurns) : null;
     await repo.replaceUnconnectedCalls(tx, authorId);
-    await checkQuota(tx, deps.limits.voice, authorId, now);
+    await checkQuota(tx, limits.voice, authorId, now);
     const ids = await newCallIds(tx, authorId, resume && !chatId, now);
     const { id: providerId, model } = provider;
     return tx.voiceSession.create({
@@ -67,20 +68,25 @@ export async function startCall(
   session: Session,
   opts: StartOptions,
 ): Promise<StartVoiceCall> {
-  await deps.assistant.requireVoiceEnabled();
+  await deps.assistant.requireVoiceEnabled(session.workspaceId);
+  const { limits } = await deps.assistant.config(session.workspaceId);
   const authorId = authorIdOf(session);
   const provider = deps.provider;
   if (!provider) throw new VoiceUnavailableError();
   const now = deps.clock.now();
-  const maxSeconds = deps.limits.voice.maxCallSeconds;
+  const maxSeconds = limits.voice.maxCallSeconds;
   await repo.expireStale(deps.db, authorId, now, maxSeconds);
-  const call = await insertCall(deps, {
-    ...opts,
-    workspaceId: session.workspaceId,
-    authorId,
-    provider,
-    now,
-  });
+  const call = await insertCall(
+    deps,
+    {
+      ...opts,
+      workspaceId: session.workspaceId,
+      authorId,
+      provider,
+      now,
+    },
+    limits,
+  );
   return {
     id: call.id,
     socketPath: `/api/v1/voice/calls/${call.id}/stream`,

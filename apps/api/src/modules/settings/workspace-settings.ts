@@ -3,6 +3,7 @@ import type { WorkspaceSettings as Row } from '@prisma/client';
 import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import type { SeedValues } from './configs.js';
 
 export const toSettingsDto = (s: Row): WorkspaceSettings => ({
   triageModel: s.triageModel,
@@ -27,9 +28,16 @@ export const toSettingsDto = (s: Row): WorkspaceSettings => ({
   updatedAt: s.updatedAt.toISOString(),
 });
 
-/** The workspace's row, created with the platform defaults on first read. */
-export const loadWorkspaceSettings = (db: Db, workspaceId: string): Promise<Row> =>
-  db.workspaceSettings.upsert({ where: { workspaceId }, create: { workspaceId }, update: {} });
+/** Values a new row starts with (the platform's current ones). */
+export type Seed = () => Promise<SeedValues>;
+
+/** The workspace's row, created from the platform values on first read. */
+export async function loadWorkspaceSettings(db: Db, workspaceId: string, seed: Seed): Promise<Row> {
+  const existing = await db.workspaceSettings.findUnique({ where: { workspaceId } });
+  if (existing) return existing;
+  const create = { workspaceId, ...(await seed()) };
+  return db.workspaceSettings.upsert({ where: { workspaceId }, create, update: {} });
+}
 
 const CONFLICT = () =>
   new ConflictError(
@@ -42,9 +50,10 @@ export async function updateWorkspaceSettings(
   db: Db,
   session: Session,
   input: UpdateWorkspaceSettings,
+  seed: Seed,
 ): Promise<Row> {
   const workspaceId = session.workspaceId;
-  const current = await loadWorkspaceSettings(db, workspaceId);
+  const current = await loadWorkspaceSettings(db, workspaceId, seed);
   const { version, ...changes } = input;
   const data = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined));
   return db.$transaction(async (tx) => {

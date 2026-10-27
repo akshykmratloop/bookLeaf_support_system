@@ -8,6 +8,7 @@ import type { AiRuntime } from '../../ai/jobs/runtime.js';
 import { PROVIDER_CATALOG, findModel } from '../../ai/providers/catalog.js';
 import type { Db } from '../../platform/db.js';
 import { ValidationError } from '../../platform/errors.js';
+import type { WorkspaceConfigs } from './configs.js';
 import type { Session } from '../auth/session.js';
 import {
   createField,
@@ -27,6 +28,7 @@ export interface SettingsDeps {
   db: Db;
   ai: AiRuntime;
   voiceConfigured: boolean;
+  configs: WorkspaceConfigs;
 }
 
 const MODEL_FIELDS = ['triageModel', 'draftModel', 'chatModel'] as const;
@@ -43,11 +45,11 @@ async function assertAllowedModels(deps: SettingsDeps, input: UpdateWorkspaceSet
 
 /** Per-workspace assistant, chat, voice and widget settings, plus the customer-data schema. */
 export function createSettingsService(deps: SettingsDeps) {
-  const { db } = deps;
+  const { db, configs } = deps;
   return {
     async status(session: Session): Promise<WorkspaceSettingsStatus> {
       const [row, ai$] = await Promise.all([
-        loadWorkspaceSettings(db, session.workspaceId),
+        loadWorkspaceSettings(db, session.workspaceId, configs.seed),
         deps.ai.settings(),
       ]);
       const provider = PROVIDER_CATALOG.find((p) => p.id === ai$.provider);
@@ -60,11 +62,10 @@ export function createSettingsService(deps: SettingsDeps) {
     },
     async update(session: Session, input: UpdateWorkspaceSettings): Promise<WorkspaceSettings> {
       await assertAllowedModels(deps, input);
-      return toSettingsDto(await updateWorkspaceSettings(db, session, input));
+      const row = await updateWorkspaceSettings(db, session, input, configs.seed);
+      configs.invalidate(session.workspaceId);
+      return toSettingsDto(row);
     },
-    /** Effective settings for a workspace, for readers outside the admin screen. */
-    forWorkspace: async (workspaceId: string): Promise<WorkspaceSettings> =>
-      toSettingsDto(await loadWorkspaceSettings(db, workspaceId)),
 
     fields: {
       list: async (s: Session): Promise<{ items: CustomerField[] }> => ({

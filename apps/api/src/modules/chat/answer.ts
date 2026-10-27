@@ -31,6 +31,7 @@ interface Deps {
 }
 
 export interface AnswerRequest {
+  workspaceId: string;
   authorId: string;
   message: string;
   history: { role: 'AUTHOR' | 'ASSISTANT'; body: string }[];
@@ -105,7 +106,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
   const turn = await loadTurn(deps, req);
   const instant = fromRecords(req, turn, started);
   if (instant) return instant;
-  const access = await deps.assistant.chatAccess();
+  const access = await deps.assistant.chatAccess(req.workspaceId);
   if (!access.ok) return unavailable();
   const log = { ticketId: null, task: 'CHAT', provider: access.providerId, model: access.model };
   try {

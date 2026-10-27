@@ -23,7 +23,7 @@ export async function raiseChatTicket(
   session: Session,
   input: ChatTicketInput,
 ): Promise<Raised> {
-  await deps.assistant.requireChatEnabled();
+  await deps.assistant.requireChatEnabled(session.workspaceId);
   const chat = await findOwnSession(deps.db, input.chatId, authorIdOf(session));
   if (chat.ticket)
     return { ticket: await getAuthorTicket(deps, session, chat.ticket.id), created: false };

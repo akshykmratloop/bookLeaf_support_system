@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { ChatReply } from '@bookleaf/shared';
 import { UsageLimitError } from '../../platform/errors.js';
 import { QueueFullError } from '../../platform/keyed-queue.js';
-import { startOfUtcDay } from '../assistant/limits.js';
+import { startOfUtcDay, type AssistantLimits } from '../assistant/limits.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import { produceAnswer, type StoredAnswer } from './answer.js';
@@ -21,18 +21,29 @@ export interface ChatMessageInput {
   body: string;
 }
 
-async function enforceDailyLimit(deps: ChatDeps, authorId: string): Promise<void> {
-  const perDay = deps.limits.chat.messagesPerDay;
-  const used = await authorMessagesSince(deps.db, authorId, startOfUtcDay(deps.clock.now()));
+type ChatLimits = AssistantLimits['chat'];
+
+const MINUTE_MS = 60_000;
+
+/** The workspace's per-minute and per-day message limits for this author. */
+async function enforceRateLimits(deps: ChatDeps, authorId: string, limits: ChatLimits) {
+  const now = deps.clock.now();
+  const perDay = limits.messagesPerDay;
+  const used = await authorMessagesSince(deps.db, authorId, startOfUtcDay(now));
   if (used >= perDay)
     throw new UsageLimitError(
       'CHAT_DAILY_LIMIT',
       `You've reached today's limit of ${perDay} chat messages. You can still raise a ticket.`,
     );
+  const recent = await authorMessagesSince(deps.db, authorId, new Date(now.getTime() - MINUTE_MS));
+  if (recent >= limits.messagesPerMinute)
+    throw new UsageLimitError(
+      'CHAT_RATE_LIMIT',
+      'You are sending messages very quickly. Please wait a minute and try again.',
+    );
 }
 
-async function takeTurn(deps: ChatDeps, chatId: string): Promise<void> {
-  const maxTurns = deps.limits.chat.maxTurnsPerSession;
+async function takeTurn(deps: ChatDeps, chatId: string, maxTurns: number): Promise<void> {
   if (!(await reserveTurn(deps.db, chatId, maxTurns))) throw turnLimitError(maxTurns);
 }
 
@@ -57,8 +68,9 @@ function saveReply(deps: ChatDeps, chatId: string, a: StoredAnswer, body: string
 async function answerTurn(deps: ChatDeps, session: Session, input: ChatMessageInput) {
   const authorId = authorIdOf(session);
   const chat = await findOwnSession(deps.db, input.chatId, authorId);
-  await enforceDailyLimit(deps, authorId);
-  await takeTurn(deps, chat.id);
+  const { limits } = await deps.assistant.config(session.workspaceId);
+  await enforceRateLimits(deps, authorId, limits.chat);
+  await takeTurn(deps, chat.id, limits.chat.maxTurnsPerSession);
   await deps.db.chatMessage.create({
     data: { sessionId: chat.id, role: 'AUTHOR', body: input.body, createdAt: deps.clock.now() },
   });
@@ -66,7 +78,13 @@ async function answerTurn(deps: ChatDeps, session: Session, input: ChatMessageIn
     .slice(-HISTORY_MESSAGES)
     .map((m) => ({ role: m.role, body: m.body }));
   const draft = chat.ticketDraft ? toTicketDraft(chat.ticketDraft) : null;
-  const a = await produceAnswer(deps, { authorId, message: input.body, history, draft });
+  const a = await produceAnswer(deps, {
+    workspaceId: session.workspaceId,
+    authorId,
+    message: input.body,
+    history,
+    draft,
+  });
   const applied = await applyDraftAction(deps.drafts, session, {
     chatSessionId: chat.id,
     action: a.draft,
@@ -82,7 +100,7 @@ export async function sendMessage(
   session: Session,
   input: ChatMessageInput,
 ): Promise<ChatReply> {
-  await ctx.assistant.requireChatEnabled();
+  await ctx.assistant.requireChatEnabled(session.workspaceId);
   try {
     return await ctx.inOrder(input.chatId, () => answerTurn(ctx, session, input));
   } catch (err) {

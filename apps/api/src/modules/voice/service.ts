@@ -22,15 +22,16 @@ export function createVoiceService(deps: VoiceDeps) {
     /** The live call's connection to its ticket draft (same rules as the screen). */
     draftPort: (s: Session, ctx: CallContext) =>
       draftPort({ drafts: deps.drafts, live: deps.live }, s, ctx.draft, ctx.books),
-    callLimits: () => callLimits(deps),
+    /** The live call's rules, from its workspace's limits. */
+    callLimits: (ctx: CallContext) => callLimits(ctx.limits),
     finish: (
       callId: string,
       outcome: CallOutcome,
-      ctx: { facts: Fact[]; ignorePhrases: string[] },
+      ctx: { facts: Fact[]; ignorePhrases: string[]; maxTurns: number },
     ) => saveCallOutcome(deps, { callId, outcome, ...ctx }),
     /** Last resort when saving the outcome failed: at least free the author's call slot. */
     markFailed: (callId: string) => repo.markCallFailed(deps.db, callId, deps.clock.now()),
-    isVoiceStillOn: async () => (await deps.assistant.settings()).voiceEnabled,
+    isVoiceStillOn: async (s: Session) => (await deps.assistant.config(s.workspaceId)).voiceEnabled,
     get: (s: Session, id: string) => getCall(deps, s, id),
     adminGet: (id: string) => adminGetCall(deps, id),
     raiseTicket: (s: Session, id: string, ticket: TicketInput, key: string | null) =>

@@ -1,5 +1,6 @@
 import type { Fact } from '@bookleaf/shared';
 import { ConflictError } from '../../platform/errors.js';
+import type { AssistantLimits } from '../assistant/limits.js';
 import type { CallLimits, CallOutcome } from '../../voice/call/controller.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { contextFor } from './call-setup.js';
@@ -31,7 +32,8 @@ export async function claimCall(
       'This call has expired or is already connected.',
     );
   try {
-    return await contextFor(deps, authorId, id, deps.limits);
+    const { limits } = await deps.assistant.config(session.workspaceId);
+    return await contextFor(deps, authorId, id, limits);
   } catch (err) {
     // The row is already ACTIVE: release it so the author is not blocked until it expires.
     await repo.markCallFailed(deps.db, id, deps.clock.now());
@@ -39,10 +41,10 @@ export async function claimCall(
   }
 }
 
-/** Rules the live call enforces; the hard cap comes from env (at most 300 s). */
-export function callLimits(deps: VoiceDeps): CallLimits {
+/** Rules the live call enforces; the workspace's cap, never above the platform's 300 s. */
+export function callLimits(limits: AssistantLimits): CallLimits {
   return {
-    maxSeconds: deps.limits.voice.maxCallSeconds,
+    maxSeconds: limits.voice.maxCallSeconds,
     warnBeforeEndSeconds: 30,
     idleSeconds: 45,
     recheckSeconds: 15,
@@ -55,13 +57,18 @@ export interface EndedCall {
   outcome: CallOutcome;
   facts: Fact[];
   ignorePhrases: string[];
+  /** The workspace's chat message limit, for a call that joined a chat. */
+  maxTurns: number;
 }
 
 /** Saves the transcript, the spoken-figure check and the AI run of a finished call. */
-export async function saveCallOutcome(deps: VoiceDeps, { callId, outcome, ...ctx }: EndedCall) {
+export async function saveCallOutcome(
+  deps: VoiceDeps,
+  { callId, outcome, maxTurns, ...ctx }: EndedCall,
+) {
   await finishCall(deps.db, {
     callId,
-    maxTurns: deps.limits.chat.maxTurnsPerSession,
+    maxTurns,
     providerId: deps.provider?.id ?? 'unknown',
     model: deps.provider?.model ?? 'unknown',
     outcome,

@@ -27,7 +27,7 @@ function registerAvailability(app: RouteApp, { assistant }: Deps) {
         response: { 200: AssistantAvailabilitySchema, 401: ProblemSchema },
       },
     },
-    async () => assistant.availability(),
+    async (req) => assistant.availability(sessionOf(req).workspaceId),
   );
 }
 
@@ -43,7 +43,7 @@ function registerAdminRoutes(app: RouteApp, { assistant }: Deps) {
         response: { 200: AssistantAdminStatusSchema, ...errors },
       },
     },
-    async () => assistant.adminStatus(),
+    async (req) => assistant.adminStatus(sessionOf(req)),
   );
 
   app.put(

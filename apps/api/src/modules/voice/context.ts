@@ -1,3 +1,4 @@
+import type { AssistantLimits } from '../assistant/limits.js';
 import type { Fact, TicketDraft, TranscriptLine } from '@bookleaf/shared';
 import { loadAuthorView } from '../../host/author.js';
 import type { HostRecords } from '../../host/types.js';
@@ -18,6 +19,8 @@ export interface CallContext {
   turnsLeft: number | null;
   /** The time warning and limit goodbye, in the call's voice style. */
   lines: SpokenLines;
+  /** The workspace's limits the call runs under. */
+  limits: AssistantLimits;
 }
 
 export interface ThreadContext {
@@ -34,6 +37,7 @@ export interface CallContextInput {
   thread: ThreadContext;
   turnsLeft: number | null;
   style: VoiceStyle;
+  limits: AssistantLimits;
 }
 
 const greetingFor = (t: ThreadContext) =>
@@ -42,7 +46,7 @@ const greetingFor = (t: ThreadContext) =>
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   deps: { db: Db; records: HostRecords },
-  { authorId, maxSeconds, thread, turnsLeft, style }: CallContextInput,
+  { authorId, maxSeconds, thread, turnsLeft, style, limits }: CallContextInput,
 ): Promise<CallContext> {
   const { facts, books, firstName } = await loadAuthorView(deps, authorId);
   const instructions = voiceInstructions({
@@ -63,6 +67,7 @@ export async function buildCallContext(
     draft: thread.draft,
     turnsLeft,
     lines,
+    limits,
     config: {
       instructions,
       tools: VOICE_TOOLS,

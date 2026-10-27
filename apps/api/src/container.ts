@@ -8,7 +8,9 @@ import { createAiAdminService } from './modules/ai-admin/service.js';
 import { createConnectorService } from './modules/connectors/service.js';
 import { connectorDepsFromEnv } from './modules/connectors/from-env.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
+import { platformSwitches } from './modules/assistant/deps.js';
 import { createAssistantService } from './modules/assistant/service.js';
+import { createWorkspaceConfigs } from './modules/settings/configs.js';
 import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
@@ -50,6 +52,12 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
   const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };
+  const limits = limitsFromEnv(env);
+  const configs = createWorkspaceConfigs(db, {
+    limits,
+    voiceName: env.VOICE_NAME,
+    switches: () => platformSwitches(db),
+  });
   return {
     env,
     clock,
@@ -60,7 +68,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     records,
     connectors,
     ticketDeps,
-    limits: limitsFromEnv(env),
+    limits,
+    configs,
     voiceProvider,
   };
 }
@@ -68,16 +77,16 @@ function createCore(env: Env, overrides: ContainerOverrides) {
 type Core = ReturnType<typeof createCore>;
 
 /** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
-function createAssistants({ env, db, ai, limits, ticketDeps, voiceProvider }: Core) {
+function createAssistants({ env, db, ai, configs, ticketDeps, voiceProvider }: Core) {
   const draftLive = draftLiveUpdates();
   const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const assistant = createAssistantService({
     db,
     ai,
-    limits,
+    configs,
     voiceConfigured: voiceProvider !== null,
   });
-  const shared = { ...ticketDeps, assistant, limits, drafts: ticketDrafts };
+  const shared = { ...ticketDeps, assistant, drafts: ticketDrafts };
   return {
     assistant,
     draftLive,
@@ -109,6 +118,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       db: core.db,
       ai: core.ai,
       voiceConfigured: core.voiceProvider !== null,
+      configs: core.configs,
     }),
     books: createBooksService(core),
     conversations: createConversationService(core.db),

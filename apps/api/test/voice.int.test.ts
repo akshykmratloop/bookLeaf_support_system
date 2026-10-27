@@ -374,7 +374,7 @@ describe('voice: live ticket draft', () => {
 describe('voice: not configured', () => {
   it('reports NOT_CONFIGURED and refuses calls (503) when the server has no voice key', async () => {
     // Same database, where an earlier test switched voice on: only the missing key differs.
-    const bare = await createHarness({ voice: false });
+    const bare = await createHarness({ voice: false, keepSettings: true });
     const p = await bare.login(EMAILS.priya);
     const av = (await call(bare, 'GET', '/assistant/availability', p)).json<{
       voice: { state: string };

@@ -1,5 +1,4 @@
 import type { keyedQueue } from '../../platform/keyed-queue.js';
-import type { AssistantLimits } from '../assistant/limits.js';
 import type { AssistantService } from '../assistant/service.js';
 import type { TicketDeps } from '../tickets/deps.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
@@ -8,7 +7,6 @@ import type { TicketDraftService } from '../ticket-drafts/service.js';
 export interface ChatDeps extends TicketDeps {
   assistant: AssistantService;
   drafts: TicketDraftService;
-  limits: AssistantLimits;
 }
 
 /** Chat deps plus the per-conversation queue the service owns. */

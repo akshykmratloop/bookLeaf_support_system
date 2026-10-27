@@ -1,4 +1,5 @@
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { DEFAULT_WORKSPACE_ID } from '../../src/modules/workspaces/constants.js';
 import { inject } from 'vitest';
 import { createWorker, type Worker } from '../../src/ai/jobs/worker.js';
 import { fakeProvider, type FakeHandler } from '../../src/ai/providers/fake/provider.js';
@@ -149,6 +150,8 @@ export interface HarnessOptions {
   voice?: boolean;
   /** Extra settings, e.g. HOST_ORIGINS for embed mode. */
   env?: Record<string, string>;
+  /** Keep BookLeaf's saved settings from earlier in the file (a second harness mid-file). */
+  keepSettings?: boolean;
 }
 
 export async function createHarness(opts: HarnessOptions = {}): Promise<Harness> {
@@ -170,6 +173,9 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     ...opts.env,
   });
   const db = createDb(env.DATABASE_URL);
+  // Files share one database: start BookLeaf's saved settings again from this file's env.
+  if (!opts.keepSettings)
+    await db.workspaceSettings.deleteMany({ where: { workspaceId: DEFAULT_WORKSPACE_ID } });
   const clock = testClock(env.DATA_AS_OF);
   let handler: FakeHandler = defaultHandler;
   const provider = fakeProvider((req) => handler(req));

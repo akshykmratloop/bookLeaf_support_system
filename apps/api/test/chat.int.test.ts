@@ -45,6 +45,7 @@ beforeAll(async () => {
   ]);
   // The database is shared by every test file: start from the default switches (both off).
   await h.db.assistantSettings.deleteMany();
+  await h.db.workspaceSettings.deleteMany({ where: { workspaceId: DEFAULT_WORKSPACE_ID } });
 });
 afterAll(() => h.close());
 
@@ -73,7 +74,7 @@ describe('admin control', () => {
       chatEnabled: false,
     });
     expect(stale.statusCode).toBe(409);
-    const audit = await h.db.auditEvent.count({ where: { action: 'assistant_settings.updated' } });
+    const audit = await h.db.auditEvent.count({ where: { action: 'workspace_settings.updated' } });
     expect(audit).toBeGreaterThan(0);
     const av = (await call(h, 'GET', '/assistant/availability', priya)).json<{
       chat: { state: string };
@@ -90,13 +91,14 @@ describe('admin control', () => {
       name: 'Ghost admin',
       email: 'ghost@bookleaf.demo',
     });
-    const before = await h.db.assistantSettings.findUniqueOrThrow({ where: { id: 1 } });
+    const byWorkspace = { where: { workspaceId: DEFAULT_WORKSPACE_ID } };
+    const before = await h.db.workspaceSettings.findUniqueOrThrow(byWorkspace);
     const res = await call(h, 'PUT', '/admin/assistant/settings', `bl_session=${ghost}`, {
       version: before.version,
       voiceEnabled: !before.voiceEnabled,
     });
     expect(res.statusCode).toBe(500);
-    const after = await h.db.assistantSettings.findUniqueOrThrow({ where: { id: 1 } });
+    const after = await h.db.workspaceSettings.findUniqueOrThrow(byWorkspace);
     expect(after).toMatchObject({ version: before.version, voiceEnabled: before.voiceEnabled });
   });
 
