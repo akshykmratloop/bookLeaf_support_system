@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: bookleaf
       POSTGRES_DB: bookleaf
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - bookleaf-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bookleaf"]
+      test: ['CMD-SHELL', 'pg_isready -U bookleaf']
       interval: 5s
       retries: 10
 volumes:
