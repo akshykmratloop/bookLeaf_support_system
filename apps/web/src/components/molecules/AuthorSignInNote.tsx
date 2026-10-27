@@ -6,7 +6,7 @@ export function AuthorSignInNote() {
   const options = useSignInOptions();
   const url = options.data?.hostSignInUrl;
   return (
-    <p className="mb-6 rounded-control bg-brand-soft p-3 text-[12.5px] text-brand">
+    <p className="mb-6 rounded-control bg-brand-soft p-3 text-[12.5px] text-brand-ink">
       Authors: open support from your BookLeaf account.{' '}
       {url ? (
         <a className="inline-flex items-center gap-1 font-semibold underline" href={url}>

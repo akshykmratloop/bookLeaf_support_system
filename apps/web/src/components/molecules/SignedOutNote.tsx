@@ -11,7 +11,7 @@ export function SignedOutNote() {
         <p className="text-[16px] font-bold">Your help session ended</p>
         <p className="mt-2 text-[13.5px] text-ink-2">Open Help again from your BookLeaf account.</p>
         {url ? (
-          <a href={url} className="mt-4 inline-block font-semibold text-brand underline">
+          <a href={url} className="mt-4 inline-block font-semibold text-brand-ink underline">
             Back to BookLeaf
           </a>
         ) : null}

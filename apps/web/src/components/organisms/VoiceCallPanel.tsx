@@ -73,7 +73,7 @@ function CallHeader({
       <div className="flex items-center gap-3">
         <span
           aria-hidden
-          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-[#13a86a] text-white shadow-soft ${view.phase === 'live' ? 'animate-pulse' : ''}`}
+          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-bright to-brand text-white shadow-soft ${view.phase === 'live' ? 'animate-pulse' : ''}`}
         >
           <Phone size={18} />
         </span>

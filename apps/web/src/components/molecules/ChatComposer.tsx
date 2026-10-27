@@ -34,7 +34,7 @@ export function ChatComposer(props: Props) {
       onSubmit={submit}
       className="sticky bottom-0 mt-auto bg-gradient-to-t from-app via-app to-transparent pt-4 pb-1"
     >
-      <div className="flex items-end gap-2 rounded-[24px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand/50">
+      <div className="flex items-end gap-2 rounded-[24px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand/60 focus-within:ring-4 focus-within:ring-brand/15">
         <label htmlFor="chat-input" className="sr-only">
           Your question
         </label>

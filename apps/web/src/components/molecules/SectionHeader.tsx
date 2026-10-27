@@ -16,7 +16,7 @@ export function SectionHeader({
       {to ? (
         <Link
           to={to}
-          className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-brand"
+          className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-brand-ink"
         >
           {cta} <ChevronRight size={14} aria-hidden />
         </Link>

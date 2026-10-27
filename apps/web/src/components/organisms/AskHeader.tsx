@@ -17,7 +17,7 @@ export function AskHeader({ voice, callShown, onCall, onTicket, ticketHasContent
   return (
     <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 bg-app/90 px-4 py-2 backdrop-blur lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
       <div className="min-w-0">
-        <h1 className="text-[20px] font-extrabold lg:text-[24px]">Ask BookLeaf</h1>
+        <h1 className="text-[20px] font-bold lg:text-[24px]">Ask BookLeaf</h1>
         <p className="text-[12.5px] text-ink-2">Answers from your records, by chat or call.</p>
       </div>
       <div className="flex items-center gap-2">

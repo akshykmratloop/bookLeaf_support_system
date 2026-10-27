@@ -23,7 +23,9 @@
   const label = script.dataset.label || 'Help';
   const title = script.dataset.title || 'BookLeaf Help';
   const Z = 2147483000;
-  const BRAND = '#0e8a55';
+  // BookLeaf Publishing coral (bookleafpub.in). The deeper shades keep white text above 4.5:1.
+  const BRAND = '#d13f53';
+  const FONT = "'Avenir Next', Avenir, 'Nunito Sans', system-ui, sans-serif";
   const MSG = 'bookleaf-support:';
   /** A frame path the app may ask to reopen after signing in again. */
   const FRAME_PATH = /^\/embed(\/[\w\-/]*)?$/;
@@ -65,8 +67,8 @@
     style(note, {
       margin: '0',
       padding: '24px',
-      font: '14px/1.5 system-ui, sans-serif',
-      color: '#3b4160',
+      font: `14px/1.5 ${FONT}`,
+      color: '#5e5e5e',
     });
     p.append(note);
   }
@@ -84,12 +86,24 @@
       height: '34px',
       border: '0',
       borderRadius: '10px',
-      background: 'rgba(255,255,255,.14)',
-      color: '#fff',
+      background: 'transparent',
+      color: '#5e5e5e',
       cursor: 'pointer',
     });
+    b.addEventListener('mouseenter', () => (b.style.background = '#fdecee'));
+    b.addEventListener('mouseleave', () => (b.style.background = 'transparent'));
     b.addEventListener('click', onClick);
     return b;
+  }
+
+  /** BookLeaf Publishing's mark, as on bookleafpub.in: a thin white slash on a coral square. */
+  function mark() {
+    const m = document.createElement('span');
+    m.setAttribute('aria-hidden', 'true');
+    m.innerHTML =
+      '<svg width="28" height="28" viewBox="0 0 32 32"><rect width="32" height="32" fill="#f16977"/><path d="M19.6 7.2 12.6 24.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    style(m, { display: 'grid', flexShrink: '0' });
+    return m;
   }
 
   function header() {
@@ -99,9 +113,10 @@
       alignItems: 'center',
       gap: '8px',
       padding: '10px 12px 10px 16px',
-      background: `linear-gradient(135deg, ${BRAND}, #13a86a)`,
-      color: '#fff',
-      font: '700 15px system-ui, sans-serif',
+      background: '#fff',
+      borderBottom: '1px solid #ece7ea',
+      color: '#2f2e2e',
+      font: `600 15px ${FONT}`,
     });
     const name = document.createElement('span');
     name.textContent = title;
@@ -110,7 +125,7 @@
       state.expanded ? collapse() : expand(),
     );
     toggle.dataset.toggle = '';
-    bar.append(name, toggle, iconButton('close', 'Close help', close));
+    bar.append(mark(), name, toggle, iconButton('close', 'Close help', close));
     return bar;
   }
 
@@ -119,7 +134,7 @@
     f.title = title;
     f.allow = 'microphone';
     f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}`;
-    style(f, { border: '0', width: '100%', flex: '1', background: '#f5f6fb' });
+    style(f, { border: '0', width: '100%', flex: '1', background: '#f6f5f7' });
     return f;
   }
 
@@ -130,7 +145,7 @@
     flexDirection: 'column',
     background: '#fff',
     overflow: 'hidden',
-    boxShadow: '0 24px 64px -16px rgba(23,26,51,.35), 0 2px 6px rgba(23,26,51,.08)',
+    boxShadow: '0 24px 64px -16px rgba(53,70,92,.38), 0 2px 6px rgba(47,46,46,.08)',
     transition: 'all .22s cubic-bezier(.2,.8,.2,1)',
   };
   const DOCKED = {
@@ -232,7 +247,7 @@
       position: 'fixed',
       inset: '0',
       zIndex: String(Z - 1),
-      background: 'rgba(15,18,40,.45)',
+      background: 'rgba(32,45,62,.5)',
     });
     state.backdrop.addEventListener('click', collapse);
     document.body.append(state.backdrop);
@@ -304,14 +319,15 @@
     alignItems: 'center',
     gap: '8px',
     height: '56px',
-    padding: '0 22px 0 18px',
+    padding: '0 24px 0 18px',
     border: '0',
-    borderRadius: '999px',
-    background: `linear-gradient(135deg, ${BRAND}, #13a86a)`,
+    borderRadius: '30px',
+    background: BRAND,
     color: '#fff',
-    font: '700 15px system-ui, sans-serif',
+    font: `600 15px ${FONT}`,
+    letterSpacing: '.01em',
     cursor: 'pointer',
-    boxShadow: '0 12px 28px -8px rgba(14,138,85,.55), 0 2px 6px rgba(23,26,51,.12)',
+    boxShadow: '0 12px 28px -8px rgba(209,63,83,.55), 0 2px 6px rgba(47,46,46,.12)',
     transition: 'transform .15s ease, box-shadow .15s ease',
   });
   launcher.addEventListener('mouseenter', () => (launcher.style.transform = 'translateY(-2px)'));

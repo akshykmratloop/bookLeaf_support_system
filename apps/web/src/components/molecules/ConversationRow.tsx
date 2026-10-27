@@ -6,7 +6,7 @@ import { relative } from '../../lib/format';
 import { Pill } from '../atoms/Pill';
 
 const KIND = {
-  CHAT: { label: 'Chat', Icon: MessagesSquare, colors: 'bg-brand-soft text-brand' },
+  CHAT: { label: 'Chat', Icon: MessagesSquare, colors: 'bg-brand-soft text-brand-ink' },
   CALL: { label: 'Call', Icon: Phone, colors: 'bg-info-bg text-info' },
 };
 
@@ -25,7 +25,7 @@ export function ConversationRow({ conversation: c }: { conversation: Conversatio
         <kind.Icon size={18} aria-label={kind.label} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-semibold group-hover:text-brand">
+        <span className="block truncate text-[14px] font-semibold group-hover:text-brand-ink">
           {c.title}
         </span>
         <span className="block text-[12px] text-ink-3" title={relative(c.startedAt)}>

@@ -32,7 +32,7 @@ export function LoginPage() {
         <div className="mb-6 flex items-center gap-2">
           <img src="/favicon.svg" alt="" className="h-8 w-8" />
           <div>
-            <h1 className="font-serif text-[20px] font-semibold">BookLeaf Author Support</h1>
+            <h1 className="text-[20px] font-bold">BookLeaf Author Support</h1>
             <p className="text-[12.5px] text-ink-3">Support team sign-in</p>
           </div>
         </div>

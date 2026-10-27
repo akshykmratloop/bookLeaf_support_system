@@ -22,7 +22,7 @@ export function TicketCard({ ticket }: { ticket: AuthorTicketListItem }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-[11.5px] text-ink-3">{ticket.number}</p>
-          <p className="mt-0.5 truncate text-[14.5px] font-semibold text-ink group-hover:text-brand">
+          <p className="mt-0.5 truncate text-[14.5px] font-semibold text-ink group-hover:text-brand-ink">
             {ticket.subject}
           </p>
         </div>

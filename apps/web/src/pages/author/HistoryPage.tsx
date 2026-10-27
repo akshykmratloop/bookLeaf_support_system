@@ -14,7 +14,7 @@ export function HistoryPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-[20px] font-extrabold lg:text-[24px]">History</h1>
+        <h1 className="text-[20px] font-bold lg:text-[24px]">History</h1>
         <p className="text-[12.5px] text-ink-2">
           Your chats and calls with Ask BookLeaf. Open one to read it again.
         </p>

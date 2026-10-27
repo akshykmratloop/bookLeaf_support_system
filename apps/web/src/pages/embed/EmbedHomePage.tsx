@@ -74,7 +74,7 @@ export function EmbedHomePage() {
           title="Ask BookLeaf"
           body="Chat or call for an instant answer."
           Icon={MessageCircle}
-          colors="bg-brand-soft text-brand"
+          colors="bg-brand-soft text-brand-ink"
         />
         <QuickAction
           to={authorPaths.newTicket}

@@ -29,7 +29,7 @@ const LIVE_TEXT: Record<LiveState, string> = {
 
 const navClass = (isActive: boolean) =>
   `flex h-9 items-center gap-2.5 rounded-control px-3 text-[13px] font-medium ${
-    isActive ? 'bg-brand-soft text-brand' : 'text-ink-2 hover:bg-panel-2 hover:text-ink'
+    isActive ? 'bg-brand-soft text-brand-ink' : 'text-ink-2 hover:bg-panel-2 hover:text-ink'
   }`;
 
 function NavItems({ items, compact = false }: { items: NavItem[]; compact?: boolean }) {
@@ -79,7 +79,7 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
         <div className="flex items-center gap-2 px-2 pt-1">
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <div>
-            <p className="font-serif text-[16px] leading-none font-semibold">BookLeaf</p>
+            <p className="text-[16px] leading-none font-bold">BookLeaf</p>
             <p className="text-[11px] text-ink-3">Operations</p>
           </div>
         </div>

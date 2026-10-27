@@ -38,7 +38,7 @@ export function TicketDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-mono text-[12px] text-ink-3">{t.number}</p>
-            <h1 className="text-[19px] leading-snug font-extrabold break-words lg:text-[22px]">
+            <h1 className="text-[19px] leading-snug font-bold break-words lg:text-[22px]">
               {t.subject}
             </h1>
             <div className="mt-2">

@@ -32,7 +32,7 @@ function DraftHeader({ draft, pending }: { draft: Draft | null; pending: boolean
     );
   return (
     <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
-      <Sparkles size={14} className="text-brand" aria-hidden />
+      <Sparkles size={14} className="text-brand-ink" aria-hidden />
       {draft.source === 'AI'
         ? `AI draft (${draft.model ?? 'model'})`
         : 'Template draft (AI was unavailable)'}

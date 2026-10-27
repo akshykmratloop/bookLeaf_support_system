@@ -20,7 +20,7 @@ export function StatusStepper({ status }: { status: RequesterStatus }) {
                   done
                     ? 'bg-brand text-white'
                     : current
-                      ? 'bg-brand-soft text-brand ring-2 ring-brand'
+                      ? 'bg-brand-soft text-brand-ink ring-2 ring-brand'
                       : 'bg-panel-2 text-ink-3'
                 }`}
               >

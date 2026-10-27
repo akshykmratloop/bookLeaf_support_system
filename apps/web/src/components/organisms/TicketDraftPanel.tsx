@@ -112,7 +112,7 @@ function DraftBody({
   return (
     <>
       {current.status === 'AWAITING_CONFIRMATION' ? (
-        <p role="status" className="rounded-control bg-brand-soft p-3 text-[13px] text-brand">
+        <p role="status" className="rounded-control bg-brand-soft p-3 text-[13px] text-brand-ink">
           Ask BookLeaf asked you to confirm. Check the ticket, then press Send or say yes.
         </p>
       ) : null}

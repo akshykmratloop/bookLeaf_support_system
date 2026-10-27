@@ -15,7 +15,7 @@ export function TicketSentNote({
   return (
     <Card className="p-3 text-[13px]">
       Ticket{' '}
-      <Link className="font-semibold text-brand underline" to={authorPaths.ticket(ticket.id)}>
+      <Link className="font-semibold text-brand-ink underline" to={authorPaths.ticket(ticket.id)}>
         {ticket.number}
       </Link>{' '}
       {children}

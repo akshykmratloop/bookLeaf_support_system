@@ -29,7 +29,7 @@ const newTicketLink = (
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-panel px-3.5 shadow-soft focus-within:border-brand/50 sm:max-w-[280px]">
+    <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-panel px-3.5 shadow-soft focus-within:border-brand/60 focus-within:ring-4 focus-within:ring-brand/15 sm:max-w-[280px]">
       <Search size={15} aria-hidden className="text-ink-3" />
       <span className="sr-only">Search your tickets</span>
       <input
@@ -62,7 +62,7 @@ export function TicketsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-extrabold lg:text-[24px]">Your tickets</h1>
+          <h1 className="text-[20px] font-bold lg:text-[24px]">Your tickets</h1>
           <p className="text-[12.5px] text-ink-2">
             Replies from the team appear here as they arrive.
           </p>

@@ -43,7 +43,7 @@ export function EmbedNav({ awaiting, rail }: { awaiting: number; rail: boolean }
               rail
                 ? 'h-11 rounded-control px-3 text-[14px]'
                 : 'h-9 flex-1 justify-center rounded-full text-[12.5px]'
-            } ${isActive ? 'bg-panel text-brand shadow-soft' : 'text-ink-2 hover:text-ink'}`
+            } ${isActive ? 'bg-panel text-brand-ink shadow-soft' : 'text-ink-2 hover:text-ink'}`
           }
         >
           <Icon size={rail ? 18 : 15} aria-hidden />

@@ -1,97 +1,6 @@
 @import 'tailwindcss';
 
-/* BookLeaf, bright & friendly. Light is the default theme; dark keeps the same roles. */
-:root,
-[data-theme='light'] {
-  --app-bg: #f5f6fb;
-  --panel: #ffffff;
-  --panel-2: #f7f8fc;
-  --panel-inset: #f1f3f9;
-  --sidebar-bg: #ffffff;
-  --border: #e6e9f2;
-  --border-strong: #d5dae6;
-  --text-1: #171a33;
-  --text-2: #565d78;
-  --text-3: #8f96ad;
-  --brand: #0e8a55;
-  --brand-strong: #0a7547;
-  --brand-soft: #e5f6ee;
-  --accent: #f59e0b;
-  --accent-soft: #fff4dc;
-  --coral: #f2655a;
-  --coral-soft: #ffecea;
-  --success: #0f8a4f;
-  --success-bg: #e3f6ec;
-  --warning: #b45309;
-  --warning-bg: #fff3dc;
-  --danger: #d93a3a;
-  --danger-bg: #fdecec;
-  --info: #2f6fe4;
-  --info-bg: #e9f0fe;
-  --bone: #eceff6;
-  --shadow-1: 0 1px 2px rgb(23 26 51 / 0.05), 0 1px 3px rgb(23 26 51 / 0.06);
-  --shadow-2: 0 2px 4px rgb(23 26 51 / 0.04), 0 10px 24px -8px rgb(23 26 51 / 0.14);
-  --shadow-3: 0 24px 64px -16px rgb(23 26 51 / 0.28);
-  /* Issue-type colours: text on its soft background passes WCAG AA. */
-  --cat-royalty: #0f7a4a;
-  --cat-royalty-bg: #e2f5ea;
-  --cat-isbn: #6941c6;
-  --cat-isbn-bg: #f0ebfd;
-  --cat-printing: #c2410c;
-  --cat-printing-bg: #ffeddf;
-  --cat-distribution: #1d5fd1;
-  --cat-distribution-bg: #e6eefd;
-  --cat-production: #a15c07;
-  --cat-production-bg: #fff2d6;
-  --cat-general: #4a5470;
-  --cat-general-bg: #eef0f6;
-  color-scheme: light;
-}
-
-[data-theme='dark'] {
-  --app-bg: #0d1020;
-  --panel: #151a2e;
-  --panel-2: #1a2036;
-  --panel-inset: #111527;
-  --sidebar-bg: #11152a;
-  --border: #252c46;
-  --border-strong: #333b5c;
-  --text-1: #eef0fa;
-  --text-2: #a3aac4;
-  --text-3: #6c7491;
-  --brand: #34c98a;
-  --brand-strong: #1fae72;
-  --brand-soft: rgb(52 201 138 / 0.14);
-  --accent: #fbbf24;
-  --accent-soft: rgb(251 191 36 / 0.14);
-  --coral: #ff8a80;
-  --coral-soft: rgb(255 138 128 / 0.14);
-  --success: #4ade80;
-  --success-bg: rgb(74 222 128 / 0.13);
-  --warning: #fbbf24;
-  --warning-bg: rgb(251 191 36 / 0.13);
-  --danger: #f87171;
-  --danger-bg: rgb(248 113 113 / 0.13);
-  --info: #7aa7ff;
-  --info-bg: rgb(122 167 255 / 0.13);
-  --bone: #1e2440;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-2: 0 10px 28px -10px rgb(0 0 0 / 0.55);
-  --shadow-3: 0 24px 64px -16px rgb(0 0 0 / 0.7);
-  --cat-royalty: #5ee0a3;
-  --cat-royalty-bg: rgb(94 224 163 / 0.13);
-  --cat-isbn: #b9a2ff;
-  --cat-isbn-bg: rgb(185 162 255 / 0.13);
-  --cat-printing: #ffa66b;
-  --cat-printing-bg: rgb(255 166 107 / 0.13);
-  --cat-distribution: #7fb0ff;
-  --cat-distribution-bg: rgb(127 176 255 / 0.13);
-  --cat-production: #f7c65c;
-  --cat-production-bg: rgb(247 198 92 / 0.13);
-  --cat-general: #b6bdd6;
-  --cat-general-bg: rgb(182 189 214 / 0.12);
-  color-scheme: dark;
-}
+@import './tokens.css';
 
 @theme inline {
   --color-app: var(--app-bg);
@@ -107,6 +16,12 @@
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-bright: var(--brand-bright);
+  --color-brand-ink: var(--brand-ink);
+  --color-navy: var(--navy);
+  --color-navy-soft: var(--navy-soft);
+  --color-cream: var(--cream);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-coral: var(--coral);
@@ -131,7 +46,7 @@
   --color-cat-production-bg: var(--cat-production-bg);
   --color-cat-general: var(--cat-general);
   --color-cat-general-bg: var(--cat-general-bg);
-  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Avenir Next', Avenir, 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-serif: 'Lora', ui-serif, Georgia, serif;
   --radius-card: 16px;
@@ -164,9 +79,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
+/* Keyboard focus ring. In the base layer, so a field's own focus style (focus:outline-none plus
+   a ring on its rounded box) wins over it instead of drawing a square box inside the field. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--brand-ink);
+    outline-offset: 2px;
+  }
 }
 
 @keyframes spin {

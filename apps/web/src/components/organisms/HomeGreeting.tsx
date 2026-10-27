@@ -15,16 +15,19 @@ export function HomeGreeting({ name, canAsk }: { name: string; canAsk: boolean }
     if (question) navigate(authorPaths.ask, { state: { question } });
   };
   return (
-    <section className="relative animate-fade-up overflow-hidden rounded-card bg-gradient-to-br from-brand to-[#13a86a] p-5 text-white shadow-lift lg:p-7">
+    <section className="relative animate-fade-up overflow-hidden rounded-card bg-gradient-to-br from-brand to-brand-deep p-5 text-white shadow-lift lg:p-7">
       <Sparkles aria-hidden size={120} className="absolute -top-4 -right-6 opacity-10" />
-      <h1 className="text-[22px] leading-tight font-extrabold lg:text-[28px]">
+      <h1 className="text-[24px] leading-tight font-light tracking-tight lg:text-[32px]">
         Hi {firstName(name)}, how can we help?
       </h1>
       <p className="mt-1 text-[13.5px] text-white/85">
         Answers come straight from your own book and royalty records.
       </p>
       {canAsk ? (
-        <form onSubmit={submit} className="mt-4 flex gap-2 rounded-full bg-white p-1.5 shadow-lift">
+        <form
+          onSubmit={submit}
+          className="mt-4 flex gap-2 rounded-full bg-white p-1.5 shadow-lift focus-within:ring-4 focus-within:ring-white/40"
+        >
           <label htmlFor="home-ask" className="sr-only">
             Your question
           </label>

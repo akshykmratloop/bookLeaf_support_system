@@ -47,7 +47,7 @@ export function Tabs<T extends string>({ label, items, value, onChange }: Props<
             {item.label}
             {item.count ? (
               <span
-                className={`rounded-full px-1.5 text-[11px] ${selected ? 'bg-brand-soft text-brand' : 'bg-panel text-ink-3'}`}
+                className={`rounded-full px-1.5 text-[11px] ${selected ? 'bg-brand-soft text-brand-ink' : 'bg-panel text-ink-3'}`}
               >
                 {item.count}
               </span>

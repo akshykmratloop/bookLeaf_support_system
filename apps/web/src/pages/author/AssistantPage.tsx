@@ -23,7 +23,7 @@ function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
       </p>
       <p className="mt-1 text-ink-2">
         You can still{' '}
-        <Link to={authorPaths.newTicket} className="font-semibold text-brand underline">
+        <Link to={authorPaths.newTicket} className="font-semibold text-brand-ink underline">
           raise a ticket
         </Link>{' '}
         and the support team will reply.

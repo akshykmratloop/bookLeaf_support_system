@@ -14,7 +14,7 @@ export function ChatWelcome({ onAsk }: { onAsk: (question: string) => void }) {
     <li className="flex animate-fade-up flex-col items-center gap-4 py-6 text-center">
       <AssistantAvatar size={56} />
       <div>
-        <p className="text-[18px] font-extrabold">Ask me anything about your books</p>
+        <p className="text-[18px] font-bold">Ask me anything about your books</p>
         <p className="mx-auto mt-1 max-w-[360px] text-[13px] text-ink-2">
           I answer from your own BookLeaf records and show the figures I used. I can also raise a
           ticket for you.
@@ -26,7 +26,7 @@ export function ChatWelcome({ onAsk }: { onAsk: (question: string) => void }) {
             key={s}
             type="button"
             onClick={() => onAsk(s)}
-            className="inline-flex items-center gap-1 rounded-full border border-line bg-panel px-3.5 py-2 text-[12.5px] font-semibold text-ink-2 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:text-brand"
+            className="inline-flex items-center gap-1 rounded-full border border-line bg-panel px-3.5 py-2 text-[12.5px] font-semibold text-ink-2 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:text-brand-ink"
           >
             {s} <ArrowUpRight size={13} aria-hidden />
           </button>

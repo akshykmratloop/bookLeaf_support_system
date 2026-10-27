@@ -20,7 +20,7 @@ export function QuickAction({ to, title, body, Icon, colors }: Props) {
         <Icon size={19} aria-hidden />
       </span>
       <span className="min-w-0">
-        <span className="block text-[14px] font-bold group-hover:text-brand">{title}</span>
+        <span className="block text-[14px] font-bold group-hover:text-brand-ink">{title}</span>
         <span className="block text-[12.5px] leading-snug text-ink-2">{body}</span>
       </span>
     </Link>

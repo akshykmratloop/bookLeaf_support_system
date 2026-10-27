@@ -15,7 +15,7 @@ function StaffNote() {
     <div className="grid h-full place-items-center p-6 text-center text-[13.5px] text-ink-2">
       <p>
         This help is for BookLeaf authors. Staff work in the{' '}
-        <a href="/admin" className="font-semibold text-brand underline">
+        <a href="/admin" className="font-semibold text-brand-ink underline">
           support dashboard
         </a>
         .
