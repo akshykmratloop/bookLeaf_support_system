@@ -36,10 +36,10 @@ adapter), so they survive future changes.
 - **Support reads customer data from the product instead of copying it.** It keeps only ids, names and titles,
   and asks the product for facts each time (cached 60 s). One extra HTTP call per answer, but no second copy of
   money figures to go stale, and the module can be attached to another product or detached again.
-- **Keys in env only.** The brief asks for env-stored keys, so the UI selects provider and model but never handles
-  secrets.
+- **Keys.** The platform's own keys stay in env as the brief asks. On the SaaS branch each workspace may also store its
+  own AI and voice keys in the UI; they are encrypted at rest and never sent back to the browser.
 - **Not done in this time box:** deployment, attachment upload, email notifications, a second LLM vendor, and a larger
-  independent evaluation set. The current eval (26 cases, 26/26 for AI triage) was written by me and informed one
+  independent evaluation set. The current eval (46 cases incl. Hinglish, Hindi and adversarial; 45/46 for AI triage, macro-F1 0.97) was written by me and informed one
   prompt change, so it is a sanity check, not proof.
 
 ## How I'd evolve this into a production system

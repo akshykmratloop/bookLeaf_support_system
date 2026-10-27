@@ -287,11 +287,13 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - **Not deployed yet.** The Dockerfile builds one image and runs `prisma migrate deploy` before
   starting.
 - One instance only: the event bus and live calls are in memory.
-- Webhooks to the host (for example "ticket replied") are not built; see the integration guide.
+- Signed webhooks (`ticket.created`, `ticket.replied`, `ticket.status_changed`) and a server API on workspace API keys
+  are built; see the integration guide. The full route list is in `docs/qa/baseline.md`.
 - The parts that describe BookLeaf's business (knowledge base, categories, triage rules,
   templates) are in the module. A different product would replace them; the integration guide lists
   the files.
-- The evaluation set is small and was written by the developer.
+- The evaluation set (46 triage cases incl. Hinglish, Hindi and adversarial; 24 draft cases) was written by the
+  developer; results in `docs/qa/ai-benchmark.md`.
 
 ## Deployment
 
