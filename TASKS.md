@@ -122,22 +122,25 @@ a tool-calling loop (authors have few books, so all their facts fit; fewer calls
 | C.7 | Tests: 10 unit + 13 integration (real Postgres); full suite 120/120; real-browser run (Chromium 156) | ✅ | `d009761` |
 | C.8 | Merge + deploy | ⛔ not doing: stays on its branch unless you decide otherwise | |
 
-## Phase 3 — Voice via Vocal (speech-to-speech) · Gate G8 · ⛔ BLOCKED until PLAN §18.2 "Phase 3 GO"
+## Phase 3 — In-house voice call (no SDK) · branch `feature/voice`
 
-Branch `feat/voice`; `FEATURE_VOICE=false` until G8 passes. Depends on: G7 passed **or** Phase 2
-abandoned, and V1–V7 verified. No code changes in the Vocal repo (Phase 3b is deferred).
+Built in house instead of through Vocal: the browser streams microphone audio over a WebSocket to the
+BookLeaf server, which holds its own raw WebSocket to a speech-to-speech model (OpenAI Realtime).
+No vendor SDK in the browser or the server; protocol details were learned from the Vocal code, which
+was read but not changed or depended on. Admin switch defaults to OFF.
 
-| # | Task | Depends on | Status | SHA |
-| --- | --- | --- | --- | --- |
-| V.1 | Vocal prerequisites V1–V3, V5–V6 (PLAN §18.4): `origin/main`, hosts, funded S2S key + provider enabled, `vak_` key, BookLeaf origin in `WEB_CALL_ALLOWED_ORIGINS` | — | ⛔ (you) | — |
-| V.2 | Create the Vocal S2S agent (`providers.realtime`, prompt with fact placeholders, 300 s max) via Vocal API | V.1 | ⛔ | — |
-| V.3 | Facts snapshot builder (shared services, author-only, ≤ 8 KB, hash) + unit tests | M2.2 | ⛔ | |
-| V.4 | Voice gateway route (session + Origin check, ignores client variables/metadata/webhookUrl/agentId, secret key, pass-through response), `voice_sessions` table, status endpoint, limits | V.3, C.3 (its migration alone if Phase 2 was abandoned) | ⛔ | |
-| V.5 | Smoke test V7: one S2S call from the BookLeaf origin through the gateway | V.2, V.4 | ⛔ | |
-| V.6 | Author UI: "Talk to BookLeaf Support" panel (lazy SDK `@verbisi/web` pinned, mic pre-check, states, mute, end, 5-min cap, on-screen facts, error mapping, error boundary) | V.5 | ⛔ | |
-| V.7 | "Create ticket from this call" (author-confirmed, `source = VOICE`) | V.6 | ⛔ | |
-| V.8 | Tests for AC-V1…AC-V5; full core suite still green | V.7 | ⛔ | |
-| V.9 | Merge + deploy with flag on; recorded demo call; README section incl. QA hours and measured latency | V.8 | ⛔ | |
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| V.1 | `voice_sessions` table, `tickets.voice_session_id`, call status / end-reason enums (additive migration) | ✅ | `9c694fa` |
+| V.2 | `VoiceProvider` interface + OpenAI Realtime adapter (raw WebSocket, GA events, barge-in, truncation); ESLint blocks vendor imports outside the adapter | ✅ | `9c694fa` |
+| V.3 | Call controller: 300 s hard cap, spoken 30 s warning, 45 s idle hang-up, admin re-check every 15 s, `end_call` / `suggest_ticket` tools | ✅ | `9c694fa` |
+| V.4 | Gateway: sign-in + Origin check before upgrade, claim within 30 s, one live call per author (row lock), 3 calls/hour and 10/day, 32 KB frame cap, interrupted calls closed at startup | ✅ | `9c694fa` |
+| V.5 | After the call: spoken-figures check, token use logged, author-confirmed ticket (`source = VOICE`), admin call view | ✅ | `9c694fa` |
+| V.6 | Author UI: mic capture worklet (24 kHz PCM16), gap-free player, countdown, warning, live transcript, mute, end, after-call transcript + ticket card; unavailable / off states; admin call panel on voice tickets | ✅ | `1079d82` |
+| V.6b | Review fixes: switch re-check can't crash the server, idle follows the conversation, goodbye plays out, saved before "ended", audio rate cap, failed setup releases the call | ✅ | `280a652` |
+| V.7 | Tests: 23 unit + 8 integration on the server, 14 unit in the browser code; full suite 165/165; browser check of the on / off / not-configured states (Chromium 156) | ✅ | `1079d82` |
+| V.8 | Live call with a real key | ⛔ (you): add `OPENAI_API_KEY` to the worktree `.env`, restart, switch voice on | |
+| V.9 | Merge + deploy | ⛔ not doing: stays on its branch unless you decide otherwise | |
 
 ---
 

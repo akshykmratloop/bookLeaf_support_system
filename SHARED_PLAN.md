@@ -65,6 +65,10 @@ packages/shared/src/**
 **Things another session should know:** additive migration (`assistant_settings`, `chat_*`,
 `voice_sessions`, `tickets.source`); both features default to OFF.
 
+**Progress (2026-10-27):** chat done on `feature/chat` (`d009761`); voice server + UI done on
+`feature/voice` (`9c694fa`, `280a652`, `1079d82`). Full suite 165/165. Not merged, not pushed.
+A live voice call still needs `OPENAI_API_KEY` in the worktree `.env`.
+
 ---
 
 # Path Ownership Map
