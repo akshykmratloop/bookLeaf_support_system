@@ -105,20 +105,22 @@
 | Q.10 | The pasted brief was cut off in §11 ("…failure"). Check whether the user sent the rest; if not, finish §11 from its evident intent and record that assumption in the report | ⬜ |
 | Q.11 | Final QA report: what was tested, what passed, what failed and was fixed, what was not tested, what remains uncertain (no claims of 100% correctness) | ⬜ |
 
-## Phase 2 — AI chat · Gate G7 · ⛔ BLOCKED until PLAN §18.2 "Phase 2 GO"
+## Phase 2 — AI chat · built on branch `feature/chat` (27 Oct) · not merged to `main` (your instruction)
 
-Branch `feat/chat`; `FEATURE_CHAT=false` until G7 passes. Depends on: `core-v1` (all of M0–M5).
+Admin-controlled: an admin switches chat on/off in *Author Assistant* (default OFF); the server checks the switch on
+every chat request. Design change from the original plan: one grounded AI call over the author's own facts instead of
+a tool-calling loop (authors have few books, so all their facts fit; fewer calls, same checker). See PLAN §18.3.
 
-| # | Task | Depends on | Status | SHA |
-| --- | --- | --- | --- | --- |
-| C.1 | Provider seam: tool-use loop method (Anthropic + fake), max 4 rounds | M2.3 | ⛔ | |
-| C.2 | `modules/assistant/tools.ts`: author-scoped tools over the shared services; `propose_ticket` returns a proposal only | M2.2, M1.7 | ⛔ | |
-| C.3 | Additive migration: `chat_sessions`, `chat_messages`, `tickets.source` + `chat_session_id`, `voice_session_id` | M1.3 | ⛔ | |
-| C.4 | Chat service: history window + summary, prompt v1, answer check (independent scan) → one regeneration → safe reply | C.1, C.2, M2.7 | ⛔ | |
-| C.5 | Chat API (sessions, messages, ticket from chat with Idempotency-Key), rate limits | C.3, C.4 | ⛔ | |
-| C.6 | Author UI: "Ask BookLeaf" panel, ticket-confirm card, unavailable state; admin ticket view shows "from chat" + transcript link | C.5 | ⛔ | |
-| C.7 | Tests for AC-C1…AC-C7; full core suite still green | C.6 | ⛔ | |
-| C.8 | Merge + deploy with flag on; README section; live check | C.7 | ⛔ | |
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| C.1 | Admin switches (`assistant_settings`: chat/voice on-off, chat model), audited, versioned; availability endpoint | ✅ | `ab243da`, `8a2302f` |
+| C.2 | Author facts across all books; chat prompt v1.1; fact check → one regeneration → safe answer; one retry on temporary AI errors | ✅ | `ab243da`, `8a2302f` |
+| C.3 | Additive migration: `assistant_settings`, `chat_sessions`, `chat_messages`, `tickets.source` + `chat_session_id` | ✅ | `ab243da` |
+| C.4 | Chat API (current/new conversation, messages, ticket from chat with Idempotency-Key, admin transcript) | ✅ | `ab243da` |
+| C.5 | Limits: 1–1,000 chars, 20 msgs/min, 100/day, 30 per conversation, 10 new conversations/hour (env) | ✅ | `ab243da` |
+| C.6 | Author "Ask BookLeaf" page, ticket card, unavailable/off states; admin switches page; transcript on chat tickets | ✅ | `d009761` |
+| C.7 | Tests: 10 unit + 13 integration (real Postgres); full suite 120/120; real-browser run (Chromium 156) | ✅ | `d009761` |
+| C.8 | Merge + deploy | ⛔ not doing: stays on its branch unless you decide otherwise | |
 
 ## Phase 3 — Voice via Vocal (speech-to-speech) · Gate G8 · ⛔ BLOCKED until PLAN §18.2 "Phase 3 GO"
 

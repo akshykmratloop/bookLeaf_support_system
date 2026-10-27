@@ -652,6 +652,14 @@ deployment, README, write-up.
 
 ### 18.3 Phase 2 — AI chat (design)
 
+> **As built (27 Oct, branch `feature/chat`):** two changes from the design below.
+> 1. **Admin switch instead of an env flag.** `assistant_settings.chat_enabled` (default OFF), edited in
+>    *Author Assistant*, checked on every chat request (403 `FEATURE_DISABLED`).
+> 2. **One grounded call instead of a tool loop.** An author has a handful of books, so all of their facts fit in
+>    one prompt. One structured call (answer, claims, ticket suggestion) replaces up to four tool rounds: cheaper,
+>    faster, and the model still sees only this author's data. The checker, regeneration and safe answer are as
+>    designed. Limits as below plus 100 messages/day and 10 new conversations/hour.
+
 **Reuse, nothing new:** the same provider seam (adds one tool-use loop method), the shared
 business services, the checker, `TicketService`, auth, RBAC, rate limiting. No new database,
 queue or model provider.
@@ -670,62 +678,21 @@ queue or model provider.
 | Failure | AI down → chat shows "Chat is unavailable — create a ticket" with a link; nothing else changes |
 | UI | "Ask BookLeaf" panel in the author portal; ticket-confirm card; unavailable state |
 
-### 18.4 Phase 3 — Voice via the existing Vocal platform
+### 18.4 Phase 3 — Voice: in-house speech-to-speech call (replaces the Vocal-platform design)
 
-#### What the Vocal code supports today
-
-Inspected 2026-10-26 on Vocal `origin/main`. Summary (detailed, file-level notes are kept locally in
-`docs/internal/vocal-findings.md`, which is not committed because it describes a separate internal
-codebase):
-
-- Native speech-to-speech engines exist (OpenAI Realtime, Gemini Live), selected per agent.
-- In speech-to-speech mode the agent has only the built-in `end_call` tool; HTTP tools run only on
-  the cascaded (STT → LLM → TTS) flow path.
-- The browser SDK (`@verbisi/web`) posts its first request to `{baseUrl}/v1/calls/web`, so a
-  server-side gateway can create the call with a secret key and server-built variables.
-- Per-call variables are limited to 8 KB; media is WebRTC to a separate `rtc.` host; no TURN by default.
-- QA runs 08:45–19:00 IST on weekdays; speech-to-speech has been verified locally, not yet on QA.
-- Measured locally: 1.5–3 s per turn; about 6× the cascade's cost per minute.
-
-#### Chosen design (Phase 3a — reuse Vocal by configuration only)
-
-**Native speech-to-speech for the conversation; verified facts from BookLeaf injected server-side
-at call start; tickets created through BookLeaf's ticket workflow.**
+**Decision (27 Oct, your instruction):** no vendor SDK and no dependency on the Vocal platform. BookLeaf runs its
+own call gateway. Protocol knowledge is borrowed from the Vocal voice worker (read-only); no code or service is shared.
 
 | Part | Design |
 | --- | --- |
-| Integration boundary | BookLeaf owns: author auth, facts, voice gateway, voice session records, tickets, UI. Vocal owns: the agent (S2S provider/model/voice/prompt), WebRTC media, call records. BookLeaf never runs voice infrastructure; Vocal never reads BookLeaf's database |
-| Voice gateway | `POST /api/v1/voice/gateway/v1/calls/web` on BookLeaf (the SDK's `baseUrl` = `/api/v1/voice/gateway`). Requires the author session + Origin check; **ignores** browser-sent `variables`/`metadata`/`webhookUrl`/`agentId`; builds variables from `AuthorFactsService`; calls Vocal with the secret key from env; returns Vocal's response unchanged; writes a `voice_sessions` row |
-| Facts snapshot | Compact, author-only: first name, each book (title, stage, pending, last payout or "none", distribution record), author total pending, payout eligibility, next cycle deadline, KB constants. Built by the same services as drafting; ≤ 8 KB; hash stored on `voice_sessions` for audit |
-| Agent prompt | Speak only figures present in the facts; if a fact is missing or the question needs action (bank change, refund, ISBN fix), say so and offer a ticket; short spoken answers; collaborative tone from the KB |
-| On-screen facts | While on the call, the panel shows the same verified figures as text, so the author can see the source |
-| Tickets | During the call the agent directs the author to "Create a ticket"; after the call the panel offers **Create ticket from this call**, pre-filled with the final transcript lines (author edits and confirms) → `TicketService` with `source = VOICE`, `voice_session_id` |
-| UI states | Availability check (`GET /api/v1/voice/status`: flag, configured, Vocal reachable, within hours) → idle · requesting mic · connecting · listening · agent speaking · reconnecting · ended · error; mute; end call; 5-min cap (fits the 300 s session token) |
-| Isolation | SDK loaded with dynamic `import()` only when the panel opens; React error boundary around the panel; `FEATURE_VOICE` flag; any voice failure leaves the rest of the portal untouched |
-| Config (env) | `VOICE_PLATFORM_API_URL`, `VOICE_PLATFORM_SECRET_KEY`, `VOICE_AGENT_ID`, `VOICE_ICE_SERVERS`, `FEATURE_VOICE` |
-| CSP | `connect-src` adds the Vocal `rtc.` host; `Permissions-Policy: microphone=(self)` |
-| Limits | 3 calls/hour/author; one active call per author; 5 minutes per call |
-
-**Why not the alternatives**
-- *Live tools inside the S2S call (Phase 3b):* needs a voice-worker change in Vocal (register HTTP
-  function tools in `realtime_chain`, reuse `HttpToolExecutor`), tests, and a QA deploy. Deferred
-  (§15).
-- *Cascade flow agent with HTTP tools (works today):* violates the native speech-to-speech
-  requirement. Not used.
-- *Publishable key in the browser:* lets the browser set identity variables and the webhook URL.
-  Not used.
-
-#### Vocal prerequisites (verify before Phase 3 GO; no Vocal code changes)
-
-| # | Prerequisite | Owner |
-| --- | --- | --- |
-| V1 | Work from Vocal `origin/main` (S2S code is not in the local checkout); follow Vocal's own `SHARED_PLAN.md` rules for any change there | You |
-| V2 | Confirm live endpoints after the rebrand (`api.verbi.si`, `rtc.verbi.si`) and QA hours | You |
-| V3 | Funded S2S credential (OpenAI or Google) and the provider/model enabled by a Super Admin | You |
-| V4 | Vocal agent with `providers.realtime`, the BookLeaf prompt with fact placeholders, `maxDurationSeconds = 300` | Me (via Vocal API) once V3 is done |
-| V5 | A `vak_` secret key for the BookLeaf server | You (console) |
-| V6 | BookLeaf's origin added to the voice-worker `WEB_CALL_ALLOWED_ORIGINS` on QA (Kong CORS not needed: hop 1 is server-to-server) | You (operator) |
-| V7 | One S2S call from the BookLeaf origin through the gateway succeeds (proves the `baseUrl` approach) | Me |
+| Media path | Browser mic → AudioWorklet (PCM16 mono 24 kHz) → **WebSocket to BookLeaf** (same origin, session cookie, Origin checked) → BookLeaf server → **raw WebSocket** to a speech-to-speech model → audio back the same way. The browser never talks to the AI vendor and never sees a key |
+| Provider seam | `RealtimeVoiceProvider` interface in domain words (send audio, tool results, events: audio, transcript, tool call, barge-in, turn done, error). OpenAI Realtime ships first; Gemini Live checked against the same interface (different input rate, setup frame). `VOICE_PROVIDER` + key in env |
+| Grounding | The author's verified facts (same facts engine as chat) go into the call instructions at call start. Tools run on the server with the author id from the session: `suggest_ticket` (stored on the call, confirmed by the author after the call) and `end_call` |
+| Limits | Hard cap `VOICE_MAX_CALL_SECONDS` (default and maximum 300 s) enforced by the server, with a spoken 30-second warning; one active call per author; 3 calls/hour and 10/day per author; idle end after no audio for 45 s; call start token valid 30 s |
+| Records | `voice_sessions` (status, start/end, end reason, duration, transcript, ticket suggestion, spoken-figure check) and `tickets.voice_session_id` — additive migration |
+| After the call | Transcript shown to the author with **Create ticket from this call** (pre-filled, editable); the assistant's spoken figures are checked against the facts snapshot and flagged for admins on the ticket |
+| Admin control | `assistant_settings.voice_enabled` (default OFF); checked when a call starts **and** a live call is ended if voice is switched off |
+| Failure | No key / provider down → "Voice is unavailable, try chat or raise a ticket"; nothing else in the portal changes |
 
 ### 18.5 Risks
 
