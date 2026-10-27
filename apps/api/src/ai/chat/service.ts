@@ -25,7 +25,7 @@ export interface ChatAnswer {
 }
 
 export const SAFE_FALLBACK_TEXT =
-  "I couldn't confirm that from your account records, so I'd rather not guess. I can raise a ticket so the support team checks it and replies to you.";
+  "I couldn't confirm that from your BookLeaf records or BookLeaf's guidelines, so I'd rather not guess. I can raise a ticket so the support team checks it and replies to you.";
 
 /**
  * The model's reasoning counts toward this limit, not just the answer. A payout question with

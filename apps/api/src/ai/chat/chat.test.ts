@@ -3,7 +3,7 @@ import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
 import { AiAuthError, AiUnavailableError } from '../providers/errors.js';
 import { fakeProvider } from '../providers/fake/provider.js';
 import { buildAuthorFacts } from './author-facts.js';
-import { chatUserMessage } from './prompt.v1.js';
+import { CHAT_SYSTEM, chatUserMessage, splitHistory } from './prompt.v1.js';
 import { answerChat, SAFE_FALLBACK_TEXT } from './service.js';
 
 const AS_OF = new Date('2025-12-31T00:00:00Z');
@@ -181,5 +181,49 @@ describe('chat prompt', () => {
     );
     expect(text).toContain('<author_message>earlier question</author_message>');
     expect(text).toContain('Assistant: earlier answer');
+  });
+});
+
+describe('chat prompt: reading follow-ups in context', () => {
+  const history = [
+    { role: 'AUTHOR' as const, body: 'When is the next payout?' },
+    { role: 'ASSISTANT' as const, body: 'The next payout cycle closes by 14 Feb 2026.' },
+    { role: 'AUTHOR' as const, body: 'How long does it take to publish a book?' },
+    { role: 'ASSISTANT' as const, body: "BookLeaf's guidelines don't give one overall time." },
+  ];
+
+  it('separates the most recent exchange from older turns', () => {
+    const { earlier, recent } = splitHistory(history);
+    expect(earlier.map((m) => m.body)).toEqual([
+      'When is the next payout?',
+      'The next payout cycle closes by 14 Feb 2026.',
+    ]);
+    expect(recent.map((m) => m.body)).toEqual([
+      'How long does it take to publish a book?',
+      "BookLeaf's guidelines don't give one overall time.",
+    ]);
+  });
+
+  it('puts the publishing exchange, not the payout one, right before a short "why"', () => {
+    const text = chatUserMessage({
+      authorFirstName: 'Priya',
+      books: [],
+      facts: [],
+      history,
+      message: 'why',
+    });
+    const recentBlock = text.slice(
+      text.indexOf('MOST RECENT EXCHANGE'),
+      text.indexOf('LATEST AUTHOR'),
+    );
+    expect(recentBlock).toContain('publish a book');
+    expect(recentBlock).not.toContain('next payout');
+    expect(text.trimEnd().endsWith('<author_message>why</author_message>')).toBe(true);
+  });
+
+  it('tells the model how to read short follow-ups and policy questions without a total', () => {
+    expect(CHAT_SYSTEM).toContain('Short or vague messages');
+    expect(CHAT_SYSTEM).toContain("don't give one overall time");
+    expect(CHAT_SYSTEM).toContain('timelines together');
   });
 });

@@ -65,11 +65,21 @@ interface TurnContext {
   ignorePhrases: string[];
 }
 
+/** Facts are picked from the recent topic too, so "is it on Flipkart?" keeps the book in view. */
+const topicText = (req: AnswerRequest) =>
+  [
+    ...req.history
+      .filter((m) => m.role === 'AUTHOR')
+      .slice(-2)
+      .map((m) => m.body),
+    req.message,
+  ].join(' ');
+
 async function loadTurn(deps: Deps, req: AnswerRequest): Promise<TurnContext> {
   const author = await loadAuthorRecord(deps.db, req.authorId);
   return {
     author,
-    facts: buildAuthorFacts(author, req.message, deps.clock.dataAsOf()),
+    facts: buildAuthorFacts(author, topicText(req), deps.clock.dataAsOf()),
     firstName: author.name.split(' ')[0] ?? author.name,
     ignorePhrases: author.books.map((b) => b.title),
   };
