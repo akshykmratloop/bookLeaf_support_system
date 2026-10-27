@@ -5,29 +5,34 @@ import { Textarea } from '../atoms/Input';
 
 interface Props {
   maxChars: number;
-  turnCount: number | null;
+  /** Messages already in the conversation plus those still waiting to be answered. */
+  usedTurns: number | null;
   maxTurns: number | null;
-  isSending: boolean;
   isRestarting: boolean;
-  onSend: (text: string, clear: () => void) => void;
+  onSend: (text: string) => void;
   onRestart: () => void;
 }
 
-/** Message box pinned to the bottom of the page; Enter sends, Shift+Enter adds a line. */
+/**
+ * Message box pinned to the bottom of the page; Enter sends, Shift+Enter adds a line. The box
+ * clears at once and stays usable, so the author can send the next message while waiting.
+ */
 export function ChatComposer({
   maxChars,
-  turnCount,
+  usedTurns,
   maxTurns,
-  isSending,
   isRestarting,
   onSend,
   onRestart,
 }: Props) {
   const [text, setText] = useState('');
-  const isFull = turnCount !== null && maxTurns !== null && turnCount >= maxTurns;
+  const isFull = usedTurns !== null && maxTurns !== null && usedTurns >= maxTurns;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (text.trim() && !isFull && !isSending) onSend(text.trim(), () => setText(''));
+    const clean = text.trim();
+    if (!clean || isFull) return;
+    onSend(clean);
+    setText('');
   };
   return (
     <form
@@ -56,7 +61,7 @@ export function ChatComposer({
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[11px] text-ink-3">
           {text.length}/{maxChars}
-          {turnCount !== null && maxTurns !== null ? ` · ${turnCount}/${maxTurns} messages` : ''}
+          {usedTurns !== null && maxTurns !== null ? ` · ${usedTurns}/${maxTurns} messages` : ''}
         </span>
         <div className="flex gap-2">
           <Button
@@ -71,7 +76,6 @@ export function ChatComposer({
           <Button
             type="submit"
             size="sm"
-            isLoading={isSending}
             disabled={!text.trim() || isFull}
             icon={<Send size={14} aria-hidden />}
           >

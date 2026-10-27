@@ -127,6 +127,48 @@ describe('grounded answers', () => {
     expect(await h.db.aiRun.count({ where: { task: 'CHAT' } })).toBeGreaterThan(0);
   });
 
+  it('answers messages sent at the same moment in order, each seeing the one before', async () => {
+    const chat = await startChat(priya);
+    const prompts: string[] = [];
+    h.setAi((req) => {
+      if (req.task !== 'CHAT') return defaultHandler(req);
+      prompts.push(req.user);
+      return { answer: `Answer number ${prompts.length}.`, claims: [], ticketSuggestion: null };
+    });
+    const [first, second] = await Promise.all([
+      send(priya, chat.id, 'First question about my book'),
+      send(priya, chat.id, 'Second question about my book'),
+    ]);
+    expect([first.statusCode, second.statusCode]).toEqual([200, 200]);
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain('Answer number 1.');
+    const final = (await call(h, 'GET', `/chat/sessions/${chat.id}`, priya)).json<ChatSession>();
+    expect(final.messages.map((m) => m.body)).toEqual([
+      'First question about my book',
+      'Answer number 1.',
+      'Second question about my book',
+      'Answer number 2.',
+    ]);
+  });
+
+  it('answers common questions instantly from records, without calling the AI', async () => {
+    const chat = await startChat(priya);
+    let aiCalls = 0;
+    h.setAi((req) => {
+      if (req.task === 'CHAT') aiCalls += 1;
+      return defaultHandler(req);
+    });
+    const started = performance.now();
+    const res = await send(priya, chat.id, 'When is the next payout?');
+    const elapsedMs = performance.now() - started;
+    const { reply } = res.json<ChatReply>();
+    expect(reply.source).toBe('RECORDS');
+    expect(reply.body).toContain('next payout cycle closes by');
+    expect(reply.factsUsed.map((f) => f.label)).toContain('Next payout cycle closes by');
+    expect(elapsedMs).toBeLessThan(500);
+    expect(aiCalls).toBe(0);
+  });
+
   it('never shows an invented figure: two failed checks become a safe answer', async () => {
     const chat = await startChat(priya);
     h.setAi((req) =>
@@ -134,7 +176,9 @@ describe('grounded answers', () => {
         ? { answer: 'You will get ₹77,777 tomorrow.', claims: [], ticketSuggestion: null }
         : defaultHandler(req),
     );
-    const { reply } = (await send(priya, chat.id, 'When do I get paid?')).json<ChatReply>();
+    const { reply } = (
+      await send(priya, chat.id, 'Tell me about my royalty transfer schedule')
+    ).json<ChatReply>();
     expect(reply.source).toBe('SAFE_FALLBACK');
     expect(reply.body).not.toContain('77,777');
   });

@@ -2,6 +2,7 @@ import type { CheckResult, ChatAnswerSource, Fact, TicketProposal } from '@bookl
 import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
 import { CHAT_PROMPT_VERSION } from '../../ai/chat/prompt.v1.js';
 import { toProposal } from '../../ai/chat/proposal.js';
+import { quickAnswer } from '../../ai/chat/quick/answers.js';
 import { answerChat } from '../../ai/chat/service.js';
 import { recordRun } from '../../ai/jobs/runs.js';
 import { AiError } from '../../ai/providers/errors.js';
@@ -55,30 +56,70 @@ const factRefs = (ids: string[], facts: Fact[]) => {
   });
 };
 
-async function runModel(deps: Deps, access: Extract<ChatAccess, { ok: true }>, req: AnswerRequest) {
+type AuthorRecord = Awaited<ReturnType<typeof loadAuthorRecord>>;
+
+interface TurnContext {
+  author: AuthorRecord;
+  facts: Fact[];
+  firstName: string;
+  ignorePhrases: string[];
+}
+
+async function loadTurn(deps: Deps, req: AnswerRequest): Promise<TurnContext> {
   const author = await loadAuthorRecord(deps.db, req.authorId);
-  const facts = buildAuthorFacts(author, req.message, deps.clock.dataAsOf());
-  const res = await answerChat(access.provider, access.model, {
-    authorFirstName: author.name.split(' ')[0] ?? author.name,
-    books: author.books.map((b) => ({ id: b.id, title: b.title })),
-    facts,
+  return {
+    author,
+    facts: buildAuthorFacts(author, req.message, deps.clock.dataAsOf()),
+    firstName: author.name.split(' ')[0] ?? author.name,
+    ignorePhrases: author.books.map((b) => b.title),
+  };
+}
+
+/** Common questions answered from verified records in milliseconds; null means "ask the AI". */
+function fromRecords(req: AnswerRequest, turn: TurnContext, started: number): StoredAnswer | null {
+  const quick = quickAnswer(req.message, turn);
+  if (!quick) return null;
+  return {
+    source: 'RECORDS',
+    body: quick.body,
+    factsUsed: factRefs(quick.factIds, turn.facts),
+    check: quick.check,
+    proposal: null,
+    model: null,
+    latencyMs: Math.round(performance.now() - started),
+  };
+}
+
+async function runModel(
+  access: Extract<ChatAccess, { ok: true }>,
+  req: AnswerRequest,
+  turn: TurnContext,
+) {
+  return answerChat(access.provider, access.model, {
+    authorFirstName: turn.firstName,
+    books: turn.author.books.map((b) => ({ id: b.id, title: b.title })),
+    facts: turn.facts,
     history: req.history,
     message: req.message,
-    ignorePhrases: author.books.map((b) => b.title),
+    ignorePhrases: turn.ignorePhrases,
   });
-  return { res, facts };
 }
 
 /**
- * One assistant turn. Never throws for AI problems: a missing key, outage switch or provider
- * error becomes an "unavailable" answer with a ticket offer, and every model call is logged.
+ * One assistant turn. Common questions are answered from records without the AI. Otherwise it
+ * never throws for AI problems: a missing key, outage switch or provider error becomes an
+ * "unavailable" answer with a ticket offer, and every model call is logged.
  */
 export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<StoredAnswer> {
+  const started = performance.now(); // elapsed time only
+  const turn = await loadTurn(deps, req);
+  const instant = fromRecords(req, turn, started);
+  if (instant) return instant;
   const access = await deps.assistant.chatAccess();
   if (!access.ok) return unavailable(req.message);
   const log = { ticketId: null, task: 'CHAT', provider: access.providerId, model: access.model };
   try {
-    const { res, facts } = await runModel(deps, access, req);
+    const res = await runModel(access, req, turn);
     for (const run of res.runs)
       await recordRun(deps.db, {
         ...log,
@@ -90,7 +131,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
     return {
       source: res.source,
       body: res.body,
-      factsUsed: factRefs(res.factIds, facts),
+      factsUsed: factRefs(res.factIds, turn.facts),
       check: res.check,
       proposal: res.proposal,
       model: res.runs[res.runs.length - 1]?.model ?? access.model,
@@ -102,7 +143,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
       ...log,
       promptVersion: CHAT_PROMPT_VERSION,
       usage: null,
-      latencyMs: 0,
+      latencyMs: Math.round(performance.now() - started),
       errorCode: err.code,
     });
     return unavailable(req.message);

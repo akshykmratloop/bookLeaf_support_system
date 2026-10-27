@@ -75,6 +75,8 @@ enum ChatRole {
 
 enum ChatAnswerSource {
   AI
+  /// Answered instantly from the author's verified records, without the AI.
+  RECORDS
   SAFE_FALLBACK
   UNAVAILABLE
 }

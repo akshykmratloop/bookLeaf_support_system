@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ChatSession, TicketProposal } from '@bookleaf/shared';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import { errorMessage } from './api';
 import {
   assistantKeys,
   raiseChatTicket,
@@ -8,24 +9,29 @@ import {
   startChat,
   useCurrentChat,
 } from './assistant';
+import { MessageQueue } from './chatQueue';
 import { newRequestKey } from './ids';
 import { keys } from './queries';
 
-/** Chat state for the author: the latest conversation, sending, new conversation, ticket. */
+/** Chat state for the author: the latest conversation, the send queue, new conversation, ticket. */
 export function useChat(enabled: boolean) {
   const qc = useQueryClient();
   const current = useCurrentChat(enabled);
   const [ticketKey, setTicketKey] = useState(newRequestKey);
   const setSession = (s: ChatSession) => qc.setQueryData(assistantKeys.currentChat, s);
 
-  const send = useMutation({
-    mutationFn: async (text: string) => {
-      const session = current.data ?? (await startChat());
-      if (!current.data) setSession(session);
-      return sendChatMessage(session.id, text);
-    },
-    onSuccess: (r) => setSession(r.session),
-  });
+  const [queue] = useState(
+    () =>
+      new MessageQueue(async (text) => {
+        // Read the cache at send time: an earlier message in the queue may have started a chat.
+        const existing = qc.getQueryData<ChatSession | null>(assistantKeys.currentChat);
+        const session = existing ?? (await startChat());
+        if (!existing) qc.setQueryData(assistantKeys.currentChat, session);
+        const r = await sendChatMessage(session.id, text);
+        qc.setQueryData(assistantKeys.currentChat, r.session);
+      }, errorMessage),
+  );
+  const queued = useSyncExternalStore(queue.subscribe, queue.snapshot);
 
   const restart = useMutation({
     mutationFn: startChat,
@@ -48,5 +54,5 @@ export function useChat(enabled: boolean) {
     },
   });
 
-  return { current, session: current.data ?? null, send, restart, raise };
+  return { current, session: current.data ?? null, queue, queued, restart, raise };
 }

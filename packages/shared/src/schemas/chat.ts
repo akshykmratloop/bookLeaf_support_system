@@ -8,7 +8,7 @@ export const CHAT_ROLES = ['AUTHOR', 'ASSISTANT'] as const;
 export type ChatRole = (typeof CHAT_ROLES)[number];
 
 /** AI = checked model answer; SAFE_FALLBACK = the answer failed the fact check; UNAVAILABLE = AI down. */
-export const CHAT_ANSWER_SOURCES = ['AI', 'SAFE_FALLBACK', 'UNAVAILABLE'] as const;
+export const CHAT_ANSWER_SOURCES = ['AI', 'RECORDS', 'SAFE_FALLBACK', 'UNAVAILABLE'] as const;
 export type ChatAnswerSource = (typeof CHAT_ANSWER_SOURCES)[number];
 
 export const SendChatMessageSchema = z.object({

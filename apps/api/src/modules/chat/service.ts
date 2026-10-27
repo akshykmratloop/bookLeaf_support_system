@@ -8,6 +8,7 @@ import type {
 } from '@bookleaf/shared';
 import type { z } from 'zod';
 import { ConflictError, ForbiddenError, UsageLimitError } from '../../platform/errors.js';
+import { keyedQueue, QueueFullError } from '../../platform/keyed-queue.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import { startOfUtcDay } from '../assistant/limits.js';
 import type { AssistantService } from '../assistant/service.js';
@@ -25,6 +26,8 @@ interface Deps extends TicketDeps {
 
 /** The model sees the last few exchanges only, which bounds cost per turn. */
 const HISTORY_MESSAGES = 12;
+/** Messages of one conversation waiting to be answered (the browser sends them one by one). */
+const MAX_WAITING_PER_CONVERSATION = 3;
 
 function authorIdOf(session: Session): string {
   if (session.role !== 'AUTHOR' || !session.authorId)
@@ -35,6 +38,8 @@ function authorIdOf(session: Session): string {
 export function createChatService(deps: Deps) {
   const { db, clock, assistant, limits } = deps;
   const maxTurns = limits.chat.maxTurnsPerSession;
+  // One conversation is answered in order, so each answer sees the exchange before it.
+  const inOrder = keyedQueue(MAX_WAITING_PER_CONVERSATION);
 
   async function enforceDailyLimit(authorId: string): Promise<void> {
     const used = await authorMessagesSince(db, authorId, startOfUtcDay(clock.now()));
@@ -43,6 +48,42 @@ export function createChatService(deps: Deps) {
         'CHAT_DAILY_LIMIT',
         `You've reached today's limit of ${limits.chat.messagesPerDay} chat messages. You can still raise a ticket.`,
       );
+  }
+
+  /** One turn, run inside the conversation's queue: reads history only after earlier turns. */
+  async function answerTurn(authorId: string, id: string, body: string): Promise<ChatReply> {
+    const chat = await findOwnSession(db, id, authorId);
+    await enforceDailyLimit(authorId);
+    if (!(await reserveTurn(db, chat.id, maxTurns)))
+      throw new ConflictError(
+        'CHAT_TURN_LIMIT',
+        `This conversation reached its ${maxTurns}-message limit. Start a new conversation.`,
+      );
+    await db.chatMessage.create({
+      data: { sessionId: chat.id, role: 'AUTHOR', body, createdAt: clock.now() },
+    });
+    const history = chat.messages
+      .slice(-HISTORY_MESSAGES)
+      .map((m) => ({ role: m.role, body: m.body }));
+    const a = await produceAnswer(deps, { authorId, message: body, history });
+    const reply = await db.chatMessage.create({
+      data: {
+        sessionId: chat.id,
+        role: 'ASSISTANT',
+        body: a.body,
+        source: a.source,
+        factsUsed: a.factsUsed,
+        check: a.check ?? Prisma.JsonNull,
+        proposal: a.proposal ?? Prisma.JsonNull,
+        model: a.model,
+        latencyMs: a.latencyMs,
+        createdAt: clock.now(),
+      },
+    });
+    return {
+      session: toChatSession(await findOwnSession(db, id, authorId), maxTurns),
+      reply: toChatMessage(reply),
+    };
   }
 
   return {
@@ -82,38 +123,15 @@ export function createChatService(deps: Deps) {
     async send(session: Session, id: string, body: string): Promise<ChatReply> {
       await assistant.requireChatEnabled();
       const authorId = authorIdOf(session);
-      const chat = await findOwnSession(db, id, authorId);
-      await enforceDailyLimit(authorId);
-      if (!(await reserveTurn(db, chat.id, maxTurns)))
-        throw new ConflictError(
-          'CHAT_TURN_LIMIT',
-          `This conversation reached its ${maxTurns}-message limit. Start a new conversation.`,
+      try {
+        return await inOrder(id, () => answerTurn(authorId, id, body));
+      } catch (err) {
+        if (!(err instanceof QueueFullError)) throw err;
+        throw new UsageLimitError(
+          'CHAT_BUSY',
+          'Please wait for the answers to your last messages before sending more.',
         );
-      await db.chatMessage.create({
-        data: { sessionId: chat.id, role: 'AUTHOR', body, createdAt: clock.now() },
-      });
-      const history = chat.messages
-        .slice(-HISTORY_MESSAGES)
-        .map((m) => ({ role: m.role, body: m.body }));
-      const a = await produceAnswer(deps, { authorId, message: body, history });
-      const reply = await db.chatMessage.create({
-        data: {
-          sessionId: chat.id,
-          role: 'ASSISTANT',
-          body: a.body,
-          source: a.source,
-          factsUsed: a.factsUsed,
-          check: a.check ?? Prisma.JsonNull,
-          proposal: a.proposal ?? Prisma.JsonNull,
-          model: a.model,
-          latencyMs: a.latencyMs,
-          createdAt: clock.now(),
-        },
-      });
-      return {
-        session: toChatSession(await findOwnSession(db, id, authorId), maxTurns),
-        reply: toChatMessage(reply),
-      };
+      }
     },
 
     /** One ticket per conversation, confirmed and edited by the author. */
