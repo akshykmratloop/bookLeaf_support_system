@@ -168,6 +168,26 @@ describe('workspace settings', () => {
     expect(ok.json()).toMatchObject({ voiceName: 'cedar' });
   });
 
+  it("shows customers the workspace's own brand; BookLeaf keeps its name and coral", async () => {
+    const acmeId = (await h.db.workspace.findUniqueOrThrow({ where: { slug: OWNER.slug } })).id;
+    expect((await h.container.assistant.availability(acmeId)).brand).toEqual({
+      name: 'Acme Lending',
+      color: '#112233',
+    });
+    const { settings } = (await call(h, 'GET', '/workspace/settings', acme)).json<{
+      settings: { version: number };
+    }>();
+    await call(h, 'PUT', '/workspace/settings', acme, {
+      version: settings.version,
+      brandName: 'Acme',
+    });
+    expect((await h.container.assistant.availability(acmeId)).brand.name).toBe('Acme');
+    expect((await h.container.assistant.availability(DEFAULT_WORKSPACE_ID)).brand).toEqual({
+      name: 'BookLeaf',
+      color: '#d13f53',
+    });
+  });
+
   it("never shows one workspace's settings to another, and keeps authors out (403)", async () => {
     const bl = await call(h, 'GET', '/workspace/settings', admin);
     expect(bl.json<{ settings: { customerNoun: string } }>().settings.customerNoun).toBe(

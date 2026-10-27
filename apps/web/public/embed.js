@@ -6,7 +6,7 @@
  * data-token-url  host endpoint (same origin as the page, POST, cookies sent) that returns
  *                 { "token": "<hand-over token>" } for the signed-in user. Required.
  * data-label      launcher text. Default "Help".
- * data-title      panel title. Default "BookLeaf Help".
+ * data-title      panel title. Default: the workspace brand name + " Help" ("BookLeaf Help").
  * data-theme      "light", "dark" or "auto" (default). Auto follows the host page: class "dark" or
  *                 data-theme="dark" (or "light") on <html>, else the visitor's system setting. It
  *                 restyles live when the host switches. The support app inside the frame
@@ -25,13 +25,16 @@
   const tokenUrl = script.dataset.tokenUrl;
   if (!tokenUrl) throw new Error('BookLeaf support: add data-token-url to the embed.js tag.');
   const label = script.dataset.label || 'Help';
-  const title = script.dataset.title || 'BookLeaf Help';
+  // An explicit data-title wins; otherwise the workspace's brand name arrives from the frame.
+  let title = script.dataset.title || 'BookLeaf Help';
   const themeMode = ['light', 'dark'].includes(script.dataset.theme)
     ? script.dataset.theme
     : 'auto';
   const Z = 2147483000;
   // BookLeaf Publishing coral (bookleafpub.in). The deeper shades keep white text above 4.5:1.
-  const BRAND = '#d13f53';
+  let BRAND = '#d13f53';
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const MAX_NAME = 60;
   const FONT = "'Avenir Next', Avenir, 'Nunito Sans', system-ui, sans-serif";
   const MSG = 'bookleaf-support:';
   /** A frame path the app may ask to reopen after signing in again. */
@@ -177,6 +180,7 @@
       font: `600 15px ${FONT}`,
     });
     const name = document.createElement('span');
+    name.dataset.title = '';
     name.textContent = title;
     style(name, { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
     const toggle = iconButton('expand', 'Expand to full screen', () =>
@@ -345,6 +349,21 @@
     void load(typeof path === 'string' && FRAME_PATH.test(path) ? path : '/embed');
   }
 
+  /** The workspace's colour and name; only a #rrggbb colour and plain text are accepted. */
+  function applyBrand(data) {
+    if (typeof data.color === 'string' && HEX.test(data.color)) {
+      BRAND = data.color;
+      launcher.style.background = BRAND;
+    }
+    const name = typeof data.name === 'string' ? data.name.trim().slice(0, MAX_NAME) : '';
+    if (!name || script.dataset.title) return;
+    title = `${name} Help`;
+    const heading = state.panel?.querySelector('[data-title]');
+    if (heading) heading.textContent = title;
+    state.panel?.setAttribute('aria-label', title);
+    if (state.frame) state.frame.title = title;
+  }
+
   /** Messages from our own frame only: checked by origin and by the sending window. */
   window.addEventListener('message', (e) => {
     if (e.origin !== supportUrl || !state.frame || e.source !== state.frame.contentWindow) return;
@@ -355,6 +374,7 @@
     else if (type === 'escape') escape();
     else if (type === 'expand') expand();
     else if (type === 'close') close();
+    else if (type === 'brand') applyBrand(data);
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.panel) escape();

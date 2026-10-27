@@ -1,6 +1,7 @@
 import type { WorkspaceSettings as Row } from '@prisma/client';
 import type { Db } from '../../platform/db.js';
 import type { AssistantLimits } from '../assistant/limits.js';
+import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 
 /** What one workspace's chat, voice and AI run with right now. */
 export interface WorkspaceConfig {
@@ -13,6 +14,8 @@ export interface WorkspaceConfig {
   draftModel: string | null;
   toneGuide: string;
   voiceName: string;
+  /** What customers see: the brand name (never empty) and its colour (#rrggbb). */
+  brand: { name: string; color: string };
 }
 
 /** Values a workspace starts with before its owner saves anything (today's env and switches). */
@@ -71,10 +74,12 @@ type ConfigSource = Pick<
   | 'maxCallSeconds'
   | 'callsPerHour'
   | 'callsPerDay'
+  | 'brandName'
+  | 'brandColor'
 >;
 
 /** Limits come from the row; the platform keeps the hard caps it never hands to a workspace. */
-function toConfig(s: ConfigSource, p: PlatformDefaults): WorkspaceConfig {
+function toConfig(s: ConfigSource, p: PlatformDefaults, fallbackName: string): WorkspaceConfig {
   const { chat, voice, drafts } = p.limits;
   return {
     limits: {
@@ -99,8 +104,13 @@ function toConfig(s: ConfigSource, p: PlatformDefaults): WorkspaceConfig {
     draftModel: s.draftModel,
     toneGuide: s.toneGuide,
     voiceName: s.voiceName,
+    brand: { name: s.brandName.trim() || fallbackName, color: s.brandColor },
   };
 }
+
+/** Without a saved brand name: BookLeaf keeps its short name, other workspaces use theirs. */
+const brandFallback = (workspaceId: string, workspaceName: string | undefined) =>
+  workspaceId === DEFAULT_WORKSPACE_ID ? 'BookLeaf' : (workspaceName ?? 'Support');
 
 /** Short enough that another server instance sees a change within seconds. */
 const CACHE_MS = 5_000;
@@ -112,10 +122,15 @@ const CACHE_MS = 5_000;
 export function createWorkspaceConfigs(db: Db, platform: PlatformDefaults, now = Date.now) {
   const cache = new Map<string, { at: number; config: Promise<WorkspaceConfig> }>();
   async function load(workspaceId: string): Promise<WorkspaceConfig> {
-    const row = await db.workspaceSettings.findUnique({ where: { workspaceId } });
-    if (row) return toConfig(row, platform);
+    const ws = await db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true, settings: true },
+    });
+    const fallbackName = brandFallback(workspaceId, ws?.name);
+    if (ws?.settings) return toConfig(ws.settings, platform, fallbackName);
     const seed = await seedValues(platform);
-    return toConfig({ ...seed, triageModel: null, draftModel: null, toneGuide: '' }, platform);
+    const blank = { triageModel: null, draftModel: null, toneGuide: '', brandName: '' };
+    return toConfig({ ...seed, ...blank }, platform, fallbackName);
   }
   return {
     forWorkspace(workspaceId: string): Promise<WorkspaceConfig> {

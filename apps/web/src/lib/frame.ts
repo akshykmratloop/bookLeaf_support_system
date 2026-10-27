@@ -12,7 +12,7 @@ export const isFramed = (): boolean => {
   }
 };
 
-type HostMessage = 'reauth' | 'escape' | 'expand' | 'close';
+type HostMessage = 'reauth' | 'escape' | 'expand' | 'close' | 'brand';
 
 export function tellHost(type: HostMessage, extra: Record<string, string> = {}): void {
   if (!isFramed()) return;

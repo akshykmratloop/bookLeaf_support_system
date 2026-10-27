@@ -6,24 +6,25 @@ import { Outlet, useLocation } from 'react-router';
 import { isFramed, requestReauth, tellHost } from '../../lib/frame';
 import { useSignInOptions } from '../../lib/hostSignIn';
 import { useLiveUpdates } from '../../lib/live-updates';
+import { useWorkspaceBrand } from '../../lib/useWorkspaceBrand';
 import { useAuthorTickets } from '../../lib/queries';
 import { Avatar } from '../atoms/Avatar';
 import { SignedOutNote } from '../molecules/SignedOutNote';
 import { EmbedNav } from './EmbedNav';
 
 /** Full page (opened from the host, not in the widget): a way back, never a sign-out. */
-function PageHeader({ user }: { user: AuthUser }) {
+function PageHeader({ user, brandName }: { user: AuthUser; brandName: string }) {
   const back = useSignInOptions().data?.hostSignInUrl ?? null;
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-panel px-4 lg:px-8">
       <img src="/favicon.svg" alt="" className="h-8 w-8" />
-      <p className="flex-1 text-[16px] font-bold">BookLeaf Help</p>
+      <p className="flex-1 text-[16px] font-bold">{brandName} Help</p>
       {back ? (
         <a
           href={back}
           className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold text-ink-2 hover:bg-panel-2 hover:text-ink"
         >
-          <ArrowLeft size={15} aria-hidden /> Back to BookLeaf
+          <ArrowLeft size={15} aria-hidden /> Back to {brandName}
         </a>
       ) : null}
       <Avatar name={user.name} />
@@ -55,11 +56,12 @@ export function EmbedShell({ user }: { user: AuthUser }) {
   }, [qc, framed]);
   useLiveUpdates(onExpired);
   useEscapeToHost();
+  const brandName = useWorkspaceBrand();
   const awaiting = (useAuthorTickets().data?.items ?? []).filter((t) => t.awaitingYou).length;
   if (expired) return <SignedOutNote />;
   return (
     <div className="flex h-full flex-col overflow-hidden bg-app">
-      {framed ? null : <PageHeader user={user} />}
+      {framed ? null : <PageHeader user={user} brandName={brandName} />}
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-[232px] shrink-0 flex-col gap-4 border-r border-line bg-panel p-4 lg:flex">
           <EmbedNav awaiting={awaiting} rail />

@@ -43,6 +43,8 @@ export const AssistantAvailabilitySchema = z.object({
     callsPerHour: z.int(),
     callsPerDay: z.int(),
   }),
+  /** The workspace's name and colour, for the widget and the author screens. */
+  brand: z.object({ name: z.string(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
 });
 export type AssistantAvailability = z.infer<typeof AssistantAvailabilitySchema>;
 

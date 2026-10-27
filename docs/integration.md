@@ -174,7 +174,7 @@ link.
 | --- | --- | --- | --- |
 | `data-token-url` | yes | none | An endpoint on **your** origin. It answers `POST` (with your session cookie) with `{ "token": "…" }`. Without it, the script throws an error |
 | `data-label` | no | `Help` | Text on the launcher button |
-| `data-title` | no | `BookLeaf Help` | Title in the panel header |
+| `data-title` | no | workspace brand name + "Help" | Title in the panel header. Without it, the panel shows the workspace's brand name (set in Settings → Widget), and the launcher takes the brand colour |
 | `data-theme` | no | `auto` | `light`, `dark` or `auto`. See "Theme" below. Any other value means `auto` |
 
 **What the script does**

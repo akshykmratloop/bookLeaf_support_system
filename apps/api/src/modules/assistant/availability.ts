@@ -63,6 +63,7 @@ export async function availability(
       state: voiceState(cfg.voiceEnabled, await deps.voiceConfigured(workspaceId)),
       ...limits.voice,
     },
+    brand: cfg.brand,
   };
 }
 
