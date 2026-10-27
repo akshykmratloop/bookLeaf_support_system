@@ -33,28 +33,38 @@ function fallbackProblem(status: number): Problem {
   };
 }
 
-/** JSON-only client. Cookies carry the session; the server never sees a token in JS. */
-export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+const NETWORK_PROBLEM: Problem = {
+  type: 'about:blank',
+  title: 'Cannot reach the server. Check your connection.',
+  status: 0,
+  code: 'NETWORK',
+};
+
+function headersFor(opts: RequestOptions): Record<string, string> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   if (opts.idempotencyKey) headers['idempotency-key'] = opts.idempotencyKey;
-  let res: Response;
+  return headers;
+}
+
+/** Sends the request; a network failure becomes an ApiError with status 0. */
+async function send(path: string, opts: RequestOptions): Promise<Response> {
   try {
-    res = await fetch(`${BASE}${path}`, {
+    return await fetch(`${BASE}${path}`, {
       method: opts.method ?? 'GET',
-      headers,
+      headers: headersFor(opts),
       credentials: 'same-origin',
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
       signal: opts.signal,
     });
   } catch {
-    throw new ApiError(0, {
-      type: 'about:blank',
-      title: 'Cannot reach the server. Check your connection.',
-      status: 0,
-      code: 'NETWORK',
-    });
+    throw new ApiError(0, NETWORK_PROBLEM);
   }
+}
+
+/** JSON-only client. Cookies carry the session; the server never sees a token in JS. */
+export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const res = await send(path, opts);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data: unknown = text ? JSON.parse(text) : undefined;

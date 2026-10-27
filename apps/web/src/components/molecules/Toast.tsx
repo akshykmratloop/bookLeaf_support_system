@@ -14,11 +14,17 @@ const TOAST_MS = 4000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
-  const push = useCallback((tone: ToastItem['tone'], text: string) => {
-    const id = Date.now() + Math.random();
-    setItems((xs) => [...xs, { id, tone, text }]);
-    setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), TOAST_MS);
+  const dismiss = useCallback((id: number) => {
+    setItems((xs) => xs.filter((x) => x.id !== id));
   }, []);
+  const push = useCallback(
+    (tone: ToastItem['tone'], text: string) => {
+      const id = Date.now() + Math.random();
+      setItems((xs) => [...xs, { id, tone, text }]);
+      setTimeout(() => dismiss(id), TOAST_MS);
+    },
+    [dismiss],
+  );
   const value = useMemo(() => push, [push]);
   return (
     <ToastContext.Provider value={value}>

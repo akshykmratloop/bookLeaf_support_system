@@ -7,6 +7,48 @@ const th =
   'px-4 py-3 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase whitespace-nowrap';
 const td = 'px-4 py-3 align-middle';
 
+const isUnresolved = (t: AdminTicketListItem) => t.status === 'OPEN' || t.status === 'IN_PROGRESS';
+
+function QueueRow({ t, onOpen }: { t: AdminTicketListItem; onOpen: (id: string) => void }) {
+  const s = sla(t.slaDueAt, t.firstResponseAt);
+  const unresolved = isUnresolved(t);
+  const late = s.overdue && unresolved;
+  return (
+    <tr
+      tabIndex={0}
+      onClick={() => onOpen(t.id)}
+      onKeyDown={(e) => e.key === 'Enter' && onOpen(t.id)}
+      className={`cursor-pointer border-b border-line last:border-0 hover:bg-panel-2 ${late ? 'bg-danger-bg/40' : ''}`}
+    >
+      <td className={`${td} min-w-[280px]`}>
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[11.5px] text-ink-3">{t.number}</span>
+          <AiBadge state={t.aiState} needsReview={t.needsReview} />
+        </span>
+        <span className="block font-semibold">{t.subject}</span>
+        <span className="block text-[12px] text-ink-3">
+          {t.author.name} · {t.book?.title ?? 'General'} · {relative(t.createdAt)}
+        </span>
+      </td>
+      <td className={td}>
+        <CategoryLabel category={t.category} source={t.categorySource} />
+      </td>
+      <td className={td}>
+        <PriorityPill priority={t.priority} />
+      </td>
+      <td className={td}>
+        <StatusPill status={t.status} />
+      </td>
+      <td
+        className={`${td} whitespace-nowrap ${late ? 'font-semibold text-danger' : 'text-ink-2'}`}
+      >
+        {unresolved || t.firstResponseAt ? s.text : '—'}
+      </td>
+      <td className={`${td} whitespace-nowrap text-ink-2`}>{t.assignee?.name ?? 'Unassigned'}</td>
+    </tr>
+  );
+}
+
 /** Rows arrive most-urgent-first from the API. Overdue first responses are highlighted. */
 export function QueueTable({ items }: { items: AdminTicketListItem[] }) {
   const navigate = useNavigate();
@@ -25,48 +67,9 @@ export function QueueTable({ items }: { items: AdminTicketListItem[] }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((t) => {
-            const s = sla(t.slaDueAt, t.firstResponseAt);
-            const unresolved = t.status === 'OPEN' || t.status === 'IN_PROGRESS';
-            const late = s.overdue && unresolved;
-            return (
-              <tr
-                key={t.id}
-                tabIndex={0}
-                onClick={() => open(t.id)}
-                onKeyDown={(e) => e.key === 'Enter' && open(t.id)}
-                className={`cursor-pointer border-b border-line last:border-0 hover:bg-panel-2 ${late ? 'bg-danger-bg/40' : ''}`}
-              >
-                <td className={`${td} min-w-[280px]`}>
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-[11.5px] text-ink-3">{t.number}</span>
-                    <AiBadge state={t.aiState} needsReview={t.needsReview} />
-                  </span>
-                  <span className="block font-semibold">{t.subject}</span>
-                  <span className="block text-[12px] text-ink-3">
-                    {t.author.name} · {t.book?.title ?? 'General'} · {relative(t.createdAt)}
-                  </span>
-                </td>
-                <td className={td}>
-                  <CategoryLabel category={t.category} source={t.categorySource} />
-                </td>
-                <td className={td}>
-                  <PriorityPill priority={t.priority} />
-                </td>
-                <td className={td}>
-                  <StatusPill status={t.status} />
-                </td>
-                <td
-                  className={`${td} whitespace-nowrap ${late ? 'font-semibold text-danger' : 'text-ink-2'}`}
-                >
-                  {unresolved || t.firstResponseAt ? s.text : '—'}
-                </td>
-                <td className={`${td} whitespace-nowrap text-ink-2`}>
-                  {t.assignee?.name ?? 'Unassigned'}
-                </td>
-              </tr>
-            );
-          })}
+          {items.map((t) => (
+            <QueueRow key={t.id} t={t} onOpen={open} />
+          ))}
         </tbody>
       </table>
     </div>

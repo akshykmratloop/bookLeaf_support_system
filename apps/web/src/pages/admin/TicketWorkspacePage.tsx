@@ -46,12 +46,17 @@ function Header({ t }: { t: AdminTicket }) {
   );
 }
 
-export function TicketWorkspacePage() {
-  const { id = '' } = useParams();
-  const user = useUser();
-  const toast = useToast();
-  const ticket = useAdminTicket(id);
-  const draft = useDraft(id);
+/** The chat or call the ticket came from, if any. */
+function SourcePanel({ t }: { t: AdminTicket }) {
+  if (t.source === 'CHAT' && t.chatSessionId)
+    return <ChatTranscriptPanel sessionId={t.chatSessionId} />;
+  if (t.source === 'VOICE' && t.voiceSessionId)
+    return <VoiceTranscriptPanel callId={t.voiceSessionId} />;
+  return null;
+}
+
+/** Admin actions on one ticket; each refreshes what it changes. */
+function useTicketActions(id: string) {
   const refresh = [keys.ticket(id), keys.tickets(), keys.draft(id)];
   const patch = useApiMutation(
     (p: Patch & { version: number }) =>
@@ -66,52 +71,64 @@ export function TicketWorkspacePage() {
     () => api(`/tickets/${id}/draft/regenerate`, { method: 'POST' }),
     [keys.draft(id)],
   );
-  if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
-  if (ticket.isError)
-    return (
-      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
-    );
-  const t = ticket.data;
+  return { patch, retry, regenerate };
+}
+
+function Workspace({ t, draft }: { t: AdminTicket; draft: ReturnType<typeof useDraft> }) {
+  const user = useUser();
+  const toast = useToast();
+  const { patch, retry, regenerate } = useTicketActions(t.id);
   const onError = (err: unknown) => toast('error', errorMessage(err));
   const onPatch = (p: Patch) =>
     patch.mutate(
       { ...p, version: t.version },
       { onSuccess: () => toast('success', 'Ticket updated'), onError },
     );
+  const current = draft.data?.draft ?? null;
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="flex min-w-0 flex-col gap-4">
+        <SourcePanel t={t} />
+        <Card className="p-4">
+          <MessageThread description={t.description} messages={t.messages} audience="ADMIN" />
+        </Card>
+        <ReplyComposer
+          ticketId={t.id}
+          draft={current}
+          isDraftPending={draft.data?.pending ?? draft.isPending}
+          onRegenerate={() => regenerate.mutate(undefined, { onError })}
+          isRegenerating={regenerate.isPending}
+        />
+      </div>
+      <div className="flex flex-col gap-4">
+        <TicketProperties
+          ticket={t}
+          user={user}
+          isSaving={patch.isPending}
+          onPatch={onPatch}
+          onRetryAi={() => retry.mutate(undefined, { onError })}
+          isRetrying={retry.isPending}
+        />
+        {current ? <EvidencePanel facts={current.facts} /> : null}
+      </div>
+    </div>
+  );
+}
+
+export function TicketWorkspacePage() {
+  const { id = '' } = useParams();
+  const ticket = useAdminTicket(id);
+  // Loaded alongside the ticket, not after it.
+  const draft = useDraft(id);
+  if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
+  if (ticket.isError)
+    return (
+      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
+    );
   return (
     <>
-      <Header t={t} />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex min-w-0 flex-col gap-4">
-          {t.source === 'CHAT' && t.chatSessionId ? (
-            <ChatTranscriptPanel sessionId={t.chatSessionId} />
-          ) : null}
-          {t.source === 'VOICE' && t.voiceSessionId ? (
-            <VoiceTranscriptPanel callId={t.voiceSessionId} />
-          ) : null}
-          <Card className="p-4">
-            <MessageThread description={t.description} messages={t.messages} audience="ADMIN" />
-          </Card>
-          <ReplyComposer
-            ticketId={t.id}
-            draft={draft.data?.draft ?? null}
-            isDraftPending={draft.data?.pending ?? draft.isPending}
-            onRegenerate={() => regenerate.mutate(undefined, { onError })}
-            isRegenerating={regenerate.isPending}
-          />
-        </div>
-        <div className="flex flex-col gap-4">
-          <TicketProperties
-            ticket={t}
-            user={user}
-            isSaving={patch.isPending}
-            onPatch={onPatch}
-            onRetryAi={() => retry.mutate(undefined, { onError })}
-            isRetrying={retry.isPending}
-          />
-          {draft.data?.draft ? <EvidencePanel facts={draft.data.draft.facts} /> : null}
-        </div>
-      </div>
+      <Header t={ticket.data} />
+      <Workspace t={ticket.data} draft={draft} />
     </>
   );
 }

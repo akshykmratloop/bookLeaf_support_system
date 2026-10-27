@@ -1,8 +1,9 @@
 import { DESCRIPTION_LIMITS, SUBJECT_LIMITS, type Book } from '@bookleaf/shared';
-import { Paperclip, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Button } from '../atoms/Button';
 import { Input, Select, Textarea } from '../atoms/Input';
+import { AttachmentPicker } from '../molecules/AttachmentPicker';
 import { Field } from '../molecules/Field';
 
 export interface TicketFormValues {
@@ -17,8 +18,6 @@ interface Props {
   serverError: (path: string) => string | undefined;
   onSubmit: (values: TicketFormValues) => void;
 }
-
-const MAX_FILES = 3;
 
 /** UX-only checks mirroring the server limits; the server remains the real gate. */
 function localErrors(subject: string, description: string) {
@@ -92,29 +91,7 @@ export function TicketForm({ books, isSubmitting, serverError, onSubmit }: Props
           aria-invalid={Boolean(err('description'))}
         />
       </Field>
-      <Field
-        id="files"
-        label="Attachments (optional)"
-        hint="Screenshots or photos help us verify issues faster. In this demo, files are not uploaded."
-      >
-        <label
-          htmlFor="files"
-          className="flex h-[38px] cursor-pointer items-center gap-2 rounded-[9px] border border-dashed border-line-strong bg-inset px-3 text-[13px] text-ink-2 hover:border-brand"
-        >
-          <Paperclip size={14} aria-hidden />
-          {files.length ? files.join(', ') : 'Choose up to 3 images or PDFs'}
-        </label>
-        <input
-          id="files"
-          type="file"
-          multiple
-          accept="image/*,application/pdf"
-          className="sr-only"
-          onChange={(e) =>
-            setFiles([...(e.target.files ?? [])].slice(0, MAX_FILES).map((f) => f.name))
-          }
-        />
-      </Field>
+      <AttachmentPicker files={files} onChange={setFiles} />
       <div className="flex justify-end">
         <Button type="submit" isLoading={isSubmitting} icon={<Send size={15} aria-hidden />}>
           Submit ticket

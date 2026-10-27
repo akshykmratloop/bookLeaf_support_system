@@ -42,40 +42,19 @@ function DraftHeader({ draft, pending }: { draft: Draft | null; pending: boolean
   );
 }
 
-/** The admin always sends: AI only proposes. Replies are checked against verified facts on the server. */
-export function ReplyComposer({
-  ticketId,
-  draft,
-  isDraftPending,
-  onRegenerate,
-  isRegenerating,
-}: Props) {
-  const c = useReplyComposer(ticketId, draft);
-  const canSend =
-    c.text.trim().length > 0 &&
-    !c.hardBlocked &&
-    (!c.needsOverride || c.overrideReason.trim().length >= 5);
+type Composer = ReturnType<typeof useReplyComposer>;
+
+const OVERRIDE_MIN = 5;
+
+const canSend = (c: Composer) =>
+  c.text.trim().length > 0 &&
+  !c.hardBlocked &&
+  (!c.needsOverride || c.overrideReason.trim().length >= OVERRIDE_MIN);
+
+/** Warnings under the text: the check result, unfilled placeholders, the override reason. */
+function CheckNotes({ c }: { c: Composer }) {
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <FilterChips
-          label="Message type"
-          options={MODES}
-          value={c.mode}
-          onChange={(v) => c.setMode(v as Mode)}
-        />
-        <DraftHeader draft={draft} pending={isDraftPending} />
-      </div>
-      <Textarea
-        aria-label={
-          c.mode === 'REPLY' ? 'Reply to the author' : 'Internal note (not visible to the author)'
-        }
-        rows={12}
-        value={c.text}
-        maxLength={MESSAGE_LIMITS.max}
-        onChange={(e) => c.setText(e.target.value)}
-        className={c.mode === 'INTERNAL_NOTE' ? 'border-warning/50' : ''}
-      />
+    <>
       {c.check ? <CheckIssues result={c.check} /> : null}
       {c.hardBlocked ? (
         <p className="text-[12px] text-danger">
@@ -92,6 +71,69 @@ export function ReplyComposer({
           />
         </label>
       ) : null}
+    </>
+  );
+}
+
+function SendButtons({ c }: { c: Composer }) {
+  const isReply = c.mode === 'REPLY';
+  return (
+    <div className="flex gap-2">
+      {isReply ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void c.runCheck()}
+          isLoading={c.isChecking}
+          disabled={!c.text.trim()}
+          icon={<ShieldCheck size={13} aria-hidden />}
+        >
+          Check facts
+        </Button>
+      ) : null}
+      <Button
+        size="sm"
+        onClick={c.submit}
+        isLoading={c.isSending}
+        disabled={!canSend(c)}
+        icon={<Send size={13} aria-hidden />}
+      >
+        {isReply ? 'Send reply' : 'Add note'}
+      </Button>
+    </div>
+  );
+}
+
+/** The admin always sends: AI only proposes. Replies are checked against verified facts on the server. */
+export function ReplyComposer({
+  ticketId,
+  draft,
+  isDraftPending,
+  onRegenerate,
+  isRegenerating,
+}: Props) {
+  const c = useReplyComposer(ticketId, draft);
+  const isNote = c.mode === 'INTERNAL_NOTE';
+  return (
+    <Card className="flex flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <FilterChips
+          label="Message type"
+          options={MODES}
+          value={c.mode}
+          onChange={(v) => c.setMode(v as Mode)}
+        />
+        <DraftHeader draft={draft} pending={isDraftPending} />
+      </div>
+      <Textarea
+        aria-label={isNote ? 'Internal note (not visible to the author)' : 'Reply to the author'}
+        rows={12}
+        value={c.text}
+        maxLength={MESSAGE_LIMITS.max}
+        onChange={(e) => c.setText(e.target.value)}
+        className={isNote ? 'border-warning/50' : ''}
+      />
+      <CheckNotes c={c} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1">
           <Button
@@ -109,29 +151,7 @@ export function ReplyComposer({
             </Button>
           ) : null}
         </div>
-        <div className="flex gap-2">
-          {c.mode === 'REPLY' ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => void c.runCheck()}
-              isLoading={c.isChecking}
-              disabled={!c.text.trim()}
-              icon={<ShieldCheck size={13} aria-hidden />}
-            >
-              Check facts
-            </Button>
-          ) : null}
-          <Button
-            size="sm"
-            onClick={c.submit}
-            isLoading={c.isSending}
-            disabled={!canSend}
-            icon={<Send size={13} aria-hidden />}
-          >
-            {c.mode === 'REPLY' ? 'Send reply' : 'Add note'}
-          </Button>
-        </div>
+        <SendButtons c={c} />
       </div>
     </Card>
   );

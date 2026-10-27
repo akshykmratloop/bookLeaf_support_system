@@ -1,9 +1,8 @@
 import type { VoiceEndReason } from '@bookleaf/shared';
-import { Link } from 'react-router';
 import { useVoiceCallRecord } from '../../lib/assistant';
-import { Card } from '../atoms/Card';
-import { ChatBubble } from '../molecules/ChatBubble';
 import { LoadingState } from '../molecules/States';
+import { TicketSentNote } from '../molecules/TicketSentNote';
+import { TranscriptList } from '../molecules/TranscriptList';
 
 const ENDED_TEXT: Record<VoiceEndReason, string> = {
   USER_HANGUP: 'You ended the call.',
@@ -16,6 +15,25 @@ const ENDED_TEXT: Record<VoiceEndReason, string> = {
   SERVER_RESTART: 'The call was interrupted.',
 };
 
+type CallRecord = NonNullable<ReturnType<typeof useVoiceCallRecord>['data']>;
+
+/** The call's ticket if it was sent, otherwise a pointer to the unsent draft. */
+function CallTicket({ call }: { call: CallRecord }) {
+  const ticket = call.ticket ?? call.draft?.ticket ?? null;
+  if (ticket)
+    return (
+      <TicketSentNote ticket={ticket}>
+        was sent from this call. The team will reply there.
+      </TicketSentNote>
+    );
+  if (!call.draft?.subject) return null;
+  return (
+    <p className="text-[12.5px] text-ink-2">
+      Your ticket from this call is on the right. You can still edit it and press Send.
+    </p>
+  );
+}
+
 /** After a call: what was said. The call's ticket stays in the panel beside it. */
 export function VoiceAfterCall({
   callId,
@@ -27,35 +45,19 @@ export function VoiceAfterCall({
   const record = useVoiceCallRecord(callId);
   if (record.isPending) return <LoadingState label="Saving the call…" />;
   const call = record.data;
-  const ticket = call?.ticket ?? call?.draft?.ticket ?? null;
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] text-ink-2">
         {reason ? ENDED_TEXT[reason] : 'The call has ended.'}
       </p>
       {call?.transcript.length ? (
-        <ol className="flex flex-col gap-2" aria-label="Call transcript">
-          {call.transcript.map((l, i) => (
-            <ChatBubble
-              key={`${l.at}-${i}`}
-              message={{ role: l.role, body: l.text, source: null, factsUsed: [] }}
-            />
-          ))}
-        </ol>
+        <TranscriptList
+          lines={call.transcript}
+          className="flex flex-col gap-2"
+          label="Call transcript"
+        />
       ) : null}
-      {ticket ? (
-        <Card className="p-3 text-[13px]">
-          Ticket{' '}
-          <Link className="font-semibold text-brand underline" to={`/tickets/${ticket.id}`}>
-            {ticket.number}
-          </Link>{' '}
-          was sent from this call. The team will reply there.
-        </Card>
-      ) : call?.draft?.subject ? (
-        <p className="text-[12.5px] text-ink-2">
-          Your ticket from this call is on the right. You can still edit it and press Send.
-        </p>
-      ) : null}
+      {call ? <CallTicket call={call} /> : null}
     </div>
   );
 }
