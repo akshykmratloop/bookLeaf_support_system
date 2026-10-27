@@ -4,15 +4,18 @@ import { SESSION_COOKIE, type Session, type SessionCodec } from '../../modules/a
 import { ForbiddenError, UnauthorizedError } from '../errors.js';
 import './augment.js';
 
-/** Default deny: every /api route needs a valid session unless it is marked public. */
+/**
+ * Default deny: every route in the scope this is registered in needs a valid session unless it
+ * is marked public. It is registered inside the /api/v1 scope, so it covers exactly the API
+ * wherever the module is mounted, without looking at the URL.
+ */
 export const authGuard = fp<{ sessions: SessionCodec }>(
   async (app: FastifyInstance, { sessions }) => {
     app.decorateRequest('session', null);
     app.addHook('preHandler', async (req) => {
       const config = req.routeOptions.config;
-      const isApiRoute = req.url.startsWith('/api/v1/') && req.routeOptions.url !== undefined;
-      // Docs, health, static files and unknown paths (which 404) need no session.
-      if (!isApiRoute || config.public) return;
+      // Unknown paths (which 404) need no session.
+      if (req.routeOptions.url === undefined || config.public) return;
       const token = req.cookies[SESSION_COOKIE];
       if (!token) throw new UnauthorizedError();
       req.session = await sessions.verify(token);

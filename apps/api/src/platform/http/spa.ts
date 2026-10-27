@@ -44,7 +44,7 @@ export async function registerSpa(
   });
   app.get('/*', { config: { public: true }, schema: { hide: true } }, (req, reply) => {
     // Only page routes fall back to index.html; a missing file (old bundle, typo) is a real 404.
-    const path = req.url.split('?')[0] ?? '';
+    const path = (req.url.split('?')[0] ?? '').slice(app.prefix.length);
     if (path.startsWith('/api/') || FILE_PATH.test(path)) return reply.callNotFound();
     return reply.header('cache-control', NO_CACHE).sendFile('index.html');
   });

@@ -49,9 +49,14 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   await app.register(rateLimit, { global: false });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
-  await app.register(authGuard, { sessions: c.sessions });
   await app.register(healthRoutes, { db: c.db });
-  await app.register((api) => registerRoutes(api, c), { prefix: '/api/v1' });
+  await app.register(
+    async (api) => {
+      await api.register(authGuard, { sessions: c.sessions });
+      await registerRoutes(api, c);
+    },
+    { prefix: '/api/v1' },
+  );
   await registerSpa(app, c.env.WEB_DIST_DIR);
 };
 
