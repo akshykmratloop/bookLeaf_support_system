@@ -56,6 +56,13 @@ export function defaultHandler(req: StructuredRequest<unknown>): unknown {
       claims: [],
     };
   }
+  if (req.task === 'CHAT') {
+    return {
+      answer: 'Happy to help with questions about your books, royalties and payouts.',
+      claims: [],
+      ticketSuggestion: null,
+    };
+  }
   return { ok: true };
 }
 

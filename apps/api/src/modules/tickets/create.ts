@@ -1,5 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { type CreateTicketRequestSchema, type AuthorTicket } from '@bookleaf/shared';
+import {
+  type AuthorTicket,
+  type CreateTicketRequestSchema,
+  type TicketSource,
+} from '@bookleaf/shared';
 import type { z } from 'zod';
 import { enqueueJob } from '../../ai/jobs/queue.js';
 import { higherPriority, priorityFloor } from '../../ai/triage/rules.js';
@@ -11,6 +15,12 @@ import { findMessages, findTicketOrThrow } from './repository.js';
 import { slaDueAt } from './sla.js';
 
 export type CreateTicketInput = z.output<typeof CreateTicketRequestSchema>;
+
+/** Where the ticket was raised. Chat/voice tickets keep a link to the conversation. */
+export interface TicketOrigin {
+  source: TicketSource;
+  chatSessionId?: string | null;
+}
 
 const ACK =
   "Thanks for reaching out. We've received your query and our support team will reply here. You'll see updates on this page without refreshing.";
@@ -46,6 +56,7 @@ export async function createTicket(
   session: Session,
   input: CreateTicketInput,
   idempotencyKey: string | null,
+  origin: TicketOrigin = { source: 'PORTAL' },
 ): Promise<{ ticket: AuthorTicket; created: boolean }> {
   if (session.role !== 'AUTHOR' || !session.authorId)
     throw new ForbiddenError('Only authors can raise tickets');
@@ -78,6 +89,8 @@ export async function createTicket(
           priorityReasons: floor.reasons,
           slaDueAt: slaDueAt(now, priority),
           clientRequestId: idempotencyKey,
+          source: origin.source,
+          chatSessionId: origin.chatSessionId ?? null,
           createdAt: now,
         },
       });

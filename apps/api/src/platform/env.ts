@@ -21,6 +21,14 @@ const EnvSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   WORKER_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
+  // Author assistant limits (abuse protection). Admins switch the features on/off in the UI.
+  CHAT_MESSAGES_PER_MINUTE: z.coerce.number().int().min(1).max(120).default(20),
+  CHAT_MESSAGES_PER_DAY: z.coerce.number().int().min(1).max(2000).default(100),
+  CHAT_MAX_TURNS_PER_SESSION: z.coerce.number().int().min(1).max(200).default(30),
+  CHAT_SESSIONS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(10),
+  VOICE_MAX_CALL_SECONDS: z.coerce.number().int().min(30).max(300).default(300),
+  VOICE_CALLS_PER_HOUR: z.coerce.number().int().min(1).max(60).default(3),
+  VOICE_CALLS_PER_DAY: z.coerce.number().int().min(1).max(200).default(10),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

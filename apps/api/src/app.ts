@@ -12,8 +12,10 @@ import {
 } from 'fastify-type-provider-zod';
 import type { Container } from './container.js';
 import { aiAdminRoutes } from './modules/ai-admin/routes.js';
+import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { booksRoutes } from './modules/books/routes.js';
+import { chatRoutes } from './modules/chat/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
@@ -86,6 +88,8 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
       await api.register(ticketRoutes, { deps: c.ticketDeps });
       await api.register(draftRoutes, { deps: c.ticketDeps });
       await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
+      await api.register(assistantRoutes, { assistant: c.assistant });
+      await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
       await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
     },
     { prefix: '/api/v1' },

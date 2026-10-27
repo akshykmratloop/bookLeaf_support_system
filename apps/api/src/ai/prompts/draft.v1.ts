@@ -56,7 +56,7 @@ export interface DraftPromptInput {
 
 const MAX_EARLIER_CHARS = 600;
 
-function factLine(f: Fact): string {
+export function factLine(f: Fact): string {
   if (f.type === 'UNKNOWN')
     return `- ${f.id} | ${f.label} | UNKNOWN (${f.source.kind === 'MISSING' ? f.source.reason : 'not available'})`;
   const src =

@@ -62,6 +62,23 @@ enum AiState {
   FALLBACK
 }
 
+enum TicketSource {
+  PORTAL
+  CHAT
+  VOICE
+}
+
+enum ChatRole {
+  AUTHOR
+  ASSISTANT
+}
+
+enum ChatAnswerSource {
+  AI
+  SAFE_FALLBACK
+  UNAVAILABLE
+}
+
 enum MessageKind {
   AUTHOR
   REPLY
@@ -115,9 +132,10 @@ model Author {
   city       String
   joinedDate DateTime @map("joined_date") @db.Date
 
-  user    User     @relation(fields: [userId], references: [id])
-  books   Book[]
-  tickets Ticket[]
+  user         User          @relation(fields: [userId], references: [id])
+  books        Book[]
+  tickets      Ticket[]
+  chatSessions ChatSession[]
 
   @@map("authors")
 }
@@ -149,38 +167,41 @@ model Book {
 }
 
 model Ticket {
-  id              String       @id @default(uuid()) @db.Uuid
-  number          Int          @unique @default(autoincrement())
-  authorId        String       @map("author_id") @db.Uuid
-  bookId          String?      @map("book_id") @db.Uuid
+  id              String          @id @default(uuid()) @db.Uuid
+  number          Int             @unique @default(autoincrement())
+  authorId        String          @map("author_id") @db.Uuid
+  bookId          String?         @map("book_id") @db.Uuid
   subject         String
   description     String
-  status          TicketStatus @default(OPEN)
+  status          TicketStatus    @default(OPEN)
   category        TicketCategory?
-  categorySource  FieldSource? @map("category_source")
-  aiConfidence    Float?       @map("ai_confidence")
-  priority        Priority     @default(MEDIUM)
-  prioritySource  FieldSource  @default(RULES) @map("priority_source")
-  priorityReasons Json         @default("[]") @map("priority_reasons")
-  needsInfo       Json         @default("[]") @map("needs_info")
-  needsReview     Boolean      @default(false) @map("needs_review")
-  aiState         AiState      @default(PENDING) @map("ai_state")
-  assigneeId      String?      @map("assignee_id") @db.Uuid
-  slaDueAt        DateTime     @map("sla_due_at") @db.Timestamptz(3)
-  firstResponseAt DateTime?    @map("first_response_at") @db.Timestamptz(3)
-  resolvedAt      DateTime?    @map("resolved_at") @db.Timestamptz(3)
-  clientRequestId String?      @map("client_request_id")
-  version         Int          @default(0)
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  categorySource  FieldSource?    @map("category_source")
+  aiConfidence    Float?          @map("ai_confidence")
+  priority        Priority        @default(MEDIUM)
+  prioritySource  FieldSource     @default(RULES) @map("priority_source")
+  priorityReasons Json            @default("[]") @map("priority_reasons")
+  needsInfo       Json            @default("[]") @map("needs_info")
+  needsReview     Boolean         @default(false) @map("needs_review")
+  aiState         AiState         @default(PENDING) @map("ai_state")
+  assigneeId      String?         @map("assignee_id") @db.Uuid
+  slaDueAt        DateTime        @map("sla_due_at") @db.Timestamptz(3)
+  firstResponseAt DateTime?       @map("first_response_at") @db.Timestamptz(3)
+  resolvedAt      DateTime?       @map("resolved_at") @db.Timestamptz(3)
+  clientRequestId String?         @map("client_request_id")
+  source          TicketSource    @default(PORTAL)
+  chatSessionId   String?         @unique @map("chat_session_id") @db.Uuid
+  version         Int             @default(0)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  author   Author          @relation(fields: [authorId], references: [id])
-  book     Book?           @relation(fields: [bookId], references: [id])
-  assignee User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
-  messages TicketMessage[]
-  aiJobs   AiJob[]
-  drafts   AiDraft[]
-  aiRuns   AiRun[]
+  author      Author          @relation(fields: [authorId], references: [id])
+  chatSession ChatSession?    @relation(fields: [chatSessionId], references: [id])
+  book        Book?           @relation(fields: [bookId], references: [id])
+  assignee    User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages    TicketMessage[]
+  aiJobs      AiJob[]
+  drafts      AiDraft[]
+  aiRuns      AiRun[]
 
   @@unique([authorId, clientRequestId])
   @@index([status, priority, slaDueAt])
@@ -298,4 +319,54 @@ model AuditEvent {
 
   @@index([entityType, entityId])
   @@map("audit_events")
+}
+
+/// Admin switches for the author-facing assistant channels. Both start OFF.
+model AssistantSettings {
+  id           Int      @id @default(1)
+  chatEnabled  Boolean  @default(false) @map("chat_enabled")
+  voiceEnabled Boolean  @default(false) @map("voice_enabled")
+  chatModel    String   @default("claude-haiku-5-5") @map("chat_model")
+  version      Int      @default(0)
+  updatedById  String?  @map("updated_by_id") @db.Uuid
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("assistant_settings")
+}
+
+model ChatSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  turnCount Int      @default(0) @map("turn_count")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  author   Author        @relation(fields: [authorId], references: [id])
+  messages ChatMessage[]
+  ticket   Ticket?
+
+  @@index([authorId, createdAt])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String            @id @default(uuid()) @db.Uuid
+  sessionId String            @map("session_id") @db.Uuid
+  role      ChatRole
+  body      String
+  source    ChatAnswerSource?
+  /// Verified facts the answer relied on: [{id, label, display}] (assistant messages only).
+  factsUsed Json              @default("[]") @map("facts_used")
+  /// Checker result for the shown answer (assistant messages only).
+  check     Json?
+  /// Ticket the assistant suggested raising: {subject, description, bookId}.
+  proposal  Json?
+  model     String?
+  latencyMs Int?              @map("latency_ms")
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
 }

@@ -2,9 +2,12 @@ import { createAiRuntime, type AiRuntime } from './ai/jobs/runtime.js';
 import { buildProviderRegistry } from './ai/providers/registry.js';
 import type { LlmProvider } from './ai/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
+import { limitsFromEnv } from './modules/assistant/limits.js';
+import { createAssistantService } from './modules/assistant/service.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
 import { createBooksRepository } from './modules/books/repository.js';
+import { createChatService } from './modules/chat/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
 import type { Env } from './platform/env.js';
@@ -25,6 +28,9 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
   const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now());
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
+  const ticketDeps = { db, clock, events };
+  const limits = limitsFromEnv(env);
+  const assistant = createAssistantService({ db, ai, limits, voiceConfigured: false });
   return {
     env,
     clock,
@@ -35,7 +41,10 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     auth: createAuthService(db, sessions),
     books: createBooksRepository(db),
     aiAdmin: createAiAdminService({ db, ai, clock }),
-    ticketDeps: { db, clock, events },
+    ticketDeps,
+    limits,
+    assistant,
+    chat: createChatService({ ...ticketDeps, assistant, limits }),
   };
 }
 

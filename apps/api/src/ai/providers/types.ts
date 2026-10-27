@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-export type AiTask = 'TRIAGE' | 'DRAFT' | 'TEST';
+export type AiTask = 'TRIAGE' | 'DRAFT' | 'CHAT' | 'TEST';
 
 /** Domain-level request: no vendor types leak past this interface. */
 export interface StructuredRequest<T> {

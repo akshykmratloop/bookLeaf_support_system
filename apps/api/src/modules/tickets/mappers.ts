@@ -114,5 +114,7 @@ export function toAdminTicket(
     version: t.version,
     messages: messages.map((m) => toMessage(m, 'ADMIN')),
     aiJobs: latestJobs(jobs),
+    source: t.source,
+    chatSessionId: t.chatSessionId,
   };
 }

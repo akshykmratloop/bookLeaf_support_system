@@ -50,3 +50,17 @@ export class CheckFailedError extends AppError {
     super(422, 'CHECK_FAILED', message);
   }
 }
+
+/** An admin has switched this author feature off. */
+export class FeatureDisabledError extends AppError {
+  constructor(feature: string) {
+    super(403, 'FEATURE_DISABLED', `${feature} is switched off by the BookLeaf team.`);
+  }
+}
+
+/** A per-author usage limit (daily messages, call quota) was reached. */
+export class UsageLimitError extends AppError {
+  constructor(code: string, message: string) {
+    super(429, code, message);
+  }
+}

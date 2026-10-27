@@ -6,6 +6,7 @@ import {
   MESSAGE_KINDS,
   PRIORITIES,
   TICKET_CATEGORIES,
+  TICKET_SOURCES,
   TICKET_STATUSES,
 } from '../enums.js';
 import { cleanText } from '../sanitize.js';
@@ -90,6 +91,8 @@ export const AdminTicketSchema = AdminTicketListItemSchema.extend({
   version: z.int(),
   messages: z.array(TicketMessageSchema),
   aiJobs: z.array(AiJobSummarySchema),
+  source: z.enum(TICKET_SOURCES),
+  chatSessionId: z.uuid().nullable(),
 });
 export type AdminTicket = z.infer<typeof AdminTicketSchema>;
 
