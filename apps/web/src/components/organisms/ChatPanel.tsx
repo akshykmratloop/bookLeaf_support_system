@@ -4,31 +4,13 @@ import { useInitialQuestion } from '../../lib/useInitialQuestion';
 import { errorMessage } from '../../lib/api';
 import type { MessageQueue, QueuedMessage } from '../../lib/chatQueue';
 import { useChat } from '../../lib/useChat';
-import { Button } from '../atoms/Button';
 import { ChatBubble } from '../molecules/ChatBubble';
 import { ChatComposer } from '../molecules/ChatComposer';
+import { ChatWelcome } from '../molecules/ChatWelcome';
 import { QueuedBubble } from '../molecules/QueuedBubble';
 import { ErrorState, LoadingState } from '../molecules/States';
 import { TicketSentNote } from '../molecules/TicketSentNote';
 import { TypingBubble } from '../molecules/TypingBubble';
-
-const SUGGESTIONS = [
-  'How much royalty is pending on my books?',
-  'When is the next payout?',
-  'What stage is my book in?',
-];
-
-function Suggestions({ onAsk }: { onAsk: (question: string) => void }) {
-  return (
-    <li className="flex flex-wrap gap-2">
-      {SUGGESTIONS.map((s) => (
-        <Button key={s} variant="secondary" size="sm" onClick={() => onAsk(s)}>
-          {s}
-        </Button>
-      ))}
-    </li>
-  );
-}
 
 /** Messages typed while an answer is on its way, sent one at a time. */
 function QueuedList({ queue, queued }: { queue: MessageQueue; queued: readonly QueuedMessage[] }) {
@@ -66,14 +48,16 @@ function Conversation({ chat, maxChars }: { chat: Chat; maxChars: number }) {
   const count = messages.length;
   // Block body on purpose: an effect must not return scrollIntoView's result (newer browsers
   // return a Promise, which React would then try to call as a cleanup function).
+  const empty = count === 0 && queued.length === 0;
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [count, queued]);
+    // Nothing to follow in an empty chat: keep the header and the welcome in view.
+    if (!empty) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [empty, count, queued]);
   const ask = (question: string) => queue.add(question);
   return (
-    <div className="flex flex-col gap-4">
-      <ol className="flex flex-col gap-3" aria-live="polite" aria-label="Conversation">
-        {count === 0 && queued.length === 0 ? <Suggestions onAsk={ask} /> : null}
+    <div className="flex flex-1 flex-col gap-4">
+      <ol className="flex flex-col gap-4" aria-live="polite" aria-label="Conversation">
+        {empty ? <ChatWelcome onAsk={ask} /> : null}
         {messages.map((m) => (
           <ChatBubble key={m.id} message={m} />
         ))}

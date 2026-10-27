@@ -14,15 +14,14 @@ export function QueuedBubble({
 }) {
   const failed = item.status === 'failed';
   return (
-    <li className="flex flex-col items-end gap-1">
-      <div
-        className={`max-w-[85%] rounded-card border px-4 py-3 ${
-          failed ? 'border-danger/40 bg-danger-bg' : 'border-brand/30 bg-brand-soft'
-        } ${item.status === 'waiting' ? 'opacity-70' : ''}`}
+    <li className="flex animate-fade-up flex-col items-end gap-1">
+      <p
+        className={`max-w-[82%] rounded-[20px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap shadow-soft ${
+          failed ? 'border border-danger/40 bg-danger-bg text-ink' : 'bg-brand text-white'
+        } ${item.status === 'waiting' ? 'opacity-60' : ''}`}
       >
-        <p className="mb-1 text-[11.5px] font-semibold text-ink-3">You</p>
-        <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap">{item.text}</p>
-      </div>
+        {item.text}
+      </p>
       {item.status === 'waiting' ? (
         <span className="text-[11.5px] text-ink-3">Waiting to send…</span>
       ) : null}

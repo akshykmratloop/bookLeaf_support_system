@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Mic, MicOff, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff } from 'lucide-react';
 import { useEffect } from 'react';
 import { resumableKey, useResumableCall } from '../../lib/ticketDrafts';
 import type { VoiceCallControls } from '../../lib/voice/useVoiceCall';
@@ -70,12 +70,20 @@ function CallHeader({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <p className="text-[15px] font-semibold">Talk to BookLeaf support</p>
-        <p className="text-[12.5px] text-ink-3">
-          Up to {Math.round(maxSeconds / 60)} minutes per call · {callsPerHour} calls per hour. The
-          assistant can fill in a ticket with you as you talk.
-        </p>
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-[#13a86a] text-white shadow-soft ${view.phase === 'live' ? 'animate-pulse' : ''}`}
+        >
+          <Phone size={18} />
+        </span>
+        <div>
+          <p className="text-[15px] font-bold">Talk to BookLeaf</p>
+          <p className="text-[12px] text-ink-3">
+            Up to {Math.round(maxSeconds / 60)} min per call · {callsPerHour} calls an hour. It can
+            fill in a ticket as you talk.
+          </p>
+        </div>
       </div>
       {view.phase === 'live' && view.secondsLeft !== null ? (
         <Pill tone={view.timeWarning ? 'warning' : 'brand'} dot>
@@ -128,7 +136,7 @@ export function VoiceCallPanel({ call, maxSeconds, callsPerHour }: Props) {
   const busy = view.phase === 'starting' || view.phase === 'connecting' || view.phase === 'ending';
   const live = view.phase === 'live';
   return (
-    <Card className="flex flex-col gap-4 p-5">
+    <Card variant="elevated" className="flex animate-fade-up flex-col gap-4 p-4">
       <CallHeader view={view} maxSeconds={maxSeconds} callsPerHour={callsPerHour} />
       <CallBody view={view} />
       <div className="flex flex-wrap gap-2">

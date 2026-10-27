@@ -140,8 +140,11 @@ export function TicketDraftPanel({ draft, origin, onSaved, onStart, isStarting }
   return (
     <Card className="flex flex-col gap-4 p-4" role="region" aria-label="Your ticket">
       <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-[14px] font-semibold">
-          <TicketPlus size={15} aria-hidden /> Your ticket
+        <p className="flex items-center gap-2.5 text-[15px] font-bold">
+          <span className="grid h-8 w-8 place-items-center rounded-control bg-accent-soft text-warning">
+            <TicketPlus size={16} aria-hidden />
+          </span>
+          Your ticket
         </p>
         <Pill tone={origin === 'call' ? 'brand' : 'neutral'}>
           {origin === 'call' ? 'From your call' : 'From this chat'}

@@ -1,7 +1,6 @@
-import { MessageSquarePlus, Send } from 'lucide-react';
+import { ArrowUp, MessageSquarePlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Button } from '../atoms/Button';
-import { Textarea } from '../atoms/Input';
+import { Spinner } from '../atoms/Spinner';
 
 interface Props {
   maxChars: number;
@@ -16,18 +15,11 @@ interface Props {
 }
 
 /**
- * Message box pinned to the bottom of the page; Enter sends, Shift+Enter adds a line. The box
- * clears at once and stays usable, so the author can send the next message while waiting.
+ * Message box pinned to the bottom; Enter sends, Shift+Enter adds a line. The box clears at once
+ * and stays usable, so the author can send the next message while waiting.
  */
-export function ChatComposer({
-  maxChars,
-  usedTurns,
-  maxTurns,
-  isRestarting,
-  canRestart,
-  onSend,
-  onRestart,
-}: Props) {
+export function ChatComposer(props: Props) {
+  const { maxChars, usedTurns, maxTurns, isRestarting, canRestart, onSend, onRestart } = props;
   const [text, setText] = useState('');
   const isFull = usedTurns !== null && maxTurns !== null && usedTurns >= maxTurns;
   const submit = (e: FormEvent) => {
@@ -40,53 +32,53 @@ export function ChatComposer({
   return (
     <form
       onSubmit={submit}
-      className="sticky bottom-0 flex flex-col gap-2 rounded-card border border-line bg-panel p-3"
+      className="sticky bottom-0 mt-auto bg-gradient-to-t from-app via-app to-transparent pt-4 pb-1"
     >
-      <label htmlFor="chat-input" className="sr-only">
-        Your question
-      </label>
-      <Textarea
-        id="chat-input"
-        rows={2}
-        value={text}
-        maxLength={maxChars}
-        disabled={isFull}
-        placeholder={
-          isFull
-            ? 'This conversation is full. Start a new one.'
-            : 'Ask about your books, royalties or payouts…'
-        }
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) submit(e);
-        }}
-      />
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] text-ink-3">
+      <div className="flex items-end gap-2 rounded-[24px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand/50">
+        <label htmlFor="chat-input" className="sr-only">
+          Your question
+        </label>
+        <textarea
+          id="chat-input"
+          rows={1}
+          value={text}
+          maxLength={maxChars}
+          disabled={isFull}
+          placeholder={
+            isFull
+              ? 'This conversation is full. Start a new one.'
+              : 'Ask about your books, royalties or payouts…'
+          }
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) submit(e);
+          }}
+          className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-[14px] leading-snug text-ink [field-sizing:content] placeholder:text-ink-3 focus:outline-none disabled:opacity-60"
+        />
+        <button
+          type="submit"
+          aria-label="Send"
+          disabled={!text.trim() || isFull}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-white shadow-soft transition-all hover:bg-brand-strong disabled:opacity-35"
+        >
+          <ArrowUp size={18} aria-hidden />
+        </button>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-2 px-2 text-[11.5px] text-ink-3">
+        <button
+          type="button"
+          onClick={onRestart}
+          disabled={!canRestart || isRestarting}
+          title={canRestart ? 'Start a new conversation' : 'This conversation is already new'}
+          className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-semibold text-ink-2 hover:bg-panel-2 hover:text-ink disabled:opacity-40"
+        >
+          {isRestarting ? <Spinner size={12} /> : <MessageSquarePlus size={13} aria-hidden />}
+          New conversation
+        </button>
+        <span className="font-mono">
           {text.length}/{maxChars}
           {usedTurns !== null && maxTurns !== null ? ` · ${usedTurns}/${maxTurns} messages` : ''}
         </span>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRestart}
-            isLoading={isRestarting}
-            disabled={!canRestart}
-            title={canRestart ? 'Start a new conversation' : 'This conversation is already new'}
-            icon={<MessageSquarePlus size={14} aria-hidden />}
-          >
-            New conversation
-          </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!text.trim() || isFull}
-            icon={<Send size={14} aria-hidden />}
-          >
-            Send
-          </Button>
-        </div>
       </div>
     </form>
   );

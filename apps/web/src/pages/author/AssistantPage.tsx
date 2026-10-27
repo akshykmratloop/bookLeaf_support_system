@@ -1,16 +1,19 @@
 import type { TicketDraft } from '@bookleaf/shared';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
-import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
+import { AskHeader } from '../../components/organisms/AskHeader';
 import { ChatPanel } from '../../components/organisms/ChatPanel';
+import { DraftSheet } from '../../components/organisms/DraftSheet';
 import { TicketDraftPanel } from '../../components/organisms/TicketDraftPanel';
 import { VoiceCallPanel } from '../../components/organisms/VoiceCallPanel';
 import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
-import { useChatDraft } from '../../lib/useChatDraft';
-import { useVoiceCall } from '../../lib/voice/useVoiceCall';
 import { authorPaths } from '../../lib/paths';
+import { useChatDraft } from '../../lib/useChatDraft';
+import { useMediaQuery, WIDE } from '../../lib/useMediaQuery';
+import { useVoiceCall, type VoiceCallControls } from '../../lib/voice/useVoiceCall';
 
 function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
   return (
@@ -29,24 +32,103 @@ function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
   );
 }
 
-/**
- * The ticket beside the conversation: the call's draft while a call is on (or just ended),
- * otherwise the current chat conversation's draft.
- */
-function DraftAside({ chatOn, callDraft }: { chatOn: boolean; callDraft: TicketDraft | null }) {
+const hasContent = (d: TicketDraft | null) =>
+  !!d && d.status !== 'SUBMITTED' && !!(d.subject || d.description || d.category || d.bookId);
+
+/** The ticket: the call's draft while a call is on (or just ended), else this chat's draft. */
+function useTicket(chatOn: boolean, call: VoiceCallControls) {
   const chat = useChatDraft(chatOn);
+  const callDraft = call.view.phase === 'idle' ? null : call.view.draft;
   const fromCall = callDraft !== null;
-  return (
-    <aside className="lg:sticky lg:top-0 lg:self-start" aria-label="Ticket">
-      <TicketDraftPanel
-        key={fromCall ? `call-${callDraft.id}` : `chat-${chat.draft?.id ?? 'none'}`}
-        draft={fromCall ? callDraft : chat.draft}
-        origin={fromCall ? 'call' : 'chat'}
-        onSaved={fromCall ? () => undefined : chat.onSaved}
-        onStart={!fromCall && chatOn ? () => chat.start.mutate() : undefined}
-        isStarting={chat.start.isPending}
+  const draft = fromCall ? callDraft : chat.draft;
+  const panel = (
+    <TicketDraftPanel
+      key={fromCall ? `call-${callDraft.id}` : `chat-${chat.draft?.id ?? 'none'}`}
+      draft={draft}
+      origin={fromCall ? 'call' : 'chat'}
+      onSaved={fromCall ? () => undefined : chat.onSaved}
+      onStart={!fromCall && chatOn ? () => chat.start.mutate() : undefined}
+      isStarting={chat.start.isPending}
+    />
+  );
+  return { draft, panel };
+}
+
+type Availability = NonNullable<ReturnType<typeof useAssistantAvailability>['data']>;
+
+/**
+ * The narrow layout's ticket sheet. It also opens by itself when the assistant asks "shall I
+ * send it?", until the author closes that version.
+ */
+function useTicketSheet(draft: TicketDraft | null) {
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<number | null>(null);
+  const version = draft?.version ?? null;
+  const asking = draft?.status === 'AWAITING_CONFIRMATION' && dismissed !== version;
+  const close = useCallback(() => {
+    setOpen(false);
+    setDismissed(version);
+  }, [version]);
+  return { isOpen: open || asking, show: () => setOpen(true), close };
+}
+
+function ChatArea({ chat, onRestarted }: { chat: Availability['chat']; onRestarted: () => void }) {
+  if (chat.state === 'AVAILABLE')
+    return <ChatPanel maxChars={chat.maxMessageChars} onRestarted={onRestarted} />;
+  if (chat.state === 'DISABLED')
+    return (
+      <EmptyState
+        title="Chat is switched off"
+        body="The BookLeaf team has turned off chat for now. You can raise a ticket instead."
       />
-    </aside>
+    );
+  return <Unavailable channel="Chat" />;
+}
+
+function Assistant({
+  availability,
+  call,
+}: {
+  availability: Availability;
+  call: VoiceCallControls;
+}) {
+  const { chat, voice } = availability;
+  const wide = useMediaQuery(WIDE);
+  const [callOpen, setCallOpen] = useState(false);
+  const ticket = useTicket(chat.state === 'AVAILABLE', call);
+  const sheet = useTicketSheet(ticket.draft);
+  const callShown = callOpen || call.view.phase !== 'idle';
+  const reset = useCallback(() => {
+    call.reset();
+    setCallOpen(false);
+  }, [call]);
+  return (
+    <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="flex min-w-0 flex-col gap-4" aria-label="Ask BookLeaf">
+        <AskHeader
+          voice={voice.state}
+          callShown={callShown}
+          onCall={() => setCallOpen(true)}
+          onTicket={wide ? undefined : sheet.show}
+          ticketHasContent={hasContent(ticket.draft)}
+        />
+        {callShown && voice.state === 'AVAILABLE' ? (
+          <VoiceCallPanel
+            call={call}
+            maxSeconds={voice.maxCallSeconds}
+            callsPerHour={voice.callsPerHour}
+          />
+        ) : null}
+        <ChatArea chat={chat} onRestarted={reset} />
+      </section>
+      {wide ? (
+        <aside className="lg:sticky lg:top-0 lg:self-start" aria-label="Ticket">
+          {ticket.panel}
+        </aside>
+      ) : sheet.isOpen ? (
+        <DraftSheet onClose={sheet.close}>{ticket.panel}</DraftSheet>
+      ) : null}
+    </div>
   );
 }
 
@@ -62,42 +144,5 @@ export function AssistantPage() {
         onRetry={() => void availability.refetch()}
       />
     );
-  const { chat, voice } = availability.data;
-  const callDraft = call.view.phase === 'idle' ? null : call.view.draft;
-  return (
-    <div>
-      <PageHeader
-        title="Ask BookLeaf"
-        subtitle="Quick answers from your own book and royalty records. For anything that needs action, raise a ticket."
-      />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {chat.state === 'DISABLED' ? (
-            <EmptyState
-              title="Chat is switched off"
-              body="The BookLeaf team has turned off chat for now. You can raise a ticket instead."
-            />
-          ) : chat.state === 'AVAILABLE' ? (
-            <ChatPanel maxChars={chat.maxMessageChars} onRestarted={call.reset} />
-          ) : (
-            <Unavailable channel="Chat" />
-          )}
-          {voice.state === 'DISABLED' ? null : (
-            <section aria-label="Voice call">
-              {voice.state === 'AVAILABLE' ? (
-                <VoiceCallPanel
-                  call={call}
-                  maxSeconds={voice.maxCallSeconds}
-                  callsPerHour={voice.callsPerHour}
-                />
-              ) : (
-                <Unavailable channel="Voice calls" />
-              )}
-            </section>
-          )}
-        </div>
-        <DraftAside chatOn={chat.state === 'AVAILABLE'} callDraft={callDraft} />
-      </div>
-    </div>
-  );
+  return <Assistant availability={availability.data} call={call} />;
 }
