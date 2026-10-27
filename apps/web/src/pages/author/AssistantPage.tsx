@@ -77,7 +77,7 @@ export function AssistantPage() {
               body="The BookLeaf team has turned off chat for now. You can raise a ticket instead."
             />
           ) : chat.state === 'AVAILABLE' ? (
-            <ChatPanel maxChars={chat.maxMessageChars} />
+            <ChatPanel maxChars={chat.maxMessageChars} onRestarted={call.reset} />
           ) : (
             <Unavailable channel="Chat" />
           )}

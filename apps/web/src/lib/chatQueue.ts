@@ -45,6 +45,11 @@ export class MessageQueue {
     void this.pump();
   }
 
+  /** Drops every message (New conversation). A send already on its way finishes unseen. */
+  clear(): void {
+    this.update([]);
+  }
+
   private update(next: QueuedMessage[]) {
     this.items = next;
     this.listeners.forEach((fn) => fn());

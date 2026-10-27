@@ -9,6 +9,8 @@ interface Props {
   usedTurns: number | null;
   maxTurns: number | null;
   isRestarting: boolean;
+  /** False while the conversation is still empty: there is nothing to start over from. */
+  canRestart: boolean;
   onSend: (text: string) => void;
   onRestart: () => void;
 }
@@ -22,6 +24,7 @@ export function ChatComposer({
   usedTurns,
   maxTurns,
   isRestarting,
+  canRestart,
   onSend,
   onRestart,
 }: Props) {
@@ -69,6 +72,8 @@ export function ChatComposer({
             size="sm"
             onClick={onRestart}
             isLoading={isRestarting}
+            disabled={!canRestart}
+            title={canRestart ? 'Start a new conversation' : 'This conversation is already new'}
             icon={<MessageSquarePlus size={14} aria-hidden />}
           >
             New conversation

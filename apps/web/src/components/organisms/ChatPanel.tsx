@@ -49,6 +49,15 @@ const usedTurns = (session: ChatSession | null, queuedCount: number) =>
 
 type Chat = ReturnType<typeof useChat>;
 
+function RestartError({ error }: { error: Error | null }) {
+  if (!error) return null;
+  return (
+    <p role="alert" className="text-[12.5px] text-danger">
+      Could not start a new conversation. {errorMessage(error)}
+    </p>
+  );
+}
+
 function Conversation({ chat, maxChars }: { chat: Chat; maxChars: number }) {
   const { session, queue, queued, restart } = chat;
   const endRef = useRef<HTMLDivElement>(null);
@@ -79,17 +88,25 @@ function Conversation({ chat, maxChars }: { chat: Chat; maxChars: number }) {
         usedTurns={usedTurns(session, queued.length)}
         maxTurns={session?.maxTurns ?? null}
         isRestarting={restart.isPending}
+        canRestart={count > 0 || queued.length > 0}
         onSend={ask}
         onRestart={() => restart.mutate()}
       />
+      <RestartError error={restart.error} />
       {/* After the pinned composer, so scrolling here never leaves content hidden under it. */}
       <div ref={endRef} />
     </div>
   );
 }
 
-export function ChatPanel({ maxChars }: { maxChars: number }) {
-  const chat = useChat(true);
+interface Props {
+  maxChars: number;
+  /** Called once a new conversation has started, so the page can reset what belongs to the old one. */
+  onRestarted?: () => void;
+}
+
+export function ChatPanel({ maxChars, onRestarted }: Props) {
+  const chat = useChat(true, onRestarted);
   const { current } = chat;
   if (current.isPending) return <LoadingState label="Opening chat…" />;
   if (current.isError)

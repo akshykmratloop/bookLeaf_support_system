@@ -81,6 +81,11 @@ export class VoiceCallSession {
     this.set({ muted });
   }
 
+  /** Back to idle after a finished call (New conversation); a goodbye still playing finishes. */
+  reset(): void {
+    if (this.view.phase === 'ended' || this.view.phase === 'failed') this.set(INITIAL_VIEW);
+  }
+
   dispose(): void {
     this.generation += 1;
     if (this.ws && this.ws.readyState <= WebSocket.OPEN) this.ws.close();

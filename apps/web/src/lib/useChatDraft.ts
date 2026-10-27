@@ -10,17 +10,22 @@ export function useChatDraft(enabled: boolean) {
   const current = useCurrentChat(enabled);
   const session = current.data ?? null;
 
-  /** A saved or sent version updates the conversation, so the next chat turn sees it. */
+  /**
+   * A saved or sent version updates the conversation, so the next chat turn sees it. Only the
+   * conversation's own draft: a late save from an old conversation must not attach to a new one.
+   */
   const onSaved = (draft: TicketDraft) => {
     qc.setQueryData<ChatSession | null>(assistantKeys.currentChat, (s) =>
-      s && (s.draft === null || s.draft.id === draft.id) ? { ...s, draft } : s,
+      s?.draft?.id === draft.id ? { ...s, draft } : s,
     );
     if (draft.status === 'SUBMITTED') void qc.invalidateQueries({ queryKey: keys.tickets() });
   };
 
   const start = useMutation({
     mutationFn: async () => {
-      const s = session ?? (await startChat());
+      // Read the cache now, not the render's copy: New conversation may have just replaced it.
+      const s =
+        qc.getQueryData<ChatSession | null>(assistantKeys.currentChat) ?? (await startChat());
       return { s, draft: await getChatDraft(s.id) };
     },
     onSuccess: ({ s, draft }) => {

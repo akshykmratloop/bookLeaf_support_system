@@ -55,4 +55,18 @@ describe('MessageQueue', () => {
     q.remove(q.snapshot()[0]?.localId ?? '');
     expect(calls.map((c) => c.text)).toEqual(['one', 'two']);
   });
+
+  it('clear() drops every message, and an answer still on its way does not bring one back', async () => {
+    const { calls, deliver } = controlled();
+    const q = new MessageQueue(deliver, String);
+    q.add('old one');
+    q.add('old two');
+    q.clear();
+    expect(q.snapshot()).toEqual([]);
+    q.add('new');
+    calls[0]?.resolve();
+    await flush();
+    expect(statuses(q)).toEqual(['new:sending']);
+    expect(calls.map((c) => c.text)).toEqual(['old one', 'new']);
+  });
 });
