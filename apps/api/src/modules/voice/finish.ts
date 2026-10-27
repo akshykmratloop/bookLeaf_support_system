@@ -30,6 +30,8 @@ export interface FinishInput {
   outcome: CallOutcome;
   facts: readonly Fact[];
   ignorePhrases: string[];
+  /** The chat message limit; a call's saved lines never push a chat past it. */
+  maxTurns: number;
 }
 
 /** Saves the ended call (transcript, spoken-figure check, tokens, its chat) and logs its cost. */
@@ -56,7 +58,7 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
       },
       select: { id: true, chatSessionId: true },
     });
-    await saveIntoChat(tx, saved, outcome.transcript);
+    await saveIntoChat(tx, saved, outcome.transcript, input.maxTurns);
   });
   await recordRun(db, {
     ticketId: null,

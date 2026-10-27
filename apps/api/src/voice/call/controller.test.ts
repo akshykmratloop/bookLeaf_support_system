@@ -213,6 +213,17 @@ describe('voice call controller', () => {
     expect(refused.map((r) => r.callId)).toEqual(['s1', 's2']);
   });
 
+  it("does not take noise or an empty line as the author's yes", async () => {
+    await call();
+    provider.emit({ type: 'tool_call', callId: 'c1', name: 'confirm_ticket', argumentsJson: '{}' });
+    provider.emit({ type: 'barge_in' });
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: '   ' });
+    provider.emit({ type: 'tool_call', callId: 's1', name: 'submit_ticket', argumentsJson: '{}' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(draftRuns.map((r) => r.name)).toEqual(['confirm_ticket']);
+    expect(provider.toolResults.find((r) => r.callId === 's1')?.result.code).toBe('NO_ANSWER_YET');
+  });
+
   it("puts every draft change on screen and tells the model about the author's own edits", async () => {
     await call();
     const confirmed = {

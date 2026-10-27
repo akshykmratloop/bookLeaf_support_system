@@ -101,4 +101,21 @@ describe('the conversation limit on a call', () => {
     exchange('Hello?');
     expect(provider.said).toEqual([goodbye]);
   });
+
+  it('waits for the final answer: a reply that only ran a tool, or was cut off, is not it', async () => {
+    await call(1);
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'Please raise a ticket' });
+    provider.emit({ type: 'reply_done', final: false });
+    expect(provider.said).not.toContain(TURN_LIMIT_GOODBYE);
+    provider.emit({ type: 'audio', pcm16: Buffer.from([1, 1]) });
+    provider.emit({ type: 'reply_done' });
+    expect(provider.said).toContain(TURN_LIMIT_GOODBYE);
+  });
+
+  it('stops listening once the last allowed question was asked', async () => {
+    const handle = await call(1);
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'Last one' });
+    handle.onCallerAudio(Buffer.from([5, 5]));
+    expect(provider.audioIn).toHaveLength(0);
+  });
 });

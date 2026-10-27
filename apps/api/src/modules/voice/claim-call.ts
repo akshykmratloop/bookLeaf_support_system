@@ -61,6 +61,7 @@ export interface EndedCall {
 export async function saveCallOutcome(deps: VoiceDeps, { callId, outcome, ...ctx }: EndedCall) {
   await finishCall(deps.db, {
     callId,
+    maxTurns: deps.limits.chat.maxTurnsPerSession,
     providerId: deps.provider?.id ?? 'unknown',
     model: deps.provider?.model ?? 'unknown',
     outcome,

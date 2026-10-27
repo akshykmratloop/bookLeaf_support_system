@@ -47,7 +47,10 @@ function onResponseDone(s: ProtocolState, m: Msg): Step {
   s.responseActive = false;
   s.muted = false;
   s.item = null;
-  const events: VoiceEvent[] = [{ type: 'reply_done' }];
+  const output = Array.isArray(response.output) ? response.output : [];
+  const ranTool = output.some((item) => obj(item).type === 'function_call');
+  const final = response.status === 'completed' && !ranTool;
+  const events: VoiceEvent[] = [{ type: 'reply_done', final }];
   if (typeof usage.input_tokens === 'number' && typeof usage.output_tokens === 'number')
     events.push({
       type: 'usage',

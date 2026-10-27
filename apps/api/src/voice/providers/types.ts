@@ -31,8 +31,11 @@ export type VoiceEvent =
   /** The caller started talking over the assistant: stop playing its queued audio. */
   | { type: 'barge_in' }
   | { type: 'tool_call'; callId: string; name: string; argumentsJson: string }
-  /** The assistant finished one reply (spoken audio fully sent). */
-  | { type: 'reply_done' }
+  /**
+   * The assistant finished one reply (spoken audio fully sent). `final` is false for a reply
+   * that was cut off or only ran a tool (its real answer follows); absent means final.
+   */
+  | { type: 'reply_done'; final?: boolean }
   | { type: 'usage'; inputTokens: number; outputTokens: number }
   | { type: 'error'; code: VoiceErrorCode; message: string }
   | { type: 'closed' };

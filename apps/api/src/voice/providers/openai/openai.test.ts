@@ -39,6 +39,19 @@ describe('OpenAI Realtime protocol rules', () => {
     expect(auto.session.audio.input.transcription).toEqual({ model: 'gpt-realtime-whisper' });
   });
 
+  it('marks only a completed spoken answer as final, not a cut-off or tool-only reply', () => {
+    const done = (response: Record<string, unknown>) =>
+      step(initialState(), { type: 'response.done', response }).events[0];
+    expect(done({ status: 'completed', output: [{ type: 'message' }] })).toEqual({
+      type: 'reply_done',
+      final: true,
+    });
+    expect(done({ status: 'cancelled', output: [] })).toMatchObject({ final: false });
+    expect(done({ status: 'completed', output: [{ type: 'function_call' }] })).toMatchObject({
+      final: false,
+    });
+  });
+
   it('sends session.update on session.created and is ready only after session.updated', () => {
     const s = initialState();
     expect(step(s, { type: 'session.created' }).send).toEqual([update]);

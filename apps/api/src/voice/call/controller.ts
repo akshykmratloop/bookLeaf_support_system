@@ -44,20 +44,20 @@ const ON_EVENT: EventHandlers = {
     markActivity(st);
     st.transcript.push({ role: e.role, text: e.text, at: st.deps.now().toISOString() });
     st.deps.caller.send({ type: 'transcript', role: e.role, text: e.text });
-    if (e.role !== 'AUTHOR') return;
+    if (e.role !== 'AUTHOR' || !e.text.trim()) return;
+    // Only words count as the author's answer to "Shall I send it?", never noise or silence.
     st.answeredSinceConfirm = true;
     countAuthorTurn(st);
   },
   barge_in: (st) => {
     markActivity(st);
-    st.answeredSinceConfirm = true;
     st.deps.caller.send({ type: 'interrupt' });
   },
   tool_call: (st, e) => runTool(st, e.callId, e.name, e.argumentsJson),
-  reply_done: (st) => {
+  reply_done: (st, e) => {
     markActivity(st);
     if (st.goodbyeStarted) endSoon(st, st.endReason);
-    else sayLimitGoodbye(st);
+    else if (e.final !== false) sayLimitGoodbye(st);
   },
   usage: (st, e) => {
     st.usage.inputTokens += e.inputTokens;
@@ -128,7 +128,8 @@ export async function startCall(deps: CallDeps): Promise<CallHandle> {
   markActivity(st);
   return {
     onCallerAudio: (pcm16) => {
-      if (!st.ended) st.session?.sendAudio(pcm16);
+      // Once the last allowed question was asked, the call only finishes answering it.
+      if (!st.ended && !st.turnLimitHit) st.session?.sendAudio(pcm16);
     },
     onCallerHangup: () => endSoon(st, 'USER_HANGUP'),
     onCallerGone: () => endSoon(st, 'DISCONNECTED'),

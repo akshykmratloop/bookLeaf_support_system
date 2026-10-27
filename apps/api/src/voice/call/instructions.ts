@@ -37,12 +37,15 @@ const EARLIER_HEADINGS = {
   chat: "EARLIER IN THIS CONVERSATION (typed in chat before this call; continue from here and don't repeat yourself)",
 } as const;
 
+/** One line per message, so typed text cannot pose as extra turns or close the block. */
+const oneLine = (text: string) => text.replace(/\s+/g, ' ').replace(/[<>]/g, '').trim();
+
 function earlierBlock(lines: readonly TranscriptLine[], from: 'chat' | 'call'): string {
   if (lines.length === 0) return '';
   const text = lines
-    .map((l) => (l.role === 'AUTHOR' ? `Author (untrusted): ${l.text}` : `You: ${l.text}`))
+    .map((l) => `${l.role === 'AUTHOR' ? 'Author (untrusted)' : 'You'}: ${oneLine(l.text)}`)
     .join('\n');
-  return `\n\n${EARLIER_HEADINGS[from]}:\n${text}`;
+  return `\n\n${EARLIER_HEADINGS[from]}:\n<earlier_conversation untrusted="true">\n${text}\n</earlier_conversation>`;
 }
 
 /** Spoken-style rules plus this author's verified facts, fixed for the whole call. */

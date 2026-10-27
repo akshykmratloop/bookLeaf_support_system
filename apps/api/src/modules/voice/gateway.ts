@@ -10,6 +10,9 @@ import { audioBudget } from './audio-budget.js';
 import type { CallContext } from './context.js';
 import type { VoiceService } from './service.js';
 
+/** The chat this call joins filled up before the call connected. */
+const CLOSE_CONVERSATION_FULL = 4410;
+
 /** Largest audio frame accepted from the browser (~0.7 s of 24 kHz PCM16). */
 export const MAX_FRAME_BYTES = 32 * 1024;
 
@@ -98,7 +101,11 @@ export async function bridgeCall(
     ctx = await deps.voice.claim(session, callId);
   } catch (err) {
     if (!(err instanceof AppError)) deps.log.error({ err, callId }, 'voice call setup failed');
-    socket.close(4409, 'call not connectable');
+    const full = err instanceof AppError && err.code === 'CHAT_TURN_LIMIT';
+    socket.close(
+      full ? CLOSE_CONVERSATION_FULL : 4409,
+      full ? 'conversation full' : 'call not connectable',
+    );
     return;
   }
   line.handle = await startCall({

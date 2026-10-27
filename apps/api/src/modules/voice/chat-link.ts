@@ -21,14 +21,18 @@ export async function joinableChat(
   return chat.id;
 }
 
-/** The conversation so far, typed and spoken, as call lines, oldest first. */
+/** At most this many of the latest chat lines are read for a call (it keeps fewer still). */
+const CHAT_LINES_FOR_CALL = 30;
+
+/** The end of the conversation so far, typed and spoken, as call lines, oldest first. */
 export async function chatLines(db: Tx, chatSessionId: string): Promise<TranscriptLine[]> {
   const rows = await db.chatMessage.findMany({
     where: { sessionId: chatSessionId },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
+    take: CHAT_LINES_FOR_CALL,
     select: { role: true, body: true, createdAt: true },
   });
-  return rows.map((r) => ({ role: r.role, text: r.body, at: r.createdAt.toISOString() }));
+  return rows.reverse().map((r) => ({ role: r.role, text: r.body, at: r.createdAt.toISOString() }));
 }
 
 /** Author turns a chat has left, or null when the call is not part of a chat (no limit). */
@@ -49,6 +53,7 @@ export async function saveIntoChat(
   tx: Tx,
   call: { id: string; chatSessionId: string | null },
   lines: readonly TranscriptLine[],
+  maxTurns: number,
 ): Promise<void> {
   const chatId = call.chatSessionId;
   if (!chatId || lines.length === 0) return;
@@ -63,9 +68,7 @@ export async function saveIntoChat(
     })),
   });
   const spoken = lines.filter((l) => l.role === 'AUTHOR').length;
+  // Never past the limit: typed messages may have used turns while the call was on.
   if (spoken > 0)
-    await tx.chatSession.update({
-      where: { id: chatId },
-      data: { turnCount: { increment: spoken } },
-    });
+    await tx.$executeRaw`UPDATE chat_sessions SET turn_count = LEAST(turn_count + ${spoken}, ${maxTurns}) WHERE id = ${chatId}::uuid`;
 }

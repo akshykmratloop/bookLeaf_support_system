@@ -8,6 +8,7 @@ import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
 import type { VoiceStyle } from '../../voice/call/persona.js';
 import type { AssistantLimits } from '../assistant/limits.js';
+import { turnLimitError } from '../chat/limit.js';
 import { chatLines, turnsLeft } from './chat-link.js';
 import { buildCallContext, type CallContext, type ThreadContext } from './context.js';
 import { findOwnCall } from './repository.js';
@@ -73,7 +74,10 @@ export async function contextFor(
 ): Promise<CallContext> {
   const call = await findOwnCall(deps.db, callId, authorId);
   const thread = await threadContext(deps, authorId, call);
-  const left = await turnsLeft(deps.db, call.chatSessionId, limits.chat.maxTurnsPerSession);
+  const maxTurns = limits.chat.maxTurnsPerSession;
+  const left = await turnsLeft(deps.db, call.chatSessionId, maxTurns);
+  // The chat may have filled up between starting the call and connecting it.
+  if (left === 0) throw turnLimitError(maxTurns);
   const maxSeconds = limits.voice.maxCallSeconds;
   const style = deps.voiceStyle;
   return buildCallContext(deps, { authorId, maxSeconds, thread, turnsLeft: left, style });
