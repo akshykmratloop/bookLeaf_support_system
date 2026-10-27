@@ -138,6 +138,34 @@ takes an optional `workspaceId`; `tickets.workspace_id` is required.
 
 ---
 
+### 5. Merged SaaS support product + GOD MODE QA — `feature/support-saas`
+
+| Field           | Value                                  |
+| --------------- | -------------------------------------- |
+| **Session No.** | S213                                   |
+| **Session ID**  | `d6c4131c-0851-4186-b4ce-5a0f25b3552c` |
+| **Branch**      | `feature/support-saas` (merge of `feature/pluggable-support` + `feature/saas-platform`) |
+| **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf-support-saas` |
+| **Base commit** | `99ee5a2` (merge)                      |
+| **Started**     | 2026-10-28                             |
+| **Status**      | ✅ QA mission done 2026-10-28: all gates green (542 tests), reports in `docs/qa/`; awaiting the user's review; not merged, not pushed |
+
+**Goal:** finish the SaaS product on the merged branch (workspace settings, own AI/voice keys, server API, webhooks)
+and run the QA brief (`docs/qa/mission-brief.md`): audit, fix, benchmark, verify.
+
+**CLAIMED PATHS (this worktree only; isolated branch):**
+
+```
+whole worktree on feature/support-saas
+```
+
+**Things another session should know:** new migrations `20261028120000_workspace_provider_keys` and
+`20261028130000_workspace_webhooks` (additive; applied to `bookleaf_saas`). Draft prompt is now `draft.v1.1`.
+Ticket creation is rate limited (30 per author per hour). Deferred design items: F-12, F-13, F-18, F-19
+(`docs/qa/repair-plan.md`).
+
+---
+
 # Path Ownership Map
 
 | Path | Owner | Free to claim? |
