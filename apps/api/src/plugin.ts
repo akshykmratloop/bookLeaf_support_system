@@ -44,7 +44,7 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
   await app.register(helmet, { contentSecurityPolicy: { directives: CSP } });
-  allowEmbedding(app, c.env.HOST_ORIGINS);
+  if (c.embedded) allowEmbedding(app, () => c.embedOrigins.list());
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { int } from './fields.js';
+import { flag, int } from './fields.js';
 
 /**
  * The product this support module is attached to (the "host"). Customer data is read only
@@ -28,6 +28,11 @@ export const HostConfig = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url().transform((u) => new URL(u).origin)).max(10)),
+  /**
+   * Embed mode without HOST_ORIGINS: workspaces' own allowed origins may frame the widget, and the
+   * session cookie works inside the iframe. Always on when HOST_ORIGINS is set.
+   */
+  EMBED_ENABLED: flag('false'),
   HOST_TIMEOUT_MS: int(200, 10_000, 3000),
   /** How long a customer's data is reused before asking the host again. */
   HOST_CACHE_SECONDS: int(0, 600, 60),

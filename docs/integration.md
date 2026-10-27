@@ -44,6 +44,7 @@ All settings live in `apps/api/src/config/host.ts` and are checked when the app 
 | `HOST_SIGNING_SECRET` | 32+ random characters | Shared HS256 secret for sign-in tokens |
 | `HOST_SIGN_IN_URL` | `https://app.example.com/login` | Where "Sign in" sends a customer who has no session |
 | `HOST_ORIGINS` | `https://app.example.com` | Turns on embed mode (see step 3b). Empty means off |
+| `EMBED_ENABLED` | `true` | Embed mode without `HOST_ORIGINS`: each workspace lists its own page origins under **Settings → Widget**. The widget page's `frame-ancestors` is the union of all of them plus `HOST_ORIGINS`. Only plain `http(s)://host[:port]` origins are accepted |
 | `HOST_TIMEOUT_MS` | `3000` | How long to wait for the host |
 | `HOST_CACHE_SECONDS` | `60` | How long one customer answer is reused |
 

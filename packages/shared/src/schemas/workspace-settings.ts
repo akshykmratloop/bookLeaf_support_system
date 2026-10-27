@@ -8,10 +8,19 @@ import { cleanText } from '../sanitize.js';
  */
 const model = z.string().trim().min(1).max(80).nullable();
 /** Keeps the scheme and host only (no path), without needing the DOM URL type here. */
+/** A web page's origin (scheme, host, port): anything else is refused, not trimmed. */
 const origin = z
-  .url()
+  .url({ protocol: /^https?$/ })
   .max(2048)
-  .transform((u) => u.replace(/^(https?:\/\/[^/?#]+).*$/i, '$1').toLowerCase());
+  .transform((u) => u.replace(/^(https?:\/\/[^/?#]+).*$/i, '$1').toLowerCase())
+  .pipe(
+    z
+      .string()
+      .regex(
+        /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/,
+        'Use a page origin, like https://app.example.com',
+      ),
+  );
 
 export const WorkspaceSettingsSchema = z.object({
   triageModel: z.string().nullable(),

@@ -97,6 +97,7 @@ stored in the repo. The ones you will most likely change:
 | `VOICE_MAX_CALL_SECONDS` | `300` | Longest call. Allowed range 30 to 300 |
 | `VOICE_CALLS_PER_HOUR` · `VOICE_CALLS_PER_DAY` | `5` · `10` | Calls per author |
 | `HOST_ORIGINS` | empty | Page origins allowed to frame the widget. Empty turns embed mode off |
+| `EMBED_ENABLED` | `false` | Embed mode for the origins each workspace saves in its settings screen, without `HOST_ORIGINS` |
 | `SEED_ADMIN_PASSWORD` · `HOST_DEMO_PASSWORD` | demo values below | Demo passwords for staff and for the host demo's authors |
 
 `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are optional:

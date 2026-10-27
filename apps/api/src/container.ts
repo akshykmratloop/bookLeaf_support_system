@@ -11,6 +11,7 @@ import { limitsFromEnv } from './modules/assistant/limits.js';
 import { platformSwitches } from './modules/assistant/deps.js';
 import { createAssistantService } from './modules/assistant/service.js';
 import { createWorkspaceConfigs } from './modules/settings/configs.js';
+import { createEmbedOrigins } from './modules/settings/embed-origins.js';
 import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
@@ -53,6 +54,7 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };
   const limits = limitsFromEnv(env);
+  const embedOrigins = createEmbedOrigins(db, env.HOST_ORIGINS, () => clock.now());
   const configs = createWorkspaceConfigs(db, {
     limits,
     voiceName: env.VOICE_NAME,
@@ -70,6 +72,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     ticketDeps,
     limits,
     configs,
+    embedded: env.EMBED_ENABLED || env.HOST_ORIGINS.length > 0,
+    embedOrigins,
     voiceProvider,
   };
 }
@@ -120,6 +124,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       voiceConfigured: core.voiceProvider !== null,
       voices: core.voiceProvider?.voices ?? [],
       configs: core.configs,
+      embedOrigins: core.embedOrigins,
     }),
     books: createBooksService(core),
     conversations: createConversationService(core.db),

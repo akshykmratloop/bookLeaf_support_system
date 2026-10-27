@@ -19,11 +19,16 @@ function allowFraming(reply: FastifyReply, origins: readonly string[]): void {
  * widget script. Every other page keeps `frame-ancestors 'none'` (no clickjacking) and a
  * same-origin resource policy.
  */
-export function allowEmbedding(app: FastifyInstance, origins: readonly string[]): void {
-  if (origins.length === 0) return;
+export function allowEmbedding(
+  app: FastifyInstance,
+  origins: () => Promise<readonly string[]>,
+): void {
   app.addHook('onSend', async (req, reply) => {
     const path = pathOf(req.url, app.prefix);
+    if (path !== '/embed.js' && !isWidgetPage(path)) return;
+    const allowed = await origins();
+    if (allowed.length === 0) return;
     if (path === '/embed.js') reply.header('cross-origin-resource-policy', 'cross-origin');
-    if (isWidgetPage(path)) allowFraming(reply, origins);
+    else allowFraming(reply, allowed);
   });
 }

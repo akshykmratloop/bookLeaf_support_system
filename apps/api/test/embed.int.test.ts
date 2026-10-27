@@ -1,6 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadEnv } from '../src/config/index.js';
-import { call, createHarness, EMAILS, hostTokenFor, ORIGIN, type Harness } from './helpers/app.js';
+import {
+  call,
+  createHarness,
+  deleteWorkspace,
+  EMAILS,
+  hostTokenFor,
+  ORIGIN,
+  type Harness,
+} from './helpers/app.js';
 
 const HOST_PAGE = 'http://localhost:3200';
 let h: Harness;
@@ -73,5 +81,53 @@ describe('HOST_ORIGINS setting', () => {
   it('is off by default and rejects anything that is not a URL', () => {
     expect(loadEnv(base).HOST_ORIGINS).toEqual([]);
     expect(() => loadEnv({ ...base, HOST_ORIGINS: 'not a url' })).toThrow(/HOST_ORIGINS/);
+  });
+});
+
+describe("embed mode for a workspace's own origins (EMBED_ENABLED, no HOST_ORIGINS)", () => {
+  const OWNER = {
+    workspaceName: 'Acme Embeds',
+    slug: 'acme-embed',
+    ownerName: 'Ada Owner',
+    email: 'ada@acme-embed.example',
+    password: 'Correct-Horse-42',
+  };
+  let w: Harness;
+  let acme: string;
+  const cspOf = async (url: string) =>
+    String((await w.app.inject({ method: 'GET', url })).headers['content-security-policy']);
+  const save = async (allowedOrigins: string[]) => {
+    const { settings } = (await call(w, 'GET', '/workspace/settings', acme)).json<{
+      settings: { version: number };
+    }>();
+    return call(w, 'PUT', '/workspace/settings', acme, {
+      version: settings.version,
+      allowedOrigins,
+    });
+  };
+
+  beforeAll(async () => {
+    w = await createHarness({ env: { EMBED_ENABLED: 'true' } });
+    await call(w, 'POST', '/signup', undefined, OWNER);
+    acme = await w.login(OWNER.email, OWNER.password);
+  });
+  afterAll(async () => {
+    await deleteWorkspace(w.db, OWNER.slug);
+    await w.close();
+  });
+
+  it('lets an origin saved in the settings screen frame the widget page', async () => {
+    expect(await cspOf('/embed')).toContain("frame-ancestors 'none'");
+    expect((await save(['https://App.Acme.example/dashboard?x=1'])).statusCode).toBe(200);
+    expect(await cspOf('/embed')).toContain('frame-ancestors https://app.acme.example');
+    expect(await cspOf('/login')).toContain("frame-ancestors 'none'");
+  });
+
+  it('refuses anything but a web origin, so no one can add a rule to the header (422)', async () => {
+    for (const bad of ['javascript:a; script-src *', 'data:,x;y', 'ftp://files.acme.example']) {
+      const res = await save([bad]);
+      expect(res.statusCode).toBe(422);
+    }
+    expect(await cspOf('/embed')).not.toContain('script-src *');
   });
 });

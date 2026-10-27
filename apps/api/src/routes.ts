@@ -24,7 +24,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     hostSignInUrl: c.env.HOST_SIGN_IN_URL ?? null,
     ttlSeconds: c.sessions.ttlSeconds,
     secureCookies: c.env.NODE_ENV === 'production',
-    embedded: c.env.HOST_ORIGINS.length > 0,
+    embedded: c.embedded,
   });
   await api.register(booksRoutes, { books: c.books });
   await api.register(ticketRoutes, { deps: c.ticketDeps });

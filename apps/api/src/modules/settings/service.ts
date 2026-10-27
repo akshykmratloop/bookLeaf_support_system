@@ -9,6 +9,7 @@ import { PROVIDER_CATALOG, findModel } from '../../ai/providers/catalog.js';
 import type { Db } from '../../platform/db.js';
 import { ValidationError } from '../../platform/errors.js';
 import type { WorkspaceConfigs } from './configs.js';
+import type { EmbedOrigins } from './embed-origins.js';
 import type { Session } from '../auth/session.js';
 import {
   createField,
@@ -31,6 +32,8 @@ export interface SettingsDeps {
   /** Voice names the platform's voice provider speaks with (empty without one). */
   voices: readonly string[];
   configs: WorkspaceConfigs;
+  /** Allowed origins feed the widget's frame list: refreshed after a save. */
+  embedOrigins: EmbedOrigins;
 }
 
 const MODEL_FIELDS = ['triageModel', 'draftModel', 'chatModel'] as const;
@@ -77,6 +80,7 @@ export function createSettingsService(deps: SettingsDeps) {
       await assertAllowedModels(deps, input);
       const row = await updateWorkspaceSettings(db, session, input, configs.seed);
       configs.invalidate(session.workspaceId);
+      if (input.allowedOrigins) deps.embedOrigins.invalidate();
       return toSettingsDto(row);
     },
 
