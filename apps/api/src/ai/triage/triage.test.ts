@@ -58,6 +58,7 @@ describe('AI triage', () => {
     expect(r.decision).toMatchObject({ category: 'ROYALTY_PAYMENTS', priority: 'HIGH', source: 'AI', needsReview: true });
     expect(r.decision.priorityReasons[0]).toMatch(/no payout/);
     expect(provider.calls[0]?.user).not.toMatch(/@|₹/);
+    expect(provider.calls[0]?.user).toContain('Royalty record for this book: possibly overdue');
   });
 
   it('propagates provider errors so the worker can retry or fall back', async () => {

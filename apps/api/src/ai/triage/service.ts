@@ -30,6 +30,14 @@ export interface AiTriageRun {
   promptVersion: string;
 }
 
+/** Status labels only: triage does not need amounts. */
+const ROYALTY_RECORD: Record<BookRoyaltyStatus, string> = {
+  NOTHING_PENDING: 'nothing pending on this book',
+  BELOW_THRESHOLD: "author's total pending is below the payout threshold, so it rolls over to the next quarter (not overdue)",
+  POSSIBLY_OVERDUE: 'possibly overdue: no payout recorded although a payout deadline has passed',
+  SCHEDULED: 'pending amount is due in the next payout cycle',
+};
+
 const CONFIDENCE = { high: 0.9, medium: 0.6, low: 0.3 } as const;
 const REVIEW_BELOW = 0.5;
 const MAX_LIST = 3;
@@ -44,7 +52,7 @@ export async function runAiTriage(provider: LlmProvider, model: string, input: T
     task: 'TRIAGE',
     model,
     stableSystem: TRIAGE_SYSTEM,
-    user: triageUserMessage(input),
+    user: triageUserMessage({ ...input, royaltyRecord: input.royaltyStatus ? ROYALTY_RECORD[input.royaltyStatus] : null }),
     schema: TriageOutputSchema,
     maxTokens: 400,
     effort: 'low',
