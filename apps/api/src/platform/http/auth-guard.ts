@@ -9,7 +9,9 @@ export const authGuard = fp<{ sessions: SessionCodec }>(async (app: FastifyInsta
   app.decorateRequest('session', null);
   app.addHook('preHandler', async (req) => {
     const config = req.routeOptions.config;
-    if (!req.url.startsWith('/api/') || config.public) return;
+    const isApiRoute = req.url.startsWith('/api/v1/') && req.routeOptions.url !== undefined;
+    // Docs, health, static files and unknown paths (which 404) need no session.
+    if (!isApiRoute || config.public) return;
     const token = req.cookies[SESSION_COOKIE];
     if (!token) throw new UnauthorizedError();
     req.session = await sessions.verify(token);

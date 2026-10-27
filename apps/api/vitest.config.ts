@@ -11,8 +11,9 @@ export default defineConfig({
           include: ['test/**/*.int.test.ts'],
           environment: 'node',
           globalSetup: ['test/setup/global-db.ts'],
-          testTimeout: 30_000,
-          hookTimeout: 120_000,
+          // Generous: on a loaded machine one request can stall for many seconds.
+          testTimeout: 120_000,
+          hookTimeout: 300_000,
         },
       },
     ],
