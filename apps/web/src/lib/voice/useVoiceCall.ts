@@ -2,7 +2,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { assistantKeys } from '../assistant';
 import { conversationKeys } from '../conversations';
+import { keys } from '../queries';
 import { VoiceCallSession, type StartCallOptions } from './session';
+
+/** How long the server may still be saving a call whose line dropped first. */
+const SAVE_SETTLE_MS = 2000;
 
 /** React view of one voice call. The call is hung up if the page unmounts. */
 export function useVoiceCall() {
@@ -13,12 +17,20 @@ export function useVoiceCall() {
     return () => session.dispose();
   }, [session]);
   const ended = view.phase === 'ended';
-  // A finished call is a new History entry, and a call inside a chat is now saved into it.
+  const sentTicket = view.draft?.status === 'SUBMITTED';
+  // A finished call is a new History entry, and a call inside a chat is now saved into it. If
+  // the line dropped before the server finished saving, a second refresh picks the lines up.
   useEffect(() => {
     if (!ended) return;
-    void qc.invalidateQueries({ queryKey: conversationKeys.list });
-    void qc.invalidateQueries({ queryKey: assistantKeys.currentChat });
-  }, [ended, qc]);
+    const refresh = () => {
+      void qc.invalidateQueries({ queryKey: conversationKeys.list });
+      void qc.invalidateQueries({ queryKey: assistantKeys.currentChat });
+    };
+    refresh();
+    if (sentTicket) void qc.invalidateQueries({ queryKey: keys.tickets() });
+    const again = setTimeout(refresh, SAVE_SETTLE_MS);
+    return () => clearTimeout(again);
+  }, [ended, sentTicket, qc]);
   return {
     view,
     start: (opts: StartCallOptions = {}) => void session.start(opts),

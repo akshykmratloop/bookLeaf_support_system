@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { AskHeader } from '../../components/organisms/AskHeader';
+import { isCallActive } from '../../components/organisms/ChatCallBar';
 import { ChatPanel, type CallInChat } from '../../components/organisms/ChatPanel';
 import { DraftSheet } from '../../components/organisms/DraftSheet';
 import { TicketDraftPanel } from '../../components/organisms/TicketDraftPanel';
@@ -35,13 +36,20 @@ function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
 }
 
 /**
+ * A call inside the chat shares the chat's draft: its own copy is shown only while it is on,
+ * then the chat's (kept current) copy. A call without chat keeps showing its draft after it ends.
+ */
+const callDraftShown = (chatOn: boolean, view: VoiceCallControls['view']) =>
+  isCallActive(view.phase) || (!chatOn && view.phase !== 'idle');
+
+/**
  * The ticket: the call's draft while a call is on (or just ended), else this chat's draft. It is
  * shown only when there is something in it, or after the author opens it with the Ticket button.
  */
 function useTicket(chatOn: boolean, call: VoiceCallControls) {
   const chat = useChatDraft(chatOn);
   const [opened, setOpened] = useState(false);
-  const callDraft = call.view.phase === 'idle' ? null : call.view.draft;
+  const callDraft = callDraftShown(chatOn, call.view) ? call.view.draft : null;
   const fromCall = callDraft !== null;
   const draft = fromCall ? callDraft : chat.draft;
   const panel = (

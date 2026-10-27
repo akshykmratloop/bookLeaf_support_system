@@ -40,6 +40,8 @@ export function micMessage(err: unknown, fallback: string): string {
 
 export function closeMessage(code: number): string {
   if (code === 4409) return 'This call expired before it connected. Please start a new call.';
+  if (code === 4410)
+    return 'This conversation reached its message limit. Start a new conversation to keep going.';
   if (code === 4503)
     return 'Voice calls are unavailable right now. You can use chat or raise a ticket.';
   return 'The call could not connect. Please try again.';

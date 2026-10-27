@@ -31,12 +31,14 @@ export function threadItems<T>(
     if (callId) times.set(callId, [...(times.get(callId) ?? []), at]);
   }
   const out: ThreadItem<T>[] = [];
-  let previousCall: string | null = null;
+  // One divider per call, even if a typed message landed between two of its lines.
+  const announced = new Set<string>();
   for (const item of items) {
     const { callId, at } = lineOf(item);
-    if (callId && callId !== previousCall)
+    if (callId && !announced.has(callId)) {
+      announced.add(callId);
       out.push({ kind: 'call', callId, minutes: callMinutes(times.get(callId) ?? []), at });
-    previousCall = callId;
+    }
     out.push({ kind: 'message', message: item });
   }
   return out;

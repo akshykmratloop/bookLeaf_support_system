@@ -50,6 +50,14 @@ describe('threadItems', () => {
     ]);
   });
 
+  it('shows one divider per call even when a typed message landed inside it', () => {
+    const items = threadItems(
+      [msg(1, 'VOICE', 'c1', 0), msg(2, 'CHAT', null, 1), msg(3, 'VOICE', 'c1', 2)],
+      chatLine,
+    );
+    expect(items.filter((i) => i.kind === 'call')).toHaveLength(1);
+  });
+
   it('counts a call shorter than a minute as one minute', () => {
     const items = threadItems([msg(1, 'VOICE', 'c1', 0), msg(2, 'VOICE', 'c1', 0.2)], chatLine);
     expect(items[0]).toMatchObject({ kind: 'call', callId: 'c1', minutes: 1 });

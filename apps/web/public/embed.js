@@ -9,8 +9,8 @@
  * data-title      panel title. Default "BookLeaf Help".
  * data-theme      "light", "dark" or "auto" (default). Auto follows the host page: class "dark" or
  *                 data-theme="dark" (or "light") on <html>, else the visitor's system setting. It
- *                 restyles live when the host switches. Only the launcher and the panel frame
- *                 follow; the support app inside the frame keeps its own theme.
+ *                 restyles live when the host switches. The support app inside the frame
+ *                 follows too (the theme is in the frame address and sent on every switch).
  *
  * It draws a launcher button. Opening it asks the host for a fresh token and shows the support
  * app in a panel; Expand makes it full screen over the page. The user never leaves the host
@@ -267,7 +267,7 @@
     state.panel = buildPanel();
     document.body.append(state.panel);
     launcher.setAttribute('aria-expanded', 'true');
-    launcher.innerHTML = `${svg('close', 20)}<span>Close</span>`;
+    setLauncher('close', 'Close');
     await load('/embed');
   }
 
@@ -277,7 +277,7 @@
     state.panel = null;
     state.frame = null;
     launcher.setAttribute('aria-expanded', 'false');
-    launcher.innerHTML = `${svg('chat', 20)}<span>${label}</span>`;
+    setLauncher('chat', label);
     launcher.focus();
   }
 
@@ -366,9 +366,16 @@
   );
 
   const launcher = document.createElement('button');
+  /** The launcher's icon and words; the words are set as text, never as markup. */
+  function setLauncher(icon, words) {
+    const span = document.createElement('span');
+    span.textContent = words;
+    launcher.innerHTML = svg(icon, 20);
+    launcher.append(span);
+  }
   launcher.type = 'button';
   launcher.setAttribute('aria-expanded', 'false');
-  launcher.innerHTML = `${svg('chat', 20)}<span>${label}</span>`;
+  setLauncher('chat', label);
   style(launcher, {
     position: 'fixed',
     right: '16px',
