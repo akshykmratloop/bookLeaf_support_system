@@ -102,6 +102,40 @@ to a host token (`POST /api/v1/auth/host`); BookLeaf facts engine moves to `apps
 
 ---
 
+### 4. Multi-tenant SaaS platform foundation — `feature/saas-platform`
+
+| Field           | Value                                  |
+| --------------- | -------------------------------------- |
+| **Session No.** | S213 (subagent)                        |
+| **Session ID**  | `d6c4131c-0851-4186-b4ce-5a0f25b3552c` |
+| **Branch**      | `feature/saas-platform` (from `feature/pluggable-support` @ `6b0b14e`) |
+| **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf-saas` |
+| **Base commit** | `6b0b14e`                              |
+| **Started**     | 2026-10-27                             |
+| **Status**      | 🔄 In Progress                          |
+
+**Goal:** workspaces (tenants), self-serve signup, encrypted per-workspace connector config,
+tenant-editable customer-data schema, per-workspace AI/chat/voice/widget settings. BookLeaf
+becomes workspace #1 seeded from env. Never merged by this session; local commits only.
+
+**CLAIMED PATHS (on this branch only):**
+
+```
+apps/api/src/modules/workspaces/**
+apps/api/src/modules/connectors/**
+apps/api/src/modules/settings/**
+apps/api/src/platform/crypto/**
+apps/api/prisma/** (additive migration)
+apps/web/src/pages/workspace/**
+docs/saas/**
+```
+
+**Things another session should know:** `session` claims gain `workspaceId`; `users.email`,
+`authors.external_id`, `books.external_id` become unique per workspace; `HostRecords.customer`
+takes an optional `workspaceId`; `tickets.workspace_id` is required.
+
+---
+
 # Path Ownership Map
 
 | Path | Owner | Free to claim? |
