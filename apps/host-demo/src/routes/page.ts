@@ -1,17 +1,26 @@
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import fastifyStatic from '@fastify/static';
 import type { FastifyPluginAsync } from 'fastify';
 
-const PUBLIC = new URL('../../public/', import.meta.url);
-const read = (name: string) => readFileSync(new URL(name, PUBLIC), 'utf8');
+interface Options {
+  supportUrl: string;
+  /** The built author dashboard (apps/host-web/dist). */
+  webDist: string;
+}
 
-const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const NOT_BUILT = `<!doctype html><meta charset="utf-8"><title>BookLeaf</title>
+<p style="font:15px system-ui;padding:24px">The author dashboard is not built yet. Run
+<code>pnpm --filter @bookleaf/host-web build</code>, or open the dev server on port 5174.</p>`;
 
-/** The demo product's single page and its script. */
-export const pageRoutes: FastifyPluginAsync<{ supportUrl: string }> = async (app, opts) => {
-  const html = read('page.html').replace('__SUPPORT_URL__', escapeHtml(opts.supportUrl));
-  const script = read('page.js');
-  app.get('/', async (_req, reply) => reply.type('text/html; charset=utf-8').send(html));
-  app.get('/page.js', async (_req, reply) =>
-    reply.type('text/javascript; charset=utf-8').send(script),
-  );
+/**
+ * BookLeaf's web app: the author dashboard (a React app built into webDist) and the one setting
+ * it needs from the server, the support module's address.
+ */
+export const pageRoutes: FastifyPluginAsync<Options> = async (app, opts) => {
+  app.get('/api/config', async () => ({ supportUrl: opts.supportUrl }));
+  if (!existsSync(`${opts.webDist}/index.html`)) {
+    app.get('/', async (_req, reply) => reply.type('text/html; charset=utf-8').send(NOT_BUILT));
+    return;
+  }
+  await app.register(fastifyStatic, { root: opts.webDist, prefix: '/' });
 };

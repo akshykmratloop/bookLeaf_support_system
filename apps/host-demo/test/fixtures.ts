@@ -11,6 +11,7 @@ export const TEST_CONFIG: HostConfig = {
   HOST_SIGNING_SECRET: 'test-host-signing-secret-0123456789abcdef',
   DATA_AS_OF: '2025-12-31',
   HOST_DEMO_PASSWORD: 'Author@Test1',
+  HOST_WEB_DIST: '/nonexistent/host-web-dist',
 };
 
 /** One sample author as the facts engine reads it (book ids are BK001…). */

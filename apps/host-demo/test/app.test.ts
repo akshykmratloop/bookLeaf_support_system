@@ -70,10 +70,16 @@ describe('sign-in and hand-over to support', () => {
   });
 });
 
-describe('demo page', () => {
-  it('links to the configured support URL', async () => {
+describe('web app', () => {
+  it('tells the dashboard where the support module is', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/config' });
+    expect(res.json()).toEqual({ supportUrl: 'http://localhost:5173' });
+  });
+
+  it('explains how to build the dashboard when it is missing', async () => {
     const res = await app.inject({ method: 'GET', url: '/' });
-    expect(res.body).toContain('content="http://localhost:5173"');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('pnpm --filter @bookleaf/host-web build');
   });
 });
 

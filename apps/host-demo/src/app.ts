@@ -36,6 +36,6 @@ export async function buildHostApp(
     signingSecret: config.HOST_SIGNING_SECRET,
     dataAsOf: new Date(`${config.DATA_AS_OF}T00:00:00Z`),
   });
-  await app.register(pageRoutes, { supportUrl: config.SUPPORT_URL });
+  await app.register(pageRoutes, { supportUrl: config.SUPPORT_URL, webDist: config.HOST_WEB_DIST });
   return app;
 }

@@ -157,7 +157,7 @@ export default tseslint.config(
   },
   {
     // A React component returns its markup, so it gets the component limit instead.
-    files: ['apps/web/**/*.tsx'],
+    files: ['apps/{web,host-web}/**/*.tsx'],
     rules: {
       'max-lines-per-function': ['error', { max: 150, skipBlankLines: true, skipComments: true }],
     },
@@ -173,7 +173,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/{web,host-web}/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: { ...reactHooks.configs.recommended.rules },

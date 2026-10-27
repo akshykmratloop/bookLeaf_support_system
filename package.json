@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web --filter @bookleaf/host-demo dev",
+    "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web --filter @bookleaf/host-demo --filter @bookleaf/host-web dev",
     "build": "pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build",
     "start": "pnpm --filter @bookleaf/api start",
     "typecheck": "pnpm -r typecheck",
@@ -19,7 +19,8 @@
     "db:migrate": "pnpm --filter @bookleaf/api db:migrate",
     "db:seed": "pnpm --filter @bookleaf/api db:seed",
     "eval": "pnpm --filter @bookleaf/api eval",
-    "host:start": "pnpm --filter @bookleaf/host-demo start"
+    "host:start": "pnpm --filter @bookleaf/host-demo start",
+    "host:build": "pnpm --filter @bookleaf/host-web build"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
