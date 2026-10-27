@@ -141,8 +141,25 @@ was read but not changed or depended on. Admin switch defaults to OFF.
 | V.6 | Author UI: mic capture worklet (24 kHz PCM16), gap-free player, countdown, warning, live transcript, mute, end, after-call transcript + ticket card; unavailable / off states; admin call panel on voice tickets | ✅ | `1079d82` |
 | V.6b | Review fixes: switch re-check can't crash the server, idle follows the conversation, goodbye plays out, saved before "ended", audio rate cap, failed setup releases the call | ✅ | `280a652` |
 | V.7 | Tests: 23 unit + 8 integration on the server, 14 unit in the browser code; full suite 165/165; browser check of the on / off / not-configured states (Chromium 156) | ✅ | `1079d82` |
-| V.8 | Live call with a real key | ⛔ (you): add `OPENAI_API_KEY` to the worktree `.env`, restart, switch voice on | |
+| V.8 | Live call with a real key: ready ~2–3 s, first audio ~3–4 s, greeting by name, call saved (smoke script, no microphone) | ✅ | `e2645e5` |
 | V.9 | Merge + deploy | ⛔ not doing: stays on its branch unless you decide otherwise | |
+
+### Phase 3b — Live ticket draft in chat and calls, and continuing a dropped call (27 Oct)
+
+One ticket per conversation or call, shown on the right of Ask BookLeaf. Both the author and the
+assistant edit it live; the assistant asks "Shall I send it?" and sends only after a yes (or the author
+presses Send).
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| D.1 | `ticket_drafts` table (one owner CHECK), `voice_sessions.thread_id`, `FieldSource AUTHOR` (additive migration; shadow apply + diff = 0); draft API: get, edit (versioned), send once (draft id = idempotency key); author's issue type kept through triage | ✅ | `3fbbc8d` |
+| D.2 | Chat prompt `chat.v1.3`: the model sees the draft and returns update / confirm / submit; server enforces the rules and writes the reply text for sends | ✅ | `b34ae26` |
+| D.3 | Voice: `update_ticket_draft` / `confirm_ticket` / `submit_ticket` tools, live `draft` messages, author screen edits reach the model (`addContext`); continue a dropped call within 60 min (same thread, earlier lines, "Welcome back") | ✅ | `43fb2f0` |
+| D.4 | Review fixes: a voice send needs confirm + the author's answer in that call; confirm marks only the version read back; chat keeps author edits made mid-answer; correct reply text on raced sends | ✅ | `1acb196` |
+| D.5 | Web: ticket panel on the right (autosave, live highlight, Send with version, confirm banner, sent state); Continue last call / New call; old ticket card removed | ✅ | `04b6630` |
+| D.6 | Only offer to continue calls where the author spoke (found in the live smoke test) | ✅ | `c339a13` |
+| D.7 | Verified: full suite 238/238 (213 API + 25 web); browser: chat filled the draft, author edited the subject, "send" → confirm → "yes" → BL-1002 sent with the author's subject, reload keeps it; live OpenAI call → hang up → continue (same draft and thread, "Welcome back") | ✅ | |
+| D.8 | A real call with a microphone, asking the assistant to raise and send a ticket | ⛔ (you): needs a person speaking | |
 
 ---
 
