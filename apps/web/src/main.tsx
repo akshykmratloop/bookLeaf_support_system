@@ -4,6 +4,7 @@ import { App } from './app/App';
 import { isFramed } from './lib/frame';
 import { followHostTheme } from './lib/hostTheme';
 import { applyTheme, readTheme, showTheme } from './lib/theme';
+import './bones/registry';
 import './styles/index.css';
 
 applyTheme(readTheme());
