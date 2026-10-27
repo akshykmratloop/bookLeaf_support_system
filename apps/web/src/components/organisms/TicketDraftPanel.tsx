@@ -7,6 +7,7 @@ import { useDraftEditor } from '../../lib/useDraftEditor';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
+import { DiscardDraftButton } from '../molecules/DiscardDraftButton';
 import { DraftFields } from '../molecules/DraftFields';
 
 interface Props {
@@ -59,22 +60,39 @@ const isReady = (v: EditorView['values']) =>
   v.subject.trim().length >= SUBJECT_LIMITS.min &&
   v.description.trim().length >= DESCRIPTION_LIMITS.min;
 
-function SendRow({ view, onSend }: { view: EditorView; onSend: () => void }) {
+const isBlank = (v: EditorView['values']) =>
+  !v.category && !v.bookId && !v.subject.trim() && !v.description.trim();
+
+function statusOf(view: EditorView, ready: boolean): string {
+  if (view.sending) return 'Sending…';
+  if (view.discarding) return 'Discarding…';
+  if (view.saving) return 'Saving…';
+  return ready ? 'Ready to send' : 'Needs a subject and a short description';
+}
+
+function SendRow({ view, editor }: { view: EditorView; editor: DraftEditor }) {
   const ready = isReady(view.values);
-  const status = view.sending ? 'Sending…' : view.saving ? 'Saving…' : null;
+  const busy = view.sending || view.discarding;
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <span className="text-[12px] text-ink-3" aria-live="polite">
-        {status ?? (ready ? 'Ready to send' : 'Needs a subject and a short description')}
+        {statusOf(view, ready)}
       </span>
-      <Button
-        onClick={onSend}
-        isLoading={view.sending}
-        disabled={!ready || view.saving}
-        icon={<Send size={14} aria-hidden />}
-      >
-        Send
-      </Button>
+      <div className="flex items-center gap-2">
+        <DiscardDraftButton
+          isDiscarding={view.discarding}
+          disabled={busy || isBlank(view.values)}
+          onDiscard={() => void editor.discard()}
+        />
+        <Button
+          onClick={() => void editor.send()}
+          isLoading={view.sending}
+          disabled={!ready || view.saving || busy}
+          icon={<Send size={14} aria-hidden />}
+        >
+          Send
+        </Button>
+      </div>
     </div>
   );
 }
@@ -101,7 +119,7 @@ function DraftBody({
       <DraftFields
         values={view.values}
         books={books.data ?? []}
-        disabled={sent || view.sending}
+        disabled={sent || view.sending || view.discarding}
         highlighted={view.highlighted}
         onChange={(field, value) => editor.change(field, value)}
       />
@@ -110,7 +128,7 @@ function DraftBody({
           {view.error}
         </p>
       ) : null}
-      {sent ? null : <SendRow view={view} onSend={() => void editor.send()} />}
+      {sent ? null : <SendRow view={view} editor={editor} />}
     </>
   );
 }

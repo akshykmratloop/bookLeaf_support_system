@@ -38,6 +38,8 @@ export interface DraftUpdate {
   draft: TicketDraft;
   by: DraftEditor;
   changed: readonly string[];
+  /** The author emptied the whole draft (Discard). */
+  discarded?: boolean;
 }
 
 /** The call's ticket draft, as the controller sees it. The server applies the draft rules. */

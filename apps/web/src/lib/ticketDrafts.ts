@@ -18,6 +18,10 @@ export const editDraft = (id: string, patch: EditTicketDraft) =>
 export const submitDraft = (id: string, version: number) =>
   api<SubmitDraftReply>(`/ticket-drafts/${id}/submit`, { method: 'POST', body: { version } });
 
+/** Empties the version on screen; an unsent draft only. */
+export const discardDraft = (id: string, version: number) =>
+  api<TicketDraft>(`/ticket-drafts/${id}/discard`, { method: 'POST', body: { version } });
+
 export const resumableKey = ['voice', 'resumable'] as const;
 
 /** My last call, if it dropped less than an hour ago with its ticket unsent. */

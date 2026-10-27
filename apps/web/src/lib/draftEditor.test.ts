@@ -35,6 +35,18 @@ const api: DraftApi = {
     server = { ...server, status: 'SUBMITTED', ticket: { id: 't', number: 'BL-1001' } };
     return { draft: server };
   }),
+  discard: vi.fn(async () => {
+    server = {
+      ...server,
+      category: null,
+      bookId: null,
+      subject: '',
+      description: '',
+      version: server.version + 1,
+      lastEditedBy: 'AUTHOR',
+    };
+    return server;
+  }),
 };
 
 function editor() {
@@ -115,5 +127,28 @@ describe('DraftEditor', () => {
     const e = editor();
     await e.send();
     expect(e.snapshot()).toMatchObject({ error: 'The draft just changed.', sending: false });
+  });
+
+  it('discards: drops unsaved typing, empties the form and never saves the old text', async () => {
+    server = { ...server, subject: 'Old subject', version: 4 };
+    const e = editor();
+    e.change('subject', 'Still typing');
+    await e.discard();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(edits).toEqual([]);
+    expect(api.discard).toHaveBeenCalledWith(base.id, 4);
+    expect(e.snapshot().values).toEqual({ category: '', bookId: '', subject: '', description: '' });
+    expect(e.snapshot().discarding).toBe(false);
+    expect(saved.at(-1)?.version).toBe(5);
+  });
+
+  it('shows the server message when discarding fails', async () => {
+    vi.mocked(api.discard).mockRejectedValueOnce('This ticket has already been sent.');
+    const e = editor();
+    await e.discard();
+    expect(e.snapshot()).toMatchObject({
+      error: 'This ticket has already been sent.',
+      discarding: false,
+    });
   });
 });

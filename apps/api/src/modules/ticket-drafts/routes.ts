@@ -4,6 +4,7 @@ import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
   AuthorTicketSchema,
+  DiscardTicketDraftSchema,
   EditTicketDraftSchema,
   ProblemSchema,
   SubmitTicketDraftSchema,
@@ -71,7 +72,7 @@ function registerReadAndEdit(app: RouteApp, { drafts, limits }: Deps) {
   );
 }
 
-/** Sending my draft as a ticket. */
+/** Sending or discarding my draft. */
 function registerSubmit(app: RouteApp, { drafts, limits }: Deps) {
   app.post(
     '/ticket-drafts/:id/submit',
@@ -92,6 +93,22 @@ function registerSubmit(app: RouteApp, { drafts, limits }: Deps) {
       });
       return reply.status(res.created ? 201 : 200).send({ draft: res.draft, ticket: res.ticket });
     },
+  );
+
+  app.post(
+    '/ticket-drafts/:id/discard',
+    {
+      config: { ...AUTHOR, rateLimit: perUser(limits.drafts.editsPerMinute) },
+      schema: {
+        tags: ['ticket-drafts'],
+        summary:
+          'Empty my unsent ticket draft (the version I am looking at); a live call hears about it',
+        params: z.object({ id: z.uuid() }),
+        body: DiscardTicketDraftSchema,
+        response: { 200: TicketDraftSchema, ...errors },
+      },
+    },
+    async (req) => drafts.discard(authorOf(req), req.params.id, req.body.version),
   );
 }
 

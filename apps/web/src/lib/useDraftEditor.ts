@@ -2,7 +2,7 @@ import type { TicketDraft } from '@bookleaf/shared';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { errorMessage } from './api';
 import { DraftEditor } from './draftEditor';
-import { editDraft, submitDraft } from './ticketDrafts';
+import { discardDraft, editDraft, submitDraft } from './ticketDrafts';
 
 /**
  * React view of the ticket draft form. `draft` is the latest version from the server (chat
@@ -10,7 +10,11 @@ import { editDraft, submitDraft } from './ticketDrafts';
  */
 export function useDraftEditor(draft: TicketDraft | null, onSaved: (d: TicketDraft) => void) {
   const [editor] = useState(
-    () => new DraftEditor({ edit: editDraft, submit: submitDraft }, errorMessage),
+    () =>
+      new DraftEditor(
+        { edit: editDraft, submit: submitDraft, discard: discardDraft },
+        errorMessage,
+      ),
   );
   useEffect(() => {
     editor.setOnSaved(onSaved);

@@ -5,6 +5,8 @@ export interface DraftChange {
   by: DraftEditor;
   /** Fields that changed, for telling the assistant what the author did. */
   changed: (keyof TicketDraft)[];
+  /** The author emptied the whole draft (Discard). */
+  discarded?: boolean;
 }
 
 type Listener = (change: DraftChange) => void;

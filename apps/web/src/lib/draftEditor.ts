@@ -17,6 +17,7 @@ export interface EditorView {
   values: DraftValues;
   saving: boolean;
   sending: boolean;
+  discarding: boolean;
   error: string | null;
   /** Fields the assistant just changed, highlighted for a moment. */
   highlighted: DraftField[];
@@ -25,6 +26,7 @@ export interface EditorView {
 export interface DraftApi {
   edit(id: string, patch: EditTicketDraft): Promise<TicketDraft>;
   submit(id: string, version: number): Promise<{ draft: TicketDraft }>;
+  discard(id: string, version: number): Promise<TicketDraft>;
 }
 
 const EMPTY: DraftValues = { category: '', bookId: '', subject: '', description: '' };
@@ -46,6 +48,7 @@ export class DraftEditor {
     values: EMPTY,
     saving: false,
     sending: false,
+    discarding: false,
     error: null,
     highlighted: [],
   };
@@ -126,6 +129,26 @@ export class DraftEditor {
       this.set({ error: this.describeError(err) });
     } finally {
       this.set({ sending: false });
+    }
+  }
+
+  /** Throws the draft away: unsaved typing is dropped, never saved, and the server empties it. */
+  async discard(): Promise<void> {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.dirty.clear();
+    await this.chain; // a save already on its way lands first, so the version below is current
+    const draft = this.view.draft;
+    if (!draft) return;
+    this.set({ discarding: true, error: null });
+    try {
+      const emptied = await this.api.discard(draft.id, draft.version);
+      this.receive(emptied);
+      this.onSaved(emptied);
+    } catch (err) {
+      this.set({ error: this.describeError(err) });
+    } finally {
+      this.set({ discarding: false });
     }
   }
 

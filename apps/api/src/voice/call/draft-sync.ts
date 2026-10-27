@@ -23,8 +23,15 @@ function fieldLine(draft: TicketDraft, field: string): string | null {
   return null;
 }
 
+const DISCARDED =
+  'The author discarded the ticket draft on screen. It is empty now. Do not send anything; start a new draft only if they ask for a ticket again.';
+
 /** What the model is told when the author edits the draft on screen during the call. */
 export function authorEditNote(update: DraftUpdate, previousStatus: TicketDraft['status']) {
+  if (update.discarded)
+    return previousStatus === 'AWAITING_CONFIRMATION'
+      ? `${DISCARDED} Their earlier "yes" no longer counts.`
+      : DISCARDED;
   const lines = update.changed.flatMap((f) => fieldLine(update.draft, f) ?? []);
   if (update.draft.status === 'SUBMITTED')
     return `The author sent the ticket from the screen (ticket ${update.draft.ticket?.number ?? ''}). Don't send it again.`;
@@ -43,6 +50,7 @@ export function onDraftUpdate(st: CallState, update: DraftUpdate): void {
   st.draftStatus = update.draft.status;
   st.deps.caller.send({ type: 'draft', draft: update.draft });
   if (update.by !== 'AUTHOR') return;
+  if (update.discarded) st.confirmAsked = false;
   const note = authorEditNote(update, previous);
   if (note) st.session?.addContext(note);
 }

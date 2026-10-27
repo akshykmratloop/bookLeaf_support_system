@@ -136,7 +136,7 @@ Full schemas are in Swagger at `/api/docs`.
 | Tickets | `GET·POST /tickets` · `GET·PATCH /tickets/:id` · `POST /tickets/:id/messages` | author: own · staff |
 | Reply drafts | `GET /tickets/:id/draft` · `POST …/draft/regenerate` · `POST …/check` · `POST …/ai/retry` | staff |
 | Chat | `GET /chat/sessions/current` · `POST /chat/sessions` · `GET /chat/sessions/:id` · `POST …/messages` | author |
-| Ticket drafts | `GET /ticket-drafts/chat/:sessionId` · `PATCH /ticket-drafts/:id` · `POST …/submit` | author |
+| Ticket drafts | `GET /ticket-drafts/chat/:sessionId` · `PATCH /ticket-drafts/:id` · `POST …/submit` · `POST …/discard` | author |
 | Voice | `POST /voice/calls` · `GET /voice/calls/resumable` · `GET /voice/calls/:id` · WebSocket `…/stream` | author |
 | History | `GET /conversations` · `GET /conversations/chats/:id` · `GET /conversations/calls/:id` | author |
 | Live updates | `GET /events` (Server-Sent Events, hints only) | signed in |

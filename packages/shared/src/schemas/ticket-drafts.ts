@@ -45,3 +45,7 @@ export type EditTicketDraft = z.input<typeof EditTicketDraftSchema>;
 /** Sending: the version the author is looking at, so a just-changed draft is never sent blind. */
 export const SubmitTicketDraftSchema = z.object({ version: z.int().min(0) });
 export type SubmitTicketDraft = z.infer<typeof SubmitTicketDraftSchema>;
+
+/** Discarding: empties the draft the author is looking at (never a version they have not seen). */
+export const DiscardTicketDraftSchema = z.object({ version: z.int().min(0) });
+export type DiscardTicketDraft = z.infer<typeof DiscardTicketDraftSchema>;
