@@ -1,8 +1,15 @@
-import type { AuditEntry, MyWorkspace, SignupRequest, SignupResponse } from '@bookleaf/shared';
+import type {
+  AuditEntry,
+  CreateApiKeyRequest,
+  MyWorkspace,
+  SignupRequest,
+  SignupResponse,
+} from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import { ForbiddenError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import { createApiKey, listApiKeys, revokeApiKey, verifyApiKey } from './api-keys.js';
 import { auditInclude, toAuditEntry, toWorkspaceDto } from './mappers.js';
 import { signup } from './signup.js';
 
@@ -30,6 +37,13 @@ export function createWorkspaceService(deps: { db: Db; clock: Clock }) {
         take: AUDIT_PAGE,
       });
       return { items: rows.map(toAuditEntry) };
+    },
+
+    apiKeys: {
+      list: (s: Session) => listApiKeys(deps.db, s),
+      create: (s: Session, input: CreateApiKeyRequest) => createApiKey(deps, s, input),
+      revoke: (s: Session, id: string) => revokeApiKey(deps, s, id),
+      verify: (plainKey: string) => verifyApiKey(deps, plainKey),
     },
   };
 }

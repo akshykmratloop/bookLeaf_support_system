@@ -4,6 +4,7 @@ import {
   Bot,
   Database,
   Inbox,
+  KeyRound,
   Plug,
   Settings2,
   LifeBuoy,
@@ -54,6 +55,7 @@ const ADMIN_NAV: NavItem[] = [
     label: 'Workspace Settings',
     icon: <Settings2 size={16} aria-hidden />,
   },
+  { to: '/admin/workspace/api-keys', label: 'API Keys', icon: <KeyRound size={16} aria-hidden /> },
 ];
 const ASSISTANT_NAV: NavItem[] = [
   { to: '/assistant', label: 'Ask BookLeaf', icon: <MessagesSquare size={16} aria-hidden /> },

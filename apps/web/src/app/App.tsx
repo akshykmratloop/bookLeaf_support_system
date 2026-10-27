@@ -16,6 +16,7 @@ import { TicketsPage } from '../pages/author/TicketsPage';
 import { EmbedPage } from '../pages/embed/EmbedPage';
 import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
+import { ApiKeysPage } from '../pages/workspace/ApiKeysPage';
 import { ConnectorPage } from '../pages/workspace/ConnectorPage';
 import { FieldsPage } from '../pages/workspace/FieldsPage';
 import { SignupPage } from '../pages/workspace/SignupPage';
@@ -63,6 +64,7 @@ export function App() {
               <Route path="/admin/workspace/connection" element={<ConnectorPage />} />
               <Route path="/admin/workspace/fields" element={<FieldsPage />} />
               <Route path="/admin/workspace/settings" element={<WorkspaceSettingsPage />} />
+              <Route path="/admin/workspace/api-keys" element={<ApiKeysPage />} />
             </Route>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />

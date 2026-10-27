@@ -144,3 +144,35 @@ describe('workspace settings', () => {
     expect((await call(h, 'GET', '/workspace/fields', kavita)).statusCode).toBe(403);
   });
 });
+
+describe('workspace API keys', () => {
+  it('creates a key shown once, lists it by prefix only, verifies it, and revokes it', async () => {
+    const created = await call(h, 'POST', '/workspace/api-keys', acme, {
+      name: 'Production server',
+      scopes: ['customers:read', 'tickets:read'],
+    });
+    expect(created.statusCode).toBe(201);
+    const { key, plainKey } = created.json<{
+      key: { id: string; prefix: string };
+      plainKey: string;
+    }>();
+    expect(plainKey.startsWith(key.prefix)).toBe(true);
+    expect(plainKey.length).toBeGreaterThan(40);
+
+    const list = await call(h, 'GET', '/workspace/api-keys', acme);
+    expect(JSON.stringify(list.json())).not.toContain(plainKey);
+    expect(list.json<{ items: { prefix: string }[] }>().items[0]?.prefix).toBe(key.prefix);
+    const row = await h.db.workspaceApiKey.findUniqueOrThrow({ where: { id: key.id } });
+    expect(row.keyHash).not.toContain(plainKey.slice(-10));
+
+    const verified = await h.container.workspaces.apiKeys.verify(plainKey);
+    expect(verified?.scopes).toEqual(['customers:read', 'tickets:read']);
+    expect(await h.container.workspaces.apiKeys.verify('blsk_nope_nope')).toBeNull();
+
+    expect((await call(h, 'DELETE', `/workspace/api-keys/${key.id}`, admin)).statusCode).toBe(404);
+    const revoked = await call(h, 'DELETE', `/workspace/api-keys/${key.id}`, acme);
+    expect(revoked.statusCode).toBe(200);
+    expect(revoked.json<{ revokedAt: string | null }>().revokedAt).not.toBeNull();
+    expect(await h.container.workspaces.apiKeys.verify(plainKey)).toBeNull();
+  });
+});

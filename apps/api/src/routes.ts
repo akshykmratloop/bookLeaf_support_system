@@ -13,6 +13,7 @@ import { settingsRoutes } from './modules/settings/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
 import { voiceRoutes } from './modules/voice/routes.js';
+import { apiKeyRoutes } from './modules/workspaces/api-key-routes.js';
 import { workspaceRoutes } from './modules/workspaces/routes.js';
 
 /** Every module's routes, mounted under /api/v1. */
@@ -42,6 +43,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
   await api.register(connectorRoutes, { connectors: c.connectors });
   await api.register(settingsRoutes, { settings: c.settings });
+  await api.register(apiKeyRoutes, { workspaces: c.workspaces });
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,

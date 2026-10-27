@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  ApiKey,
   Connector,
+  CreateApiKeyRequest,
+  CreatedApiKey,
   ConnectorTestResult,
   CustomerField,
   CustomerFieldInput,
@@ -19,7 +22,20 @@ export const workspaceKeys = {
   connector: ['workspace', 'connector'] as const,
   fields: ['workspace', 'fields'] as const,
   settings: ['workspace', 'settings'] as const,
+  apiKeys: ['workspace', 'api-keys'] as const,
 };
+
+export const useApiKeys = () =>
+  useQuery({
+    queryKey: workspaceKeys.apiKeys,
+    queryFn: () => api<{ items: ApiKey[] }>('/workspace/api-keys').then((r) => r.items),
+  });
+
+export const createApiKey = (input: CreateApiKeyRequest) =>
+  api<CreatedApiKey>('/workspace/api-keys', { method: 'POST', body: input });
+
+export const revokeApiKey = (id: string) =>
+  api<ApiKey>(`/workspace/api-keys/${id}`, { method: 'DELETE' });
 
 export const useMyWorkspace = () =>
   useQuery({ queryKey: workspaceKeys.mine, queryFn: () => api<MyWorkspace>('/workspace') });
