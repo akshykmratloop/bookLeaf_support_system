@@ -33,7 +33,13 @@ function summarise(calls: CallRow[], draft?: { status: string; subject: string }
 /** Connected calls, one row per thread (a continued call joins its first call), newest first. */
 export async function listCalls(db: Db, authorId: string, from: Cursor | null, take: number) {
   const roots = await db.voiceSession.findMany({
-    where: { authorId, startedAt: { not: null }, AND: [firstCall(db), after(from)] },
+    // Calls started from a chat are listed inside that chat, not again on their own.
+    where: {
+      authorId,
+      chatSessionId: null,
+      startedAt: { not: null },
+      AND: [firstCall(db), after(from)],
+    },
     orderBy: NEWEST_FIRST,
     take,
     select: { id: true, createdAt: true },

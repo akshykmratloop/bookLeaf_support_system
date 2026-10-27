@@ -4,6 +4,7 @@ import { recordRun } from '../../ai/jobs/runs.js';
 import type { Db } from '../../platform/db.js';
 import type { CallOutcome } from '../../voice/call/controller.js';
 import { VOICE_PROMPT_VERSION } from '../../voice/call/instructions.js';
+import { saveIntoChat } from './chat-link.js';
 
 /**
  * Checks every figure the assistant spoke against the facts snapshot it was given. Speech
@@ -31,7 +32,7 @@ export interface FinishInput {
   ignorePhrases: string[];
 }
 
-/** Saves the ended call (transcript, spoken-figure check, tokens) and logs its cost. */
+/** Saves the ended call (transcript, spoken-figure check, tokens, its chat) and logs its cost. */
 export async function finishCall(db: Db, input: FinishInput): Promise<void> {
   const { outcome } = input;
   const failed = outcome.reason === 'PROVIDER_ERROR' && outcome.transcript.length === 0;
@@ -39,18 +40,23 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
     0,
     Math.round((outcome.endedAt.getTime() - outcome.startedAt.getTime()) / 1000),
   );
-  await db.voiceSession.update({
-    where: { id: input.callId },
-    data: {
-      status: failed ? 'FAILED' : 'ENDED',
-      endedAt: outcome.endedAt,
-      endReason: outcome.reason,
-      durationSeconds: seconds,
-      transcript: outcome.transcript,
-      spokenCheck: checkSpokenFigures(outcome, input.facts, input.ignorePhrases),
-      inputTokens: outcome.inputTokens,
-      outputTokens: outcome.outputTokens,
-    },
+  // One transaction: a call started from a chat never ends without its lines in that chat.
+  await db.$transaction(async (tx) => {
+    const saved = await tx.voiceSession.update({
+      where: { id: input.callId },
+      data: {
+        status: failed ? 'FAILED' : 'ENDED',
+        endedAt: outcome.endedAt,
+        endReason: outcome.reason,
+        durationSeconds: seconds,
+        transcript: outcome.transcript,
+        spokenCheck: checkSpokenFigures(outcome, input.facts, input.ignorePhrases),
+        inputTokens: outcome.inputTokens,
+        outputTokens: outcome.outputTokens,
+      },
+      select: { id: true, chatSessionId: true },
+    });
+    await saveIntoChat(tx, saved, outcome.transcript);
   });
   await recordRun(db, {
     ticketId: null,

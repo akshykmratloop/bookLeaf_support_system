@@ -3,6 +3,7 @@ import { AppError } from '../../platform/errors.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { newCallIds } from './call-setup.js';
+import { joinableChat } from './chat-link.js';
 import { type VoiceDeps } from './deps.js';
 import { checkQuota } from './quota.js';
 import * as repo from './repository.js';
@@ -17,24 +18,42 @@ class VoiceUnavailableError extends AppError {
   }
 }
 
-interface NewCall {
+export interface StartOptions {
+  resume: boolean;
+  /** The chat this call joins (its context, its draft, its turn limit). */
+  chatSessionId?: string;
+}
+
+interface NewCall extends StartOptions {
   authorId: string;
   provider: VoiceProvider;
-  resume: boolean;
   now: Date;
 }
 
-/** One call at a time per author: the lock makes the quota check and insert atomic. */
-function insertCall(deps: VoiceDeps, { authorId, provider, resume, now }: NewCall) {
+/**
+ * One call at a time per author: the lock makes the quota check and insert atomic. A call that
+ * joins a chat is a fresh thread: the chat already holds the earlier conversation.
+ */
+function insertCall(deps: VoiceDeps, { authorId, provider, resume, chatSessionId, now }: NewCall) {
   const maxSeconds = deps.limits.voice.maxCallSeconds;
+  const maxTurns = deps.limits.chat.maxTurnsPerSession;
   return deps.db.$transaction(async (tx) => {
     await repo.lockAuthor(tx, authorId);
+    const chatId = chatSessionId ? await joinableChat(tx, authorId, chatSessionId, maxTurns) : null;
     await repo.replaceUnconnectedCalls(tx, authorId);
     await checkQuota(tx, deps.limits.voice, authorId, now);
-    const ids = await newCallIds(tx, authorId, resume, now);
+    const ids = await newCallIds(tx, authorId, resume && !chatId, now);
     const { id: providerId, model } = provider;
     return tx.voiceSession.create({
-      data: { ...ids, authorId, provider: providerId, model, maxSeconds, createdAt: now },
+      data: {
+        ...ids,
+        authorId,
+        chatSessionId: chatId,
+        provider: providerId,
+        model,
+        maxSeconds,
+        createdAt: now,
+      },
     });
   });
 }
@@ -43,7 +62,7 @@ function insertCall(deps: VoiceDeps, { authorId, provider, resume, now }: NewCal
 export async function startCall(
   deps: VoiceDeps,
   session: Session,
-  opts: { resume: boolean },
+  opts: StartOptions,
 ): Promise<StartVoiceCall> {
   await deps.assistant.requireVoiceEnabled();
   const authorId = authorIdOf(session);
@@ -52,7 +71,7 @@ export async function startCall(
   const now = deps.clock.now();
   const maxSeconds = deps.limits.voice.maxCallSeconds;
   await repo.expireStale(deps.db, authorId, now, maxSeconds);
-  const call = await insertCall(deps, { authorId, provider, resume: opts.resume, now });
+  const call = await insertCall(deps, { ...opts, authorId, provider, now });
   return {
     id: call.id,
     socketPath: `/api/v1/voice/calls/${call.id}/stream`,

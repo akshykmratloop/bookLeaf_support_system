@@ -9,14 +9,14 @@ import type { VoiceDeps } from './deps.js';
 import { draftPort } from './draft-port.js';
 import { adminGetCall, getCall, resumableCall } from './read-calls.js';
 import * as repo from './repository.js';
-import { startCall } from './start-call.js';
+import { startCall, type StartOptions } from './start-call.js';
 
 type TicketInput = z.output<typeof ChatTicketRequestSchema>;
 
 /** Voice calls: start, connect, finish, read back, and the older after-call ticket form. */
 export function createVoiceService(deps: VoiceDeps) {
   return {
-    start: (s: Session, opts: { resume: boolean }) => startCall(deps, s, opts),
+    start: (s: Session, opts: StartOptions) => startCall(deps, s, opts),
     resumable: (s: Session) => resumableCall(deps, s),
     claim: (s: Session, id: string) => claimCall(deps, s, id),
     /** The live call's connection to its ticket draft (same rules as the screen). */

@@ -13,15 +13,20 @@ export interface VoiceInstructionsInput {
   maxMinutes: number;
   /** The call thread's ticket draft as the call starts. */
   draft: TicketDraft;
-  /** Lines from earlier calls of this thread (a continued call), oldest first. */
+  /** The conversation so far, oldest first: the chat this call joins, or earlier calls of its thread. */
   earlier: readonly TranscriptLine[];
+  earlierFrom: 'chat' | 'call';
 }
 
+const GREETINGS = {
+  new: (n: string) => `Hi ${n}, this is BookLeaf support. How can I help with your books today?`,
+  resumed: (n: string) => `Welcome back ${n}, let's pick up where we left off.`,
+  chat: (n: string) => `Hi ${n}, I can see our chat so far. What would you like to talk through?`,
+} as const;
+
 /** Fixed first words with the author's name (a free-form greeting once said "Hi, Author"). */
-export const voiceGreeting = (firstName: string, resumed = false) =>
-  resumed
-    ? `Welcome back ${firstName}, let's pick up where we left off.`
-    : `Hi ${firstName}, this is BookLeaf support. How can I help with your books today?`;
+export const voiceGreeting = (firstName: string, kind: keyof typeof GREETINGS = 'new') =>
+  GREETINGS[kind](firstName);
 
 const TICKET_RULES = `TICKET DRAFT (shown live on the author's screen; they can edit it too):
 - When the author needs something done or checked, explain what the team will do, then fill in the draft with
@@ -34,12 +39,17 @@ const TICKET_RULES = `TICKET DRAFT (shown live on the author's screen; they can 
 - Never say a ticket was sent until ${SUBMIT_TICKET} returns status "sent"; then say the ticket number.
 - If a tool returns an error, say briefly what is missing and carry on.`;
 
-function earlierBlock(lines: readonly TranscriptLine[]): string {
+const EARLIER_HEADINGS = {
+  call: "EARLIER IN THIS CALL (the line dropped; continue from here and don't repeat yourself)",
+  chat: "EARLIER IN THIS CONVERSATION (typed in chat before this call; continue from here and don't repeat yourself)",
+} as const;
+
+function earlierBlock(lines: readonly TranscriptLine[], from: 'chat' | 'call'): string {
   if (lines.length === 0) return '';
   const text = lines
     .map((l) => (l.role === 'AUTHOR' ? `Author (untrusted): ${l.text}` : `You: ${l.text}`))
     .join('\n');
-  return `\n\nEARLIER IN THIS CALL (the line dropped; continue from here and don't repeat yourself):\n${text}`;
+  return `\n\n${EARLIER_HEADINGS[from]}:\n${text}`;
 }
 
 /** Spoken-style rules plus this author's verified facts, fixed for the whole call. */
@@ -72,5 +82,5 @@ VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 
 KNOWLEDGE BASE:
-${Object.values(KB_SECTIONS).join('\n\n')}${earlierBlock(input.earlier)}`;
+${Object.values(KB_SECTIONS).join('\n\n')}${earlierBlock(input.earlier, input.earlierFrom)}`;
 }

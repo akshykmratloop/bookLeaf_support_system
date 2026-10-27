@@ -39,7 +39,13 @@ function worthContinuing(transcript: unknown, draft: DraftFields | null): boolea
  */
 export async function findResumable(db: Tx, authorId: string, now: Date) {
   const last = await db.voiceSession.findFirst({
-    where: { authorId, startedAt: { not: null }, status: { in: ['ENDED', 'FAILED'] } },
+    // A call inside a chat is continued by calling again from that chat, not by resuming.
+    where: {
+      authorId,
+      chatSessionId: null,
+      startedAt: { not: null },
+      status: { in: ['ENDED', 'FAILED'] },
+    },
     orderBy: { createdAt: 'desc' },
     include: { ticket: { select: { id: true } } },
   });

@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { ChatReply } from '@bookleaf/shared';
-import { ConflictError, UsageLimitError } from '../../platform/errors.js';
+import { UsageLimitError } from '../../platform/errors.js';
 import { QueueFullError } from '../../platform/keyed-queue.js';
 import { startOfUtcDay } from '../assistant/limits.js';
 import { authorIdOf, type Session } from '../auth/session.js';
@@ -8,6 +8,7 @@ import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import { produceAnswer, type StoredAnswer } from './answer.js';
 import { type ChatContext, type ChatDeps } from './deps.js';
 import { applyDraftAction } from './draft-turn.js';
+import { turnLimitError } from './limit.js';
 import { toChatMessage } from './mappers.js';
 import { authorMessagesSince, findOwnSession, reserveTurn } from './repository.js';
 import { loadChat } from './sessions.js';
@@ -32,11 +33,7 @@ async function enforceDailyLimit(deps: ChatDeps, authorId: string): Promise<void
 
 async function takeTurn(deps: ChatDeps, chatId: string): Promise<void> {
   const maxTurns = deps.limits.chat.maxTurnsPerSession;
-  if (!(await reserveTurn(deps.db, chatId, maxTurns)))
-    throw new ConflictError(
-      'CHAT_TURN_LIMIT',
-      `This conversation reached its ${maxTurns}-message limit. Start a new conversation.`,
-    );
+  if (!(await reserveTurn(deps.db, chatId, maxTurns))) throw turnLimitError(maxTurns);
 }
 
 function saveReply(deps: ChatDeps, chatId: string, a: StoredAnswer, body: string) {

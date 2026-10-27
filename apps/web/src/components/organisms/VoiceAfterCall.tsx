@@ -13,6 +13,7 @@ const ENDED_TEXT: Record<VoiceEndReason, string> = {
   DISABLED_BY_ADMIN: 'Voice calls were switched off by the BookLeaf team.',
   PROVIDER_ERROR: 'The voice service had a problem, so the call ended.',
   SERVER_RESTART: 'The call was interrupted.',
+  TURN_LIMIT: 'This conversation reached its message limit, so the call ended.',
 };
 
 type CallRecord = NonNullable<ReturnType<typeof useVoiceCallRecord>['data']>;

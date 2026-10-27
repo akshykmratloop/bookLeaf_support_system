@@ -15,6 +15,8 @@ export const VOICE_END_REASONS = [
   'DISABLED_BY_ADMIN',
   'PROVIDER_ERROR',
   'SERVER_RESTART',
+  /** The conversation reached its message limit during the call. */
+  'TURN_LIMIT',
 ] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 
@@ -37,8 +39,15 @@ export type StartVoiceCall = z.infer<typeof StartVoiceCallSchema>;
 /** A dropped call can be continued within this many minutes if its ticket wasn't sent. */
 export const RESUME_WITHIN_MINUTES = 60;
 
-/** Starting a call: `resume` continues the last call (same conversation and ticket draft). */
-export const StartVoiceCallRequestSchema = z.object({ resume: z.boolean().default(false) });
+/**
+ * Starting a call. `chatSessionId` makes the call part of that chat conversation: it hears the
+ * chat, shares its ticket draft, and its lines are saved into the chat. Without it, `resume`
+ * continues the last dropped call (same conversation and ticket draft).
+ */
+export const StartVoiceCallRequestSchema = z.object({
+  resume: z.boolean().default(false),
+  chatSessionId: z.uuid().optional(),
+});
 export type StartVoiceCallRequest = z.input<typeof StartVoiceCallRequestSchema>;
 
 export const VoiceCallSchema = z.object({

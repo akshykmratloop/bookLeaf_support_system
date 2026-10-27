@@ -55,15 +55,18 @@ function registerStartRoutes(app: RouteApp, { voice }: Opts) {
       schema: {
         tags: ['voice'],
         summary:
-          'Start a voice call, or continue the last one with {resume: true} (limits checked)',
+          'Start a voice call: inside a chat with {chatSessionId}, or continue the last one with {resume: true} (limits checked)',
         body: StartVoiceCallRequestSchema.nullish(),
         response: { 201: StartVoiceCallSchema, ...errors },
       },
     },
     async (req, reply) =>
-      reply
-        .status(201)
-        .send(await voice.start(sessionOf(req), { resume: req.body?.resume ?? false })),
+      reply.status(201).send(
+        await voice.start(sessionOf(req), {
+          resume: req.body?.resume ?? false,
+          chatSessionId: req.body?.chatSessionId,
+        }),
+      ),
   );
 
   app.get(

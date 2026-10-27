@@ -9,6 +9,10 @@ export const CHAT_ROLES = ['AUTHOR', 'ASSISTANT'] as const;
 export type ChatRole = (typeof CHAT_ROLES)[number];
 
 /** AI = checked model answer; SAFE_FALLBACK = the answer failed the fact check; UNAVAILABLE = AI down. */
+/** How a message entered the conversation: typed, or spoken on a call started from the chat. */
+export const CHAT_CHANNELS = ['CHAT', 'VOICE'] as const;
+export type ChatChannel = (typeof CHAT_CHANNELS)[number];
+
 export const CHAT_ANSWER_SOURCES = ['AI', 'RECORDS', 'SAFE_FALLBACK', 'UNAVAILABLE'] as const;
 export type ChatAnswerSource = (typeof CHAT_ANSWER_SOURCES)[number];
 
@@ -35,6 +39,9 @@ export const ChatMessageSchema = z.object({
   source: z.enum(CHAT_ANSWER_SOURCES).nullable(),
   factsUsed: z.array(ChatFactRefSchema),
   proposal: TicketProposalSchema.nullable(),
+  channel: z.enum(CHAT_CHANNELS),
+  /** The call a VOICE message was spoken on. */
+  callId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;

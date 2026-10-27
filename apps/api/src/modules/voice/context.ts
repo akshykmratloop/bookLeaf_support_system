@@ -16,8 +16,9 @@ export interface CallContext {
 
 export interface ThreadContext {
   draft: TicketDraft;
-  /** End of the earlier conversation when this call continues a dropped one. */
+  /** End of the earlier conversation: the chat the call joins, or a dropped call it continues. */
   earlier: TranscriptLine[];
+  from: 'chat' | 'call';
   resumed: boolean;
 }
 
@@ -26,6 +27,9 @@ export interface CallContextInput {
   maxSeconds: number;
   thread: ThreadContext;
 }
+
+const greetingFor = (t: ThreadContext) =>
+  !t.resumed ? 'new' : t.from === 'chat' ? 'chat' : 'resumed';
 
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
@@ -40,6 +44,7 @@ export async function buildCallContext(
     maxMinutes: Math.round(maxSeconds / 60),
     draft: thread.draft,
     earlier: thread.earlier,
+    earlierFrom: thread.from,
   });
   return {
     facts,
@@ -50,7 +55,7 @@ export async function buildCallContext(
       instructions,
       tools: VOICE_TOOLS,
       language: 'en',
-      greeting: voiceGreeting(firstName, thread.resumed),
+      greeting: voiceGreeting(firstName, greetingFor(thread)),
     },
   };
 }

@@ -22,6 +22,8 @@ export function toChatMessage(m: ChatMessageRow): ChatMessage {
     source: m.source,
     factsUsed: facts.success ? facts.data.map((f) => ({ label: f.label, display: f.display })) : [],
     proposal: proposal.success ? proposal.data : null,
+    channel: m.channel,
+    callId: m.voiceSessionId,
     createdAt: m.createdAt.toISOString(),
   };
 }

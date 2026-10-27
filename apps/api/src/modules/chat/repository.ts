@@ -36,6 +36,7 @@ export async function reserveTurn(db: Db, id: string, maxTurns: number): Promise
 
 export function authorMessagesSince(db: Db, authorId: string, since: Date): Promise<number> {
   return db.chatMessage.count({
-    where: { role: 'AUTHOR', createdAt: { gte: since }, session: { authorId } },
+    // Typed messages only: lines spoken on a call count against the call quota instead.
+    where: { role: 'AUTHOR', channel: 'CHAT', createdAt: { gte: since }, session: { authorId } },
   });
 }

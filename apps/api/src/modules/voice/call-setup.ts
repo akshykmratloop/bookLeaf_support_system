@@ -6,7 +6,8 @@ import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
-import { buildCallContext, type CallContext } from './context.js';
+import { chatLines } from './chat-link.js';
+import { buildCallContext, type CallContext, type ThreadContext } from './context.js';
 import { findOwnCall } from './repository.js';
 import { findResumable, recentLines, threadLines, threadOf } from './thread.js';
 
@@ -37,7 +38,30 @@ interface SetupDeps {
   drafts: TicketDraftService;
 }
 
-/** Context for a connected call: its thread's draft and, when continuing, the earlier lines. */
+type OwnCall = Awaited<ReturnType<typeof findOwnCall>>;
+
+/**
+ * What the call continues. Inside a chat: the chat so far and the chat's ticket draft, so the call
+ * and the screen share one conversation and one ticket. Otherwise: its call thread (a dropped call
+ * continued) and that thread's draft.
+ */
+async function threadContext(
+  deps: SetupDeps,
+  authorId: string,
+  call: OwnCall,
+): Promise<ThreadContext> {
+  if (call.chatSessionId) {
+    const draft = await deps.drafts.forChat(authorId, call.chatSessionId);
+    const earlier = recentLines(await chatLines(deps.db, call.chatSessionId));
+    return { draft, earlier, from: 'chat', resumed: earlier.length > 0 };
+  }
+  const threadId = threadOf(call);
+  const draft = await deps.drafts.forThread(authorId, threadId);
+  const earlier = recentLines(await threadLines(deps.db, threadId, call.id));
+  return { draft, earlier, from: 'call', resumed: threadId !== call.id };
+}
+
+/** Context for a connected call: its draft and the earlier conversation it continues. */
 export async function contextFor(
   deps: SetupDeps,
   authorId: string,
@@ -45,9 +69,6 @@ export async function contextFor(
   maxSeconds: number,
 ): Promise<CallContext> {
   const call = await findOwnCall(deps.db, callId, authorId);
-  const threadId = threadOf(call);
-  const draft = await deps.drafts.forThread(authorId, threadId);
-  const earlier = recentLines(await threadLines(deps.db, threadId, callId));
-  const thread = { draft, earlier, resumed: threadId !== call.id };
+  const thread = await threadContext(deps, authorId, call);
   return buildCallContext(deps, { authorId, maxSeconds, thread });
 }
