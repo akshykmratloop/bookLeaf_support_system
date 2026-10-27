@@ -120,6 +120,8 @@ a tool-calling loop (authors have few books, so all their facts fit; fewer calls
 | C.5 | Limits: 1–1,000 chars, 20 msgs/min, 100/day, 30 per conversation, 10 new conversations/hour (env) | ✅ | `ab243da` |
 | C.6 | Author "Ask BookLeaf" page, ticket card, unavailable/off states; admin switches page; transcript on chat tickets | ✅ | `d009761` |
 | C.7 | Tests: 10 unit + 13 integration (real Postgres); full suite 120/120; real-browser run (Chromium 156) | ✅ | `d009761` |
+| C.9 | Fix: payout questions showed "assistant unavailable" (answer cut off at 700 output tokens; now 4,000) | ✅ | `fd8da4c` (`115f3a2` on `feature/chat`) |
+| C.10 | Instant answers from records for common questions (19–33 ms vs ~7 s), send queue (send several messages in a row, answered in order), typing bubble, box clears at once | ✅ | `bbe469d` (on `feature/voice` only) |
 | C.8 | Merge + deploy | ⛔ not doing: stays on its branch unless you decide otherwise | |
 
 ## Phase 3 — In-house voice call (no SDK) · branch `feature/voice`
