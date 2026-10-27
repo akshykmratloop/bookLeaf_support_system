@@ -1,6 +1,6 @@
 import { LogIn } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useNavigate } from 'react-router';
 import { homeFor } from '../app/user';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
@@ -68,6 +68,12 @@ export function LoginPage() {
             Sign in
           </Button>
         </form>
+        <p className="mt-4 text-[12.5px] text-ink-3">
+          New business?{' '}
+          <Link to="/signup" className="font-semibold text-brand">
+            Create a workspace
+          </Link>
+        </p>
         <DemoAccounts
           onPick={(pickedEmail) => {
             setEmail(pickedEmail);

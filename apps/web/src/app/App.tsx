@@ -16,6 +16,10 @@ import { TicketsPage } from '../pages/author/TicketsPage';
 import { EmbedPage } from '../pages/embed/EmbedPage';
 import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
+import { ConnectorPage } from '../pages/workspace/ConnectorPage';
+import { FieldsPage } from '../pages/workspace/FieldsPage';
+import { SignupPage } from '../pages/workspace/SignupPage';
+import { WorkspaceSettingsPage } from '../pages/workspace/WorkspaceSettingsPage';
 import { AuthedLayout, HomeRedirect } from './AuthedLayout';
 
 const MAX_RETRIES = 2;
@@ -39,6 +43,7 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/host" element={<HostSignInPage />} />
             <Route path="/embed" element={<EmbedPage />} />
             <Route element={<AuthedLayout role="AUTHOR" />}>
@@ -55,6 +60,9 @@ export function App() {
               <Route path="/admin/tickets/:id" element={<TicketWorkspacePage />} />
               <Route path="/admin/ai" element={<AiSettingsPage />} />
               <Route path="/admin/assistant" element={<AssistantSettingsPage />} />
+              <Route path="/admin/workspace/connection" element={<ConnectorPage />} />
+              <Route path="/admin/workspace/fields" element={<FieldsPage />} />
+              <Route path="/admin/workspace/settings" element={<WorkspaceSettingsPage />} />
             </Route>
             <Route path="/" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />

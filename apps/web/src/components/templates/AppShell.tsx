@@ -2,7 +2,10 @@ import type { AuthUser } from '@bookleaf/shared';
 import {
   BookOpen,
   Bot,
+  Database,
   Inbox,
+  Plug,
+  Settings2,
   LifeBuoy,
   LogOut,
   MessagesSquare,
@@ -35,6 +38,21 @@ const ADMIN_NAV: NavItem[] = [
     to: '/admin/assistant',
     label: 'Author Assistant',
     icon: <MessagesSquare size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/connection',
+    label: 'Product Connection',
+    icon: <Plug size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/fields',
+    label: 'Customer Data',
+    icon: <Database size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/settings',
+    label: 'Workspace Settings',
+    icon: <Settings2 size={16} aria-hidden />,
   },
 ];
 const ASSISTANT_NAV: NavItem[] = [
