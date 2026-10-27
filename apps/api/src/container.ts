@@ -1,12 +1,20 @@
 import { createAiRuntime, type AiRuntime } from './ai/jobs/runtime.js';
+import { PROVIDER_CATALOG } from './ai/providers/catalog.js';
 import { buildProviderRegistry } from './ai/providers/registry.js';
 import type { LlmProvider } from './ai/providers/types.js';
 import type { HostRecords } from './host/types.js';
-import { buildVoiceProvider } from './voice/providers/registry.js';
+import {
+  ALL_VOICES,
+  buildVoiceProvider,
+  VOICE_PROVIDER_IDS,
+  voiceProviderFor,
+} from './voice/providers/registry.js';
 import type { VoiceProvider } from './voice/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
 import { createConnectorService } from './modules/connectors/service.js';
-import { connectorDepsFromEnv } from './modules/connectors/from-env.js';
+import { connectorDepsFromEnv, envelopeFromEnv } from './modules/connectors/from-env.js';
+import { createKeyedProviders } from './modules/provider-keys/keyed.js';
+import { createProviderKeyService } from './modules/provider-keys/service.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
 import { platformSwitches } from './modules/assistant/deps.js';
 import { createAssistantService } from './modules/assistant/service.js';
@@ -37,6 +45,31 @@ export interface ContainerOverrides {
   records?: HostRecords;
   /** null = no voice provider configured. */
   voiceProvider?: VoiceProvider | null;
+  /** Builds a client from a workspace's own AI key (tests pass a fake). */
+  buildAi?: (providerId: string, apiKey: string) => LlmProvider | undefined;
+  /** Builds a client from a workspace's own voice key (tests pass a fake). */
+  buildVoice?: (providerId: string, apiKey: string) => VoiceProvider | null;
+}
+
+/** AI and voice clients: the platform's from env, and each workspace's own from its saved keys. */
+function createProviders(env: Env, db: Db, clock: Clock, overrides: ContainerOverrides) {
+  const providers =
+    overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
+  const voiceProvider =
+    overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
+  const envelope = envelopeFromEnv(env);
+  const keyed = createKeyedProviders({
+    db,
+    envelope,
+    now: () => clock.now(),
+    platformAi: providers,
+    platformVoice: voiceProvider,
+    buildAi:
+      overrides.buildAi ?? ((id, key) => buildProviderRegistry({ anthropicApiKey: key }).get(id)),
+    buildVoice: overrides.buildVoice ?? ((id, key) => voiceProviderFor(env, id, key)),
+  });
+  const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now(), keyed.ai);
+  return { voiceProvider, envelope, keyed, ai };
 }
 
 /** Shared infrastructure every module uses: clock, database, events, AI runtime, sessions. */
@@ -44,12 +77,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
   const db = overrides.db ?? createDb(env.DATABASE_URL);
   const events: EventBus = inMemoryEventBus();
-  const providers =
-    overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
-  const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now());
+  const { voiceProvider, envelope, keyed, ai } = createProviders(env, db, clock, overrides);
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
-  const voiceProvider =
-    overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
   const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
   const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };
@@ -74,6 +103,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     configs,
     embedded: env.EMBED_ENABLED || env.HOST_ORIGINS.length > 0,
     embedOrigins,
+    envelope,
+    keyed,
     voiceProvider,
   };
 }
@@ -81,14 +112,15 @@ function createCore(env: Env, overrides: ContainerOverrides) {
 type Core = ReturnType<typeof createCore>;
 
 /** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
-function createAssistants({ env, db, ai, configs, ticketDeps, voiceProvider }: Core) {
+function createAssistants({ env, db, ai, configs, ticketDeps, keyed }: Core) {
+  const voiceFor = (workspaceId: string) => keyed.voice(workspaceId);
   const draftLive = draftLiveUpdates();
   const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const assistant = createAssistantService({
     db,
     ai,
     configs,
-    voiceConfigured: voiceProvider !== null,
+    voiceConfigured: async (ws: string) => (await voiceFor(ws)) !== null,
   });
   const shared = { ...ticketDeps, assistant, drafts: ticketDrafts };
   return {
@@ -98,7 +130,7 @@ function createAssistants({ env, db, ai, configs, ticketDeps, voiceProvider }: C
     chat: createChatService(shared),
     voice: createVoiceService({
       ...shared,
-      provider: voiceProvider,
+      voiceFor,
       live: draftLive,
       voiceStyle: env.VOICE_STYLE,
     }),
@@ -121,10 +153,16 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     settings: createSettingsService({
       db: core.db,
       ai: core.ai,
-      voiceConfigured: core.voiceProvider !== null,
-      voices: core.voiceProvider?.voices ?? [],
+      voiceConfigured: async (ws: string) => (await core.keyed.voice(ws)) !== null,
+      voices: core.voiceProvider?.voices ?? ALL_VOICES,
       configs: core.configs,
       embedOrigins: core.embedOrigins,
+    }),
+    providerKeys: createProviderKeyService({
+      db: core.db,
+      envelope: core.envelope,
+      keyed: core.keyed,
+      providers: { AI: PROVIDER_CATALOG.map((p) => p.id), VOICE: VOICE_PROVIDER_IDS },
     }),
     books: createBooksService(core),
     conversations: createConversationService(core.db),

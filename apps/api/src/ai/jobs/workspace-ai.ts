@@ -2,6 +2,7 @@ import type { Db } from '../../platform/db.js';
 
 /** A workspace's own AI choices for ticket work; nulls mean the platform's defaults. */
 export interface WorkspaceAiChoices {
+  workspaceId?: string;
   triageModel: string | null;
   draftModel: string | null;
   toneGuide: string;
@@ -14,10 +15,12 @@ export async function workspaceAiFor(db: Db, ticketId: string): Promise<Workspac
   const t = await db.ticket.findUnique({
     where: { id: ticketId },
     select: {
+      workspaceId: true,
       workspace: {
         select: { settings: { select: { triageModel: true, draftModel: true, toneGuide: true } } },
       },
     },
   });
-  return t?.workspace.settings ?? NONE;
+  if (!t) return NONE;
+  return { ...(t.workspace.settings ?? NONE), workspaceId: t.workspaceId };
 }

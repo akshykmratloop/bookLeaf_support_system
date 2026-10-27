@@ -58,18 +58,20 @@ export interface EndedCall {
   ignorePhrases: string[];
   /** The workspace's chat message limit, for a call that joined a chat. */
   maxTurns: number;
+  /** The speech provider the call ran on. */
+  provider: { id: string; model: string };
 }
 
 /** Saves the transcript, the spoken-figure check and the AI run of a finished call. */
 export async function saveCallOutcome(
   deps: VoiceDeps,
-  { callId, outcome, maxTurns, ...ctx }: EndedCall,
+  { callId, outcome, maxTurns, provider, ...ctx }: EndedCall,
 ) {
   await finishCall(deps.db, {
     callId,
     maxTurns,
-    providerId: deps.provider?.id ?? 'unknown',
-    model: deps.provider?.model ?? 'unknown',
+    providerId: provider.id,
+    model: provider.model,
     outcome,
     ...ctx,
   });

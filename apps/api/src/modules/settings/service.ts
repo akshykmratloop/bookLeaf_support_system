@@ -28,7 +28,7 @@ import {
 export interface SettingsDeps {
   db: Db;
   ai: AiRuntime;
-  voiceConfigured: boolean;
+  voiceConfigured: (workspaceId: string) => Promise<boolean>;
   /** Voice names the platform's voice provider speaks with (empty without one). */
   voices: readonly string[];
   configs: WorkspaceConfigs;
@@ -70,7 +70,7 @@ export function createSettingsService(deps: SettingsDeps) {
       return {
         settings: toSettingsDto(row),
         models: (provider?.models ?? []).map((m) => ({ id: m.id, label: m.label, tier: m.tier })),
-        voiceConfigured: deps.voiceConfigured,
+        voiceConfigured: await deps.voiceConfigured(session.workspaceId),
         voices: [...deps.voices],
         aiConfigured: deps.ai.configuredProviders().includes(ai$.provider),
       };

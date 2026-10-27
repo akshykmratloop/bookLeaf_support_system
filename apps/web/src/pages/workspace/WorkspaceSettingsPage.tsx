@@ -7,6 +7,7 @@ import {
   VoiceSection,
   WidgetSection,
 } from '../../components/organisms/WorkspaceChannelSections';
+import { ProviderKeysSection } from '../../components/organisms/ProviderKeysSection';
 import { AiSection, type Patch } from '../../components/organisms/WorkspaceSettingsSections';
 import { errorMessage, isApiError } from '../../lib/api';
 import { useApiMutation } from '../../lib/queries';
@@ -35,6 +36,7 @@ function Sections({ status, reload }: { status: WorkspaceSettingsStatus; reload:
   return (
     <div className="grid max-w-[960px] gap-4">
       <AiSection {...props} />
+      <ProviderKeysSection />
       <ChatSection {...props} />
       <VoiceSection {...props} />
       <WidgetSection {...props} />

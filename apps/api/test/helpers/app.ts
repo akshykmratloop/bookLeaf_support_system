@@ -98,6 +98,8 @@ export interface Harness {
   aiCalls: StructuredRequest<unknown>[];
   /** Simulated speech-to-speech provider (null when created with { voice: false }). */
   voice: FakeVoiceProvider | null;
+  /** Each use of a workspace's own key, as `ai:<key>` (a model call) or `voice:<key>` (a client). */
+  ownKeyUses: string[];
   /** Admins sign in with a password; authors arrive from the host with a hand-over token. */
   login(email: string, password?: string): Promise<string>;
   /** Base URL of the running demo host. */
@@ -180,11 +182,21 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
   let handler: FakeHandler = defaultHandler;
   const provider = fakeProvider((req) => handler(req));
   const voice = opts.voice === false ? null : fakeVoiceProvider();
+  const ownKeyUses: string[] = [];
   const container = createContainer(env, {
     db,
     clock,
     providers: new Map([['anthropic', provider]]),
     voiceProvider: voice,
+    buildAi: (_id, key) =>
+      fakeProvider((req) => {
+        ownKeyUses.push(`ai:${key}`);
+        return handler(req);
+      }),
+    buildVoice: (_id, key) => {
+      ownKeyUses.push(`voice:${key}`);
+      return fakeVoiceProvider();
+    },
   });
   const app = await buildApp(container);
   await app.ready();
@@ -208,6 +220,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     worker,
     aiCalls: provider.calls,
     voice,
+    ownKeyUses,
     hostUrl,
     stopHost: () => host.close(),
     setAi: (h) => {
@@ -299,6 +312,7 @@ export async function deleteWorkspace(db: Db, slug: string): Promise<void> {
     db.customerField.deleteMany({ where: { workspaceId } }),
     db.workspaceSettings.deleteMany({ where: { workspaceId } }),
     db.workspaceApiKey.deleteMany({ where: { workspaceId } }),
+    db.workspaceProviderKey.deleteMany({ where: { workspaceId } }),
     db.user.deleteMany({ where: { workspaceId } }),
     db.workspace.delete({ where: { id: workspaceId } }),
   ]);

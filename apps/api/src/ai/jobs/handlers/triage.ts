@@ -64,8 +64,11 @@ async function applyDecision(
 
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
-    const { triageModel } = await workspaceAiFor(deps.db, job.ticketId);
-    const { provider, model } = await deps.ai.resolve('TRIAGE', triageModel);
+    const { triageModel, workspaceId } = await workspaceAiFor(deps.db, job.ticketId);
+    const { provider, model } = await deps.ai.resolve('TRIAGE', {
+      workspaceId,
+      preferred: triageModel,
+    });
     const ctx = await loadTicketContext(deps, job.ticketId);
     const meta = {
       ticketId: job.ticketId,

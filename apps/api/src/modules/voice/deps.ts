@@ -8,8 +8,8 @@ import type { TicketDeps } from '../tickets/deps.js';
 /** What the voice module needs from the rest of the app. */
 export interface VoiceDeps extends TicketDeps {
   assistant: AssistantService;
-  /** Null when no speech provider is configured: voice is then unavailable. */
-  provider: VoiceProvider | null;
+  /** The workspace's speech provider; null when it has none: voice is then unavailable. */
+  voiceFor: (workspaceId: string) => Promise<VoiceProvider | null>;
   drafts: TicketDraftService;
   live: DraftLiveUpdates;
   /** How the assistant speaks on calls (VOICE_STYLE). */

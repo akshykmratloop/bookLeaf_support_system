@@ -191,6 +191,11 @@ is the default workspace, seeded from the `HOST_*` env values. A product's sign-
 workspace with `iss`. Guide: `docs/integration.md` ("Many products on one support service");
 design and roadmap: `docs/saas/PLAN.md`. New env: `SECRETS_MASTER_KEY` (required in production).
 
+Each workspace's saved settings drive its own chat and voice: on/off switches, message and call
+limits, conversation length, models, tone notes for reply drafts, and the call voice. A workspace
+can also save its own AI and voice provider keys (encrypted; shown only by their last 4
+characters). With its own key it runs only on that key and never falls back to the platform's.
+
 ## Checks
 
 | Command | What it does |

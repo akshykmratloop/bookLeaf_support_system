@@ -190,6 +190,7 @@ model Workspace {
   settings      WorkspaceSettings?
   fields        CustomerField[]
   apiKeys       WorkspaceApiKey[]
+  providerKeys  WorkspaceProviderKey[]
 
   @@map("workspaces")
 }
@@ -671,4 +672,29 @@ model TicketDraft {
 
   @@index([authorId])
   @@map("ticket_drafts")
+}
+
+/// What a workspace's own provider key is for.
+enum ProviderCapability {
+  AI
+  VOICE
+}
+
+/// A workspace's own AI or voice provider key ("bring your own key"), envelope-encrypted.
+/// Without one, the workspace runs on the platform's key.
+model WorkspaceProviderKey {
+  id          String             @id @default(uuid()) @db.Uuid
+  workspaceId String             @map("workspace_id") @db.Uuid
+  capability  ProviderCapability
+  provider    String
+  keyEnc      String             @map("key_enc")
+  last4       String             @map("last4")
+  updatedById String?            @map("updated_by_id") @db.Uuid
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, capability])
+  @@map("workspace_provider_keys")
 }

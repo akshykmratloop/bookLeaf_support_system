@@ -76,7 +76,8 @@ function saver(callId: string, ctx: CallContext, deps: GatewayDeps) {
   return async (outcome: CallOutcome) => {
     try {
       const maxTurns = ctx.limits.chat.maxTurnsPerSession;
-      await deps.voice.finish(callId, outcome, { ...ctx, maxTurns });
+      const provider = { id: deps.provider.id, model: deps.provider.model };
+      await deps.voice.finish(callId, outcome, { ...ctx, maxTurns, provider });
     } catch (err) {
       deps.log.error({ err, callId }, 'failed to save voice call');
       await deps.voice.markFailed(callId);

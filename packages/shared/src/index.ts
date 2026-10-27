@@ -21,3 +21,4 @@ export * from './schemas/connectors.js';
 export * from './schemas/customer-fields.js';
 export * from './schemas/workspace-settings.js';
 export * from './schemas/api-keys.js';
+export * from './schemas/provider-keys.js';

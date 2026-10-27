@@ -10,8 +10,8 @@ export interface AssistantDeps {
   ai: AiRuntime;
   /** Each workspace's switches, limits and models. */
   configs: WorkspaceConfigs;
-  /** True when the server holds a credential for the realtime voice provider. */
-  voiceConfigured: boolean;
+  /** True when this workspace has a usable voice provider (its own key or the platform's). */
+  voiceConfigured: (workspaceId: string) => Promise<boolean>;
 }
 
 /**

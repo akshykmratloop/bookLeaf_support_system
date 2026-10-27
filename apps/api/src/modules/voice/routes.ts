@@ -33,7 +33,8 @@ const errors = {
 
 interface Opts {
   voice: VoiceService;
-  provider: VoiceProvider | null;
+  /** The workspace's speech provider; null when it has none. */
+  voiceFor: (workspaceId: string) => Promise<VoiceProvider | null>;
   appOrigin: string;
   now: () => Date;
 }
@@ -158,13 +159,14 @@ function registerStreamRoute(app: RouteApp, opts: Opts) {
           throw new ForbiddenError('Calls must start from the BookLeaf portal');
       },
     },
-    (socket, req) => {
-      const provider = opts.provider;
+    async (socket, req) => {
+      const session = sessionOf(req);
+      const provider = await opts.voiceFor(session.workspaceId);
       if (!provider) {
         socket.close(4503, 'voice unavailable');
         return;
       }
-      void bridgeCall(socket, sessionOf(req), req.params.id, {
+      void bridgeCall(socket, session, req.params.id, {
         voice,
         provider,
         log: req.log,

@@ -5,7 +5,7 @@ import type { Db } from '../../platform/db.js';
 import type { ConnectorDeps } from './deps.js';
 
 /** Builds the envelope from the master key(s) in env; null when none is configured. */
-function envelopeFromEnv(env: Env) {
+export function envelopeFromEnv(env: Env) {
   if (!env.SECRETS_MASTER_KEY) return null;
   const keys = [parseMasterKey(env.SECRETS_MASTER_KEY, 'k1')];
   if (env.SECRETS_MASTER_KEY_PREVIOUS)

@@ -21,8 +21,10 @@ export interface AiRuntime {
    */
   resolve(
     task: 'TRIAGE' | 'DRAFT',
-    preferred?: string | null,
+    choice?: { workspaceId?: string; preferred?: string | null },
   ): Promise<{ provider: LlmProvider; model: string }>;
+  /** The client a workspace uses for this provider: its own key's, else the platform's. */
+  providerFor(workspaceId: string, providerId: string): Promise<LlmProvider | undefined>;
   configuredProviders(): string[];
   providerById(id: string): LlmProvider | undefined;
 }
@@ -34,7 +36,10 @@ export function createAiRuntime(
   db: Db,
   providers: Map<string, LlmProvider>,
   now: () => Date,
+  ownProvider?: (workspaceId: string, providerId: string) => Promise<LlmProvider | undefined>,
 ): AiRuntime {
+  const providerFor = async (workspaceId: string, providerId: string) =>
+    ownProvider ? ownProvider(workspaceId, providerId) : providers.get(providerId);
   let cached: { row: AiSettingsRow; at: number } | null = null;
   const settings = async (): Promise<AiSettingsRow> => {
     const t = now().getTime();
@@ -48,10 +53,14 @@ export function createAiRuntime(
     invalidate: () => {
       cached = null;
     },
-    async resolve(task, preferred) {
+    providerFor,
+    async resolve(task, choice = {}) {
+      const { workspaceId, preferred } = choice;
       const s = await settings();
       if (s.simulateOutage) throw new AiOutageSimulatedError('AI outage simulation is switched on');
-      const provider = providers.get(s.provider);
+      const provider = workspaceId
+        ? await providerFor(workspaceId, s.provider)
+        : providers.get(s.provider);
       if (!provider)
         throw new AiNotConfiguredError(`Provider "${s.provider}" has no credentials configured`);
       const platform = task === 'TRIAGE' ? s.triageModel : s.draftModel;

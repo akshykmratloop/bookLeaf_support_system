@@ -51,8 +51,11 @@ async function saveDraft(job: ClaimedJob, deps: JobDeps, toSave: DraftToSave) {
 
 export const draftHandler: JobHandler = {
   async runAi(job, deps) {
-    const { draftModel, toneGuide } = await workspaceAiFor(deps.db, job.ticketId);
-    const { provider, model } = await deps.ai.resolve('DRAFT', draftModel);
+    const { draftModel, toneGuide, workspaceId } = await workspaceAiFor(deps.db, job.ticketId);
+    const { provider, model } = await deps.ai.resolve('DRAFT', {
+      workspaceId,
+      preferred: draftModel,
+    });
     const ctx = await loadTicketContext(deps, job.ticketId);
     const input = { ...draftInputFromContext(ctx), toneGuide };
     const meta = {

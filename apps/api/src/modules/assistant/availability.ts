@@ -27,7 +27,7 @@ export async function chatAccess(deps: AssistantDeps, workspaceId: string): Prom
   const { ai } = deps;
   const ai$ = await ai.settings();
   if (ai$.simulateOutage) return { ok: false, state: 'AI_OUTAGE' };
-  const provider = ai.providerById(ai$.provider);
+  const provider = await ai.providerFor(workspaceId, ai$.provider);
   if (!provider) return { ok: false, state: 'NOT_CONFIGURED' };
   const model = chatModelFor(ai$.provider, await wantedChatModel(deps, workspaceId));
   return { ok: true, provider, providerId: ai$.provider, model };
@@ -59,7 +59,10 @@ export async function availability(
       messagesPerMinute: limits.chat.messagesPerMinute,
       messagesPerDay: limits.chat.messagesPerDay,
     },
-    voice: { state: voiceState(cfg.voiceEnabled, deps.voiceConfigured), ...limits.voice },
+    voice: {
+      state: voiceState(cfg.voiceEnabled, await deps.voiceConfigured(workspaceId)),
+      ...limits.voice,
+    },
   };
 }
 
@@ -79,6 +82,6 @@ export async function adminStatus(
     settings: toSettingsDto(row, platform.chatModel),
     availability: await availability(deps, ws),
     chatModels: (provider?.models ?? []).map((m) => ({ id: m.id, label: m.label, tier: m.tier })),
-    voiceConfigured: deps.voiceConfigured,
+    voiceConfigured: await deps.voiceConfigured(ws),
   };
 }

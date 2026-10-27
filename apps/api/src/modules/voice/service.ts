@@ -27,7 +27,12 @@ export function createVoiceService(deps: VoiceDeps) {
     finish: (
       callId: string,
       outcome: CallOutcome,
-      ctx: { facts: Fact[]; ignorePhrases: string[]; maxTurns: number },
+      ctx: {
+        facts: Fact[];
+        ignorePhrases: string[];
+        maxTurns: number;
+        provider: { id: string; model: string };
+      },
     ) => saveCallOutcome(deps, { callId, outcome, ...ctx }),
     /** Last resort when saving the outcome failed: at least free the author's call slot. */
     markFailed: (callId: string) => repo.markCallFailed(deps.db, callId, deps.clock.now()),

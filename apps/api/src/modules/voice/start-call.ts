@@ -71,7 +71,7 @@ export async function startCall(
   await deps.assistant.requireVoiceEnabled(session.workspaceId);
   const { limits } = await deps.assistant.config(session.workspaceId);
   const authorId = authorIdOf(session);
-  const provider = deps.provider;
+  const provider = await deps.voiceFor(session.workspaceId);
   if (!provider) throw new VoiceUnavailableError();
   const now = deps.clock.now();
   const maxSeconds = limits.voice.maxCallSeconds;
