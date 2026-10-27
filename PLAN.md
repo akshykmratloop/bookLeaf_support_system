@@ -604,6 +604,11 @@ deployment, README, write-up.
 | 2026-10-27 | Host sign-in = short HS256 token (≤ 300 s, `aud: support`) in the URL fragment; admins stay local | No token in logs; a host can never create an admin |
 | 2026-10-27 | Store reference rows (id, name, email, item titles) and read facts live with a 60 s cache | Existing foreign keys keep working; no stale copies of money figures |
 | 2026-10-27 | Attach three ways: link, `embed.js` widget, Fastify `supportPlugin` | The user asked for both a widget and a backend plugin; the link needs no setup |
+| 2026-10-28 | Authors use support only through the widget inside the BookLeaf dashboard (Home, Ask, Tickets, History). The support app's "My Books" page is removed; books live on the host's dashboard | One place for books and figures; the module stays free of host screens |
+| 2026-10-28 | A call started from a chat **joins that chat**: it hears the chat, shares its ticket draft, and its lines are saved into it (`channel VOICE`, `callId`). Typed and spoken messages use **one** limit (`CHAT_MAX_TURNS_PER_SESSION`); a call ends with `TURN_LIMIT` after the last allowed answer | One conversation, one history entry, and no way to get extra messages by switching to voice |
+| 2026-10-28 | Default voice persona is warm **Hinglish** (`VOICE_STYLE=hinglish`); `english` stays available. Transcription language is automatic for Hinglish | Authors mix Hindi and English; forcing English transcription spelled Hindi words wrongly |
+| 2026-10-28 | The widget **follows the host's theme** (light/dark/auto): the frame is painted by `embed.js`, and the app inside is told by `#theme=` and a `bookleaf-support:theme` message. The choice is not saved in the app | The widget should look like part of the host page, and a visitor's own saved choice must not be overwritten |
+| 2026-10-28 | `embed.js` is revalidated on every page load | A fixed script name must not keep serving an old version from cache |
 ---
 
 ## 17. Unresolved questions
@@ -728,3 +733,14 @@ detached again. Full guide for a host: [`docs/integration.md`](docs/integration.
 | History | Read-only list of past chats and calls (`GET /conversations`, cursor paging) and a read-only view of each |
 | Domain pack | KB, categories, triage rules, templates, signals and fact ids are BookLeaf-specific and listed in the guide as the parts a new product replaces |
 | Not built | Webhooks to the host; dropping the now-unused book/author columns (a later expand → contract migration) |
+
+### 19.1 Author experience, call-in-chat and theme (2026-10-27 to 28)
+
+| Part | Design |
+| --- | --- |
+| Author app | The widget is the whole author app: `/embed` Home, `/embed/ask`, `/embed/tickets`, `/embed/history`. Old author paths redirect. Panel can expand to full screen inside the host page (no new tab) |
+| Host side | `apps/host-demo` also serves BookLeaf's dashboard API (`GET /api/dashboard`) and the built `apps/host-web` app. The dashboard adds the widget with one script tag |
+| Call in chat | `POST /voice/calls { chatSessionId }`. Shared conversation, ticket draft and message limit. Additive migration `20261028090000_call_in_chat` (`ChatChannel`, `chat_messages.channel` and `voice_session_id`, `voice_sessions.chat_session_id`, `VoiceEndReason.TURN_LIMIT`). See architecture §18 |
+| Voice persona | Hinglish (default) or English: `voice/call/persona.ts`, `persona-text.ts`. Architecture §19 |
+| Theme | `data-theme` on the script tag; frame and app follow the host. Architecture §20 |
+| Not built | A real call with a microphone has not been tested by a person (TASKS H.16, P.13) |

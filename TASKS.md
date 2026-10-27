@@ -193,6 +193,37 @@ Guide: `docs/integration.md`.
 
 ---
 
+## Phase 5 — Author experience, call in chat, theme and Hinglish voice · branch `feature/pluggable-support` (27–28 Oct)
+
+The widget became the author's whole support app, BookLeaf got its own dashboard and sign-in page,
+a call can be started from a chat and shares its conversation and limit, the widget follows the
+host's light or dark theme, and the voice speaks warm Hinglish by default. Not merged (your
+instruction). Guides: `docs/integration.md`, `docs/architecture.md` §17–§20.
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| P.1 | Widget: no "Full support" link inside the widget (the widget is the whole app) | ✅ | `d008a59` |
+| P.2 | Integration guide: host-down behaviour described as observed in the live run; phase 4 status recorded in this file | ✅ | `6849c6b` `c5a21cd` |
+| P.3 | Author history fixes: History lists real voice calls; "New conversation" always starts fresh; a ticket draft can be discarded | ✅ | `6b0b14e` `98f71f2` `d8b381e` |
+| P.4 | Requester view of a ticket for authors | ✅ | `8f2129a` |
+| P.5 | Support web: bright design tokens and atoms | ✅ | `89da12f` |
+| P.6 | The widget is the author's whole app (Home, Ask, Tickets, History); "My Books" page removed from the support app | ✅ | `278237e` |
+| P.7 | Redesign: Ask BookLeaf, then Tickets and History | ✅ | `95d26c8` `c248482` |
+| P.8 | BookLeaf host: dashboard API in `apps/host-demo` and the author dashboard `apps/host-web` | ✅ | `e568812` `cb9f3b8` |
+| P.9 | BookLeaf Publishing brand theme: support app, and the dashboard with its logo | ✅ | `0acc576` `e691480` |
+| P.10 | Interactive BookLeaf sign-in page with a page-turning book | ✅ | `a200bf1` |
+| P.11 | Widget script (`embed.js`) is revalidated on every page load | ✅ | `100a3fa` |
+| P.12 | Ticket box shown only when there is a ticket (no blank "Not sent" box) | ✅ | `a5c635f` |
+| P.13 | Call in chat, API: `POST /voice/calls { chatSessionId }`; shared conversation and ticket draft; lines saved as `channel VOICE`; additive migration `20261028090000_call_in_chat` (SQL read) | ✅ | `c14d0a7` |
+| P.14 | Call turn limit: spoken messages count against `CHAT_MAX_TURNS_PER_SESSION`; call ends with `TURN_LIMIT` after the last answer | ✅ | `02949fc` |
+| P.15 | Ask screen: talk or type in one conversation; limit card with "New conversation" | ✅ | `398a8fc` |
+| P.16 | Dark mode: widget frame, sign-in book, and the support app inside the widget follow the host theme | ✅ | `a4726eb` `0f0ca73` |
+| P.17 | Hinglish voice persona (default), `VOICE_STYLE`, automatic transcription language for Hinglish | ✅ | `1611217` |
+| P.18 | Docs brought up to date with this branch (README, integration guide, architecture, PLAN, TASKS) | ✅ | see `git log` (docs commit "author experience, call-in-chat, widget theme and voice persona") |
+| P.19 | A real Hinglish call with a microphone, in a chat, to the limit | ⛔ (you): needs a person speaking | |
+
+---
+
 ## P2 — Polish (lowest priority: only after Phase 2/3 are done or NO-GO)
 
 | # | Task | Status |

@@ -122,7 +122,9 @@ Return 404 for an unknown id. Otherwise return the JSON below. Support checks ev
 - **`facts`** are for the assistant. Each one has a type, a value and a `source`: a record field, a
   knowledge-base rule, a calculation, or `MISSING` when the host does not know. The AI may only state
   numbers and dates that appear in facts. The answer checker blocks anything else.
-- **`details`** are lines the customer sees on the *My Books* page, shown as they are.
+- **`details`** are display lines shown as they are. The support API returns them from
+  `GET /api/v1/books`. The support web app no longer has a *My Books* page, so the host shows its
+  own books and figures in its own pages (BookLeaf does this on its dashboard).
 - `items` are what the customer has with the host. For BookLeaf these are books. Tickets can point
   at one item.
 
@@ -141,8 +143,8 @@ The parts of the module written for BookLeaf look for these fact ids
 
 **If the host is slow or down:** support waits `HOST_TIMEOUT_MS`, never caches the failure, and the
 assistant receives one fact, `host.records_unavailable`. It then says it could not confirm the answer
-from the customer's records, does not guess, and offers to raise a ticket. *My Books* lists the item
-titles with "Details are not available right now". Tickets, chat and history keep working.
+from the customer's records, does not guess, and offers to raise a ticket. Tickets, chat and history
+keep working.
 
 ---
 
@@ -151,28 +153,122 @@ titles with "Details are not available right now". Tickets, chat and history kee
 ### a. A link (no setup)
 
 A button that calls your token endpoint and opens `{SUPPORT_URL}/auth/host#t={token}` in a new tab.
-This is what host-demo's *Open support in a new tab* button does (`apps/host-demo/public/page.js`).
+The route still exists in the support app. The BookLeaf dashboard itself uses the widget (b), not a
+link.
 
 ### b. The widget (one script tag)
 
 ```html
-<script src="{SUPPORT_URL}/embed.js" data-token-url="/support-token" defer></script>
+<script
+  src="{SUPPORT_URL}/embed.js"
+  data-token-url="/support-token"
+  data-theme="auto"
+  defer
+></script>
 ```
 
-- `data-token-url` is an endpoint on **your** origin. It answers `POST` (with your session cookie)
-  with `{ "token": "…" }`.
-- The script draws a *Help* button. Opening it asks your endpoint for a fresh token and shows
-  `{SUPPORT_URL}/embed#t={token}` in a panel. It also has *open in a new tab* and *close*.
-  `window.BookLeafSupport.open()` and `.close()` are there if you want your own button.
-- Set `HOST_ORIGINS` to your page origins. Then:
-  - only `/embed` may be framed, and only by those origins;
-  - `/embed.js` may be loaded from other sites;
-  - the session cookie becomes `SameSite=None; Secure; Partitioned`, so it works inside the iframe
-    and is kept separate from other sites. This applies to every session on that deployment,
-    including staff. To keep staff on `SameSite=Lax`, run a second deployment for staff without
-    `HOST_ORIGINS`.
+**Tag attributes** (read at the top of `apps/web/public/embed.js`):
+
+| Attribute | Required | Default | What it does |
+| --- | --- | --- | --- |
+| `data-token-url` | yes | none | An endpoint on **your** origin. It answers `POST` (with your session cookie) with `{ "token": "…" }`. Without it, the script throws an error |
+| `data-label` | no | `Help` | Text on the launcher button |
+| `data-title` | no | `BookLeaf Help` | Title in the panel header |
+| `data-theme` | no | `auto` | `light`, `dark` or `auto`. See "Theme" below. Any other value means `auto` |
+
+**What the script does**
+
+- It draws a launcher button (bottom right). Opening it asks `data-token-url` for a fresh token
+  and shows the support app in an iframe inside a panel, at `{SUPPORT_URL}/embed#t={token}&theme=…`.
+  The iframe is allowed to use the microphone (`allow="microphone"`), which voice needs.
+- The panel header has **Expand** and **Close**. Expand makes the panel fill the page (with a
+  margin of 24 px on wide screens, edge to edge on narrow ones) and dims the page behind it. The
+  user never leaves the host page and no new tab opens. The same button collapses it again. `Esc`
+  steps back: full screen, then the docked panel, then closed.
+- `window.BookLeafSupport` has `open()`, `close()`, `expand()` and `collapse()` if you want your
+  own buttons. `expand()` opens the panel first if it is closed.
+- Remove the tag and the widget is gone. Nothing else needs to be undone.
+
+**The token hand-over.** The token travels in the iframe address as `#t=…`, the URL fragment, so it
+is never sent to a server or logged. The support app reads it and exchanges it at
+`POST /api/v1/auth/host` for its own session cookie. A token works once (`jti`), so every time the
+panel opens, or the app asks to sign in again, the script fetches a new one.
+
+**Theme.** The frame follows the host page, in both directions of time:
+
+- `data-theme="light"` or `"dark"` fixes the theme. `auto` (the default) follows the host page:
+  class `dark` or `light` on `<html>`, or `data-theme="dark"` or `"light"` on `<html>`. If the page
+  says nothing, the visitor's system setting is used (`prefers-color-scheme`).
+- The script paints the launcher and the panel frame with that theme. It also passes it to the
+  support app in the frame address (`#theme=dark`), so the first paint is already right.
+- When the host switches theme later, a `MutationObserver` on `<html>` (and the system setting)
+  tells the frame with a `postMessage`: `{ type: "bookleaf-support:theme", theme: "light" | "dark" }`.
+  The frame is not reloaded. The support app accepts the message only from its parent window and
+  only the two values `light` and `dark`.
+
+**Messages from the frame to the host page.** The support app sends these with `postMessage`
+(`apps/web/src/lib/frame.ts`). They carry no secrets.
+
+| `type` | Extra field | Meaning | What `embed.js` does |
+| --- | --- | --- | --- |
+| `bookleaf-support:reauth` | `path` | The session ran out | Fetches a new token and reloads the frame on `path`. `path` must look like `/embed` or `/embed/...`, else `/embed` is used. At most 3 times per minute, then it shows "Please close help and open it again." |
+| `bookleaf-support:escape` | none | The user pressed `Esc` inside the frame | Steps back as above |
+| `bookleaf-support:expand` | none | Ask the host to go full screen | Calls `expand()` |
+| `bookleaf-support:close` | none | Ask the host to close the panel | Calls `close()` |
+
+`embed.js` accepts a message only when **both** are true: `event.origin` equals the support app's
+origin (taken from the script's own `src`), and `event.source` is the frame's own window. Anything
+else is ignored. Only types that start with `bookleaf-support:` are read.
+
+**Screens inside the frame.** Only these paths may be framed, and only by `HOST_ORIGINS`:
+
+| Path | Screen |
+| --- | --- |
+| `/embed` | Home |
+| `/embed/ask` | Ask: chat, with the voice button |
+| `/embed/tickets` · `/embed/tickets/new` · `/embed/tickets/:id` | Tickets, new ticket, one ticket |
+| `/embed/history` · `/embed/history/:kind/:id` | History, one past chat or call |
+
+**Server settings for the widget.** Set `HOST_ORIGINS` to your page origins (comma-separated). Then:
+
+- only `/embed` and the pages under it (`/embed/…`) may be framed, and only by those origins;
+- `/embed.js` may be loaded from other sites, and is revalidated on every page load, so a new
+  version reaches users without a hard refresh;
+- the session cookie becomes `SameSite=None; Secure; Partitioned`, so it works inside the iframe
+  and is kept separate from other sites. This applies to every session on that deployment,
+  including staff. To keep staff on `SameSite=Lax`, run a second deployment for staff without
+  `HOST_ORIGINS`.
 - Writes are still protected by the `Origin` check, which does not depend on cookie settings.
-- If a browser blocks the cookie in the iframe, *open in a new tab* still works.
+- If a browser blocks the cookie in the iframe, open `{SUPPORT_URL}/auth/host#t={token}` in a new
+  tab instead (link, option a).
+
+#### Voice calls from the widget
+
+The chat box in **Ask** has a voice button. The call is part of the conversation in the chat. The
+browser starts it with:
+
+```
+POST /api/v1/voice/calls
+{ "resume": false, "chatSessionId": "<uuid>" }     // both fields optional
+```
+
+- Without `chatSessionId`, the call is a separate thread. `resume: true` continues the author's last
+  dropped call (within 60 minutes, same conversation and ticket draft).
+- With `chatSessionId`, the call **joins that chat**. It hears the chat so far, shares the chat's
+  ticket draft, and when it ends its lines are saved into the chat as messages with
+  `channel: "VOICE"` and the `callId` of the call. Typed messages have `channel: "CHAT"`. In
+  History the call appears inside the chat, not as a second conversation. `resume` is ignored when
+  `chatSessionId` is given.
+- `404` if the chat does not exist or belongs to another author.
+- `409` with code `CHAT_TURN_LIMIT` if the chat has already used all its messages.
+- **One limit for both.** Each question the author speaks counts as one message, like a typed one.
+  `CHAT_MAX_TURNS_PER_SESSION` (default 30) is the limit. When the author speaks the last allowed
+  question, the assistant still answers it, says a short goodbye, and the call ends with reason
+  `TURN_LIMIT`. If the answer takes more than 25 seconds the call is ended anyway. The chat box
+  then becomes a card with **New conversation**.
+- Other errors: `503 VOICE_UNAVAILABLE` (voice off or no key), `429` (calls per hour or per day).
+- The audio then runs over a WebSocket at the `socketPath` the response returns. The response is
+  `{ id, socketPath, maxSeconds, connectWithinSeconds }`.
 
 ### c. Inside a Node (Fastify) server
 

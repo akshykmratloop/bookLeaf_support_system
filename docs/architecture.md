@@ -514,7 +514,7 @@ sequenceDiagram
 | Way to attach | What the host adds | What support does |
 | --- | --- | --- |
 | Link | A button that opens `/auth/host#t=…` | Normal session cookie (`SameSite=Lax`) |
-| Widget | `<script src="…/embed.js" data-token-url="/support-token">` | With `HOST_ORIGINS` set: `frame-ancestors` only on `/embed`, cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned` |
+| Widget | `<script src="…/embed.js" data-token-url="/support-token">` | With `HOST_ORIGINS` set: `frame-ancestors` only on `/embed` and `/embed/…`, cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned` |
 | Fastify plugin | `app.register(supportPlugin, { prefix: '/support', env })` | Everything under the prefix, encapsulated: headers, cookies, rate limits, errors, worker. Under a prefix it serves the API only; the web app needs the root of an origin |
 
 The CSRF `Origin` check is the same in every mode, so a host page can frame support but cannot post
@@ -530,3 +530,133 @@ It pages with a `(createdAt, id)` cursor, so rows created in the same millisecon
 or repeated. Each row shows the date, a title (the ticket draft's subject, otherwise the first thing
 the author said), the message count and the ticket it led to. `GET /conversations/chats/:id` and
 `/conversations/calls/:id` return a read-only transcript. Another author's conversation is a 404.
+
+---
+
+## 17. Author screens in the widget (`apps/web`)
+
+The author side of the support app lives under `/embed` and is meant to be framed by the host. There
+is no standalone author app. Staff screens (`/login`, `/admin`, `/admin/ai`, `/admin/assistant`) are
+normal pages. Old author paths (`/books`, `/assistant`, `/tickets`, `/history`) redirect to the
+matching `/embed` screen. The books page was removed: books live on the host's own dashboard.
+
+The Ask screen is built from small parts:
+
+```text
+AssistantPage
+└── ChatPanel                       organisms/ChatPanel.tsx   the conversation and its state
+    ├── ChatThread                  typed and spoken lines, saved thread + live call lines
+    │   └── uses lib/callGroups.ts  groups lines into "Call · N min" dividers
+    └── ChatFooter                  the bottom of the screen: one of three things
+        ├── ChatComposer            type, or press the voice button
+        ├── ChatCallBar             while a call is live (waveform, mute, hang up, timer)
+        └── LimitReached            the message limit card with "New conversation"
+```
+
+| File | Job |
+| --- | --- |
+| `lib/callGroups.ts` | Turns a list of messages into thread items. A message that has a `callId` belongs to a call. Lines of one call get one divider that shows the minutes between its first and last line (at least 1) |
+| `lib/voice/liveLines.ts` | Chooses which live call lines to show. Lines of the current call show until the saved chat contains a message with that `callId` (the server saves them when the call ends), so nothing shows twice or disappears |
+| `lib/useCallInChat.ts` | Starts a call inside the current chat. If there is no chat yet, it starts one first, then calls `POST /voice/calls` with its `chatSessionId` |
+| `lib/ticketVisibility.ts` | The ticket box shows only when there is something to show (a draft with content, one awaiting confirmation, one sent, or one the author opened). A blank "Not sent" box is never shown |
+
+`ChatFooter` counts the limit as saved turns plus queued messages. When the count reaches
+`maxTurns`, the composer is replaced by `LimitReached`. `maxTurns` comes from the server with the
+chat session.
+
+---
+
+## 18. Calls inside a chat
+
+A call can be started from a chat. It then shares that chat's conversation, its ticket draft and its
+message limit. This is the only way the Ask screen starts a call.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Author
+    participant UI as Ask screen
+    participant API as Voice service
+    participant DB as Database
+    participant C as Call controller
+
+    A->>UI: press the voice button
+    UI->>API: POST /voice/calls { chatSessionId }
+    API->>DB: joinableChat: own chat? turns left? (404 / 409 CHAT_TURN_LIMIT)
+    API->>DB: voice_sessions row with chat_session_id
+    UI->>C: WebSocket stream
+    C->>C: instructions = facts + chat so far (chatLines) + chat's ticket draft
+    loop each spoken question
+        C->>C: countAuthorTurn (turn-limit.ts)
+    end
+    C->>API: call ended
+    API->>DB: saveIntoChat: lines become chat_messages (channel VOICE, voice_session_id), turn_count += author lines
+```
+
+**Modules**
+
+| File | Job |
+| --- | --- |
+| `modules/voice/chat-link.ts` | `joinableChat` (the author's own chat with turns left, else 404 or 409), `chatLines` (the chat so far, typed and spoken, as call lines), `turnsLeft` (turns the chat has left, or null when the call is not in a chat), `saveIntoChat` (writes the call's lines into the chat when it ends and adds the author's lines to `turn_count`) |
+| `voice/call/turn-limit.ts` | `countAuthorTurn` counts spoken author lines against the turns left. On the last allowed one it arms the limit: the answer is still given, then `sayLimitGoodbye` speaks the goodbye and ends the call with reason `TURN_LIMIT`. A 25 second timer ends the call anyway if that does not finish |
+| `modules/voice/start-call.ts` · `call-setup.ts` | A call in a chat is always a new thread (`resume` is ignored): the chat already holds the earlier conversation. Starting is one transaction under an author lock |
+| `modules/chat/limit.ts` | The one `CHAT_TURN_LIMIT` (409) error used by chat and by starting a call |
+
+**Data** (migration `20261028090000_call_in_chat`, additive only)
+
+| Change | Detail |
+| --- | --- |
+| `ChatChannel` enum | `CHAT`, `VOICE` |
+| `chat_messages.channel` | `NOT NULL DEFAULT 'CHAT'` (existing rows become `CHAT` with no rewrite problem) |
+| `chat_messages.voice_session_id` | Nullable UUID, foreign key to `voice_sessions`, `ON DELETE SET NULL` |
+| `voice_sessions.chat_session_id` | Nullable UUID, foreign key to `chat_sessions`, `ON DELETE SET NULL`, with an index |
+| `VoiceEndReason.TURN_LIMIT` | New enum value: the conversation reached its message limit during the call |
+
+**History.** A call that has a `chat_session_id` is not listed again on its own: it appears inside
+its chat (`modules/conversations/calls.ts` skips calls with a chat).
+
+**One limit.** `chat_sessions.turn_count` is shared. A typed message adds 1. Each author line from
+a call adds 1 when the call is saved. At the start of a call, `turnsLeft` is computed from the same
+count, so a call cannot give an author more messages than a chat would.
+
+---
+
+## 19. Voice persona
+
+`voice/call/persona.ts` and `persona-text.ts` decide how the assistant sounds. `instructions.ts`
+adds the facts rules on top.
+
+- `VOICE_STYLE` is `hinglish` (default) or `english` (`config/voice.ts`).
+- `persona-text.ts` holds two persona texts, `HINGLISH_PERSONA` and `ENGLISH_PERSONA`. Each has
+  sections: personality, language, emotion and tone, pacing, fillers, variety and unclear audio
+  (the structure OpenAI recommends for realtime prompts). The Hinglish persona is warm and polite:
+  it uses "aap" and "ji", mirrors the author's mix of Hindi and English, and says amounts, dates and
+  ids in English words exactly as in the verified facts.
+- `persona.ts` also holds the fixed spoken lines per style: the greeting (three kinds: new,
+  resumed, and "chat" for a call that joins a chat), the 30 second time warning, and the goodbye
+  for the message limit. The greeting is fixed text with the author's first name, because a
+  free-form greeting once said "Hi, Author".
+- **Transcription language.** `transcriptionLanguage(style)` returns `null` for Hinglish, so the
+  speech service detects the language itself and does not force Hindi words into English
+  spellings. For `english` it returns `"en"`.
+
+---
+
+## 20. Widget theme
+
+The widget follows the host page's light or dark theme. There are two parts.
+
+1. **The frame around the app** (`apps/web/public/embed.js`). `currentTheme()` picks the theme from
+   the tag's `data-theme` (`light`, `dark`, or `auto`). In `auto` it reads `<html>` (class `dark`
+   or `light`, or `data-theme`), else `prefers-color-scheme`. `paint()` sets CSS variables
+   (`--bl-panel`, `--bl-bg`, `--bl-line`, `--bl-ink`, …) on the launcher and the panel. A
+   `MutationObserver` on `<html>` and the system setting call `repaint()`.
+2. **The app inside the frame** (`apps/web/src/lib/hostTheme.ts`, called from `main.tsx` when the
+   page is framed). `embed.js` puts the theme in the frame address (`#t=…&theme=dark`) and sends
+   `{ type: "bookleaf-support:theme", theme }` to the frame on every change. `followHostTheme`
+   reads the address first, then listens for messages, accepting only the parent window and only
+   `light` or `dark`. It calls `showTheme`, which restyles the app **without saving** the choice, so
+   a visitor's own saved theme for the standalone app is not overwritten.
+
+Colours in `embed.js` are kept equal to the support app's tokens (`apps/web/src/styles/tokens.css`).
+

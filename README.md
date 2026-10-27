@@ -2,8 +2,8 @@
 
 A support module for authors, which BookLeaf (or any product) can attach to its own platform.
 
-- **Authors** raise tickets, chat with an assistant, call it by voice, and read their past
-  conversations.
+- **Authors** use a help widget inside the BookLeaf dashboard. They raise tickets, chat with an
+  assistant, talk to it by voice in the same conversation, and read their past conversations.
 - **Support staff** get every ticket already classified and prioritised, with a reply drafted from
   the author's real records. A person always reviews and sends the reply.
 
@@ -21,9 +21,10 @@ BookLeaf's product.
 
 ```text
 apps/api/         the support module: tickets, AI, chat, voice, history (Fastify + Prisma)
-apps/web/         the support web app (React), including /embed and public/embed.js
-apps/host-demo/   a stand-in BookLeaf product: authors, books, royalty facts, login
-packages/shared/  Zod contracts used by all three, including the host contract
+apps/web/         the support web app (React): staff admin, the author screens under /embed, and public/embed.js
+apps/host-demo/   a stand-in BookLeaf product server: authors, books, royalty facts, login, dashboard API
+apps/host-web/    the BookLeaf author dashboard (React). host-demo serves its built files
+packages/shared/  Zod contracts used by all of them, including the host contract
 ```
 
 ## Run locally
@@ -33,13 +34,72 @@ Requirements: Node 22+, pnpm 12 (`corepack enable`), Docker (for Postgres).
 ```bash
 cp .env.example .env    # set JWT_SECRET, HOST_API_KEY, HOST_SIGNING_SECRET (openssl rand -base64 48)
 pnpm install
-pnpm db:up              # Postgres 16 on localhost:5433
+pnpm db:up              # Postgres 16 on localhost:5433 (docker compose)
 pnpm db:migrate         # prisma migrate deploy
 pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
-pnpm dev                # support API :3000 · support web :5173 · host-demo :3200
+pnpm dev                # runs the four apps below in watch mode
 ```
 
-`ANTHROPIC_API_KEY` (triage, drafts, chat) and `OPENAI_API_KEY` (voice) are optional:
+### Ports
+
+| What | Port | Notes |
+| --- | --- | --- |
+| Postgres | 5433 | `docker-compose.yml`; the container listens on 5432 |
+| Support app + API | **3300** | `pnpm build && pnpm start`: one Node process. The API serves the built web app (`apps/web/dist`) |
+| BookLeaf host demo | **3400** | `pnpm host:build && pnpm host:start`. It serves the built author dashboard (`apps/host-web/dist`) and BookLeaf's own API |
+
+3300 and 3400 are the ports used in the verified runs. They are set in `.env`; the code defaults
+are different (`PORT` 3000, `HOST_DEMO_PORT` 3200). To run on 3300 and 3400, set:
+
+```text
+PORT=3300                          APP_ORIGIN=http://localhost:3300
+WEB_DIST_DIR=../web/dist           SUPPORT_URL=http://localhost:3300
+HOST_DEMO_PORT=3400                HOST_API_URL=http://localhost:3400
+HOST_SIGN_IN_URL=http://localhost:3400
+HOST_ORIGINS=http://localhost:3400
+```
+
+`HOST_ORIGINS` must list the BookLeaf page origin, or the browser will not show the widget in a frame.
+
+`pnpm dev` is the watch-mode alternative. It starts the API (code default port 3000), the support
+web dev server (5173, proxies `/api` to the API), the host demo (3200) and the dashboard dev server
+(5174, proxies to the host demo). In that mode set `APP_ORIGIN=http://localhost:5173` and
+`SUPPORT_URL=http://localhost:5173`, as `.env.example` does, set `HOST_ORIGINS=http://localhost:5174`,
+and open BookLeaf at http://localhost:5174.
+
+### Root scripts
+
+| Script | What it does |
+| --- | --- |
+| `pnpm dev` | API, support web, host demo and dashboard in watch mode |
+| `pnpm build` | Builds the support web app, then the API |
+| `pnpm start` | Starts the built API (and the web app it serves) |
+| `pnpm host:build` | Builds the author dashboard (`apps/host-web`) |
+| `pnpm host:start` | Starts the BookLeaf host demo |
+| `pnpm db:up` · `db:migrate` · `db:seed` | Postgres in Docker · apply migrations · seed staff accounts and AI settings |
+| `pnpm typecheck` · `lint` · `format:check` · `test` · `eval` | Checks (see below) |
+
+### Important settings
+
+All settings are in `.env.example`, grouped by file in `apps/api/src/config/`. No real secret is
+stored in the repo. The ones you will most likely change:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `JWT_SECRET` | none | Signs the session cookie. At least 32 random characters |
+| `HOST_API_KEY` · `HOST_SIGNING_SECRET` | none | Shared with the host product. Generate each with `openssl rand -base64 48` |
+| `ANTHROPIC_API_KEY` | empty | Triage, reply drafts and chat. Empty means the rule-based fallback |
+| `OPENAI_API_KEY` | empty | Voice. Empty means voice is unavailable |
+| `CHAT_MAX_TURNS_PER_SESSION` | `30` | Messages the author can send in one conversation. Typed and spoken messages both count |
+| `VOICE_STYLE` | `hinglish` | How the voice assistant speaks: `hinglish` or `english` |
+| `VOICE_NAME` | `marin` | Voice used on calls |
+| `VOICE_MODEL` | `gpt-realtime-2.1` | Speech model |
+| `VOICE_MAX_CALL_SECONDS` | `300` | Longest call. Allowed range 30 to 300 |
+| `VOICE_CALLS_PER_HOUR` · `VOICE_CALLS_PER_DAY` | `5` · `10` | Calls per author |
+| `HOST_ORIGINS` | empty | Page origins allowed to frame the widget. Empty turns embed mode off |
+| `SEED_ADMIN_PASSWORD` · `HOST_DEMO_PASSWORD` | demo values below | Demo passwords for staff and for the host demo's authors |
+
+`ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are optional:
 
 - Without the Anthropic key, tickets use the rule-based fallback, and chat offers a ticket instead
   of answering.
@@ -49,45 +109,84 @@ Everything else works without keys.
 
 ## Demo accounts
 
+These are documented demo values for local use only. Change them for any real deployment.
+
 | Who | Where to sign in | Email | Password |
 | --- | --- | --- | --- |
-| Priya Sharma (author) | host-demo, http://localhost:3200 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
-| Arjun Malhotra (author) | host-demo | `arjun.malhotra@email.com` | same |
-| Kavita Deshmukh (author) | host-demo | `kavita.deshmukh@email.com` | same |
-| Neha Verma (support) | support, http://localhost:5173/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
-| Karan Mehta (support) | support | `ops2@bookleaf.demo` | same |
+| Priya Sharma (author) | BookLeaf dashboard, http://localhost:3400 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
+| Arjun Malhotra (author) | BookLeaf dashboard | `arjun.malhotra@email.com` | same |
+| Kavita Deshmukh (author) | BookLeaf dashboard | `kavita.deshmukh@email.com` | same |
+| Neha Verma (support staff, admin) | support app, http://localhost:3300/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
+| Karan Mehta (support staff) | support app | `ops2@bookleaf.demo` | same |
 
-Authors sign in to the **product**, not to support. Every author in
-`apps/host-demo/src/data/sample-data.json` can sign in. These are demo-only passwords; change them
-for any real deployment.
+Authors sign in to the **BookLeaf dashboard**, not to the support app. Every author in
+`apps/host-demo/src/data/sample-data.json` can sign in.
 
 - Priya: BK001 has ₹3,570 pending; BK002 has nothing pending.
 - Arjun: ₹2,464 pending and no payout ever recorded ("possibly overdue").
 - Kavita: ₹850 in total, below the ₹1,000 threshold; one book is still in typesetting.
 
+## Where things are
+
+**Authors** use the help widget inside the BookLeaf dashboard. The **Help** button (bottom right)
+opens a panel. It has four tabs:
+
+| Tab | What it is |
+| --- | --- |
+| Home | Greeting and shortcuts |
+| Ask | Chat with the assistant. The chat box has a voice button: the author can talk or type in the same conversation |
+| Tickets | Their tickets and replies, and a new-ticket form |
+| History | Past chats and calls, read-only |
+
+The panel can be expanded to full screen inside the page. It follows the dashboard's light or dark
+theme. There is no separate "My Books" page in the support app any more: books and royalty figures
+are on the BookLeaf dashboard itself. (The old addresses `/books`, `/assistant`, `/tickets` and
+`/history` redirect to the matching `/embed` screen.)
+
+**Message limit.** One conversation allows `CHAT_MAX_TURNS_PER_SESSION` author messages (default
+30). Typed and spoken messages both use up the limit. When it is reached, the chat box turns into a
+card with a **New conversation** button. The old conversation stays in History.
+
+**Voice.** The voice button starts a call inside the current conversation. The call hears the chat
+so far, and what is said is saved into the chat. `VOICE_STYLE=hinglish` (default) is a warm,
+polite mix of Hindi and English that follows the author's language. `VOICE_STYLE=english` is plain
+English. Calls last at most `VOICE_MAX_CALL_SECONDS` (300).
+
+**Support staff** sign in at `/login` on the support app, then use:
+
+| URL | What it is |
+| --- | --- |
+| `/admin` | Ticket queue (open a ticket to review and send the reply) |
+| `/admin/ai` | AI settings, including the outage switch |
+| `/admin/assistant` | Switch chat and voice on or off for authors |
+
 ## What to try
 
-1. **Sign in as Kavita on host-demo** (:3200). Click **Help** (the widget), or **Open support in a
-   new tab**. You are signed in to support without a second password.
+1. **Sign in as Kavita on the BookLeaf dashboard** (:3400). Click **Help**, or the "Get help"
+   button on the dashboard. You are signed in to support without a second password.
 2. **Ask the assistant** "When will I get my royalty?". It answers from Kavita's facts (₹850 is
    below the ₹1,000 threshold and rolls over) and shows which facts it used. Ask it to raise a
    ticket; it fills a draft that Kavita confirms.
-3. **Support side** (another browser or a private window): sign in as Neha. The ticket is in the
-   queue within seconds, classified *Royalty & Payments*. Open it: the reply draft and the evidence
-   for every figure are there. Edit and send; Kavita's page updates without a refresh.
+3. **Support side** (another browser or a private window): sign in as Neha at :3300/login. The
+   ticket is in the queue within seconds, classified *Royalty & Payments*. Open it: the reply draft
+   and the evidence for every figure are there. Edit and send; Kavita's widget updates without a
+   refresh.
 4. Try sending a reply with an invented amount (for example "₹9,999"). It is blocked, and the
    reason is shown.
-5. **History** (author menu): every past chat and call, newest first, read-only.
-6. **Detach:** stop host-demo. Support keeps working. The assistant says it could not confirm the
-   answer and offers a ticket instead of guessing, and *My Books* shows "Details are not available
-   right now".
+5. **Talk instead of typing.** In **Ask**, press the voice button (needs `OPENAI_API_KEY` and a
+   microphone). Speak, hang up, then read the conversation: your spoken lines are in the same
+   thread, marked as a call. **History** shows it as one conversation.
+6. **Theme.** Switch the dashboard to dark mode. The widget panel and the support app inside it
+   switch too.
+7. **Detach:** stop the host demo. Support keeps working. The assistant says it could not confirm
+   the answer and offers a ticket instead of guessing.
 
 ## Checks
 
 | Command | What it does |
 | --- | --- |
 | `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | Static checks. ESLint also enforces the boundaries and size limits (files ≤ 200 lines, functions ≤ 40, complexity ≤ 10) |
-| `pnpm test` | API: 261 tests (unit, plus integration on a real Postgres via testcontainers, with host-demo running as a real HTTP host) · web: 29 · host-demo: 21 |
+| `pnpm test` | Unit tests in every app, plus API integration tests on a real Postgres via testcontainers (host-demo runs as a real HTTP host). Needs Docker |
 | `pnpm build && pnpm start` | Production build: one Node process serves the API and the built web app |
 | `pnpm eval` | Live triage evaluation → `docs/eval-results.md` (needs the Anthropic key; costs cents) |
 
@@ -137,7 +236,7 @@ Full schemas are in Swagger at `/api/docs`.
 | Reply drafts | `GET /tickets/:id/draft` · `POST …/draft/regenerate` · `POST …/check` · `POST …/ai/retry` | staff |
 | Chat | `GET /chat/sessions/current` · `POST /chat/sessions` · `GET /chat/sessions/:id` · `POST …/messages` | author |
 | Ticket drafts | `GET /ticket-drafts/chat/:sessionId` · `PATCH /ticket-drafts/:id` · `POST …/submit` · `POST …/discard` | author |
-| Voice | `POST /voice/calls` · `GET /voice/calls/resumable` · `GET /voice/calls/:id` · WebSocket `…/stream` | author |
+| Voice | `POST /voice/calls` (optionally inside a chat) · `GET /voice/calls/resumable` · `GET /voice/calls/:id` · WebSocket `…/stream` | author |
 | History | `GET /conversations` · `GET /conversations/chats/:id` · `GET /conversations/calls/:id` | author |
 | Live updates | `GET /events` (Server-Sent Events, hints only) | signed in |
 | Settings | `/admin/ai/*` · `/admin/assistant/*` · `GET /assistant/availability` | staff |
