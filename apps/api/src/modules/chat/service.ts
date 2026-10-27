@@ -18,7 +18,7 @@ export function createChatService(deps: ChatDeps) {
     current: (s: Session) => currentChat(deps, s),
     start: (s: Session) => startChat(deps, s),
     get: (s: Session, id: string) => getChat(deps, s, id),
-    transcript: (id: string) => chatTranscript(deps, id),
+    transcript: (s: Session, id: string) => chatTranscript(deps, s, id),
     send: (s: Session, id: string, body: string) => sendMessage(ctx, s, { chatId: id, body }),
     raiseTicket: (
       s: Session,

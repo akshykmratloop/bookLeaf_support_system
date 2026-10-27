@@ -54,6 +54,7 @@ export async function solveTicket(
   deps.events.publish({
     type: 'ticket.status_changed',
     ticketId: id,
+    workspaceId: current.workspaceId,
     authorId: current.authorId,
     authorVisible: true,
   });

@@ -137,7 +137,7 @@ function registerAdminRoutes(app: RouteApp, { voice }: Opts) {
         response: { 200: AdminVoiceCallSchema, ...errors },
       },
     },
-    async (req) => voice.adminGet(req.params.id),
+    async (req) => voice.adminGet(sessionOf(req), req.params.id),
   );
 }
 

@@ -38,7 +38,7 @@ export function createVoiceService(deps: VoiceDeps) {
     markFailed: (callId: string) => repo.markCallFailed(deps.db, callId, deps.clock.now()),
     isVoiceStillOn: async (s: Session) => (await deps.assistant.config(s.workspaceId)).voiceEnabled,
     get: (s: Session, id: string) => getCall(deps, s, id),
-    adminGet: (id: string) => adminGetCall(deps, id),
+    adminGet: (s: Session, id: string) => adminGetCall(deps, s, id),
     raiseTicket: (s: Session, id: string, ticket: TicketInput, key: string | null) =>
       raiseCallTicket(deps, s, { callId: id, ticket, idempotencyKey: key }),
   };

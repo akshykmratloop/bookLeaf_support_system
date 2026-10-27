@@ -50,6 +50,7 @@ export async function regenerateDraft(
   deps.events.publish({
     type: 'ticket.updated',
     ticketId,
+    workspaceId: ticket.workspaceId,
     authorId: ticket.authorId,
     authorVisible: false,
   });

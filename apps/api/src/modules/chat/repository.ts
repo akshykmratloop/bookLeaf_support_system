@@ -14,8 +14,12 @@ export async function findOwnSession(db: Db, id: string, authorId: string) {
   return s;
 }
 
-export async function findSessionById(db: Db, id: string) {
-  const s = await db.chatSession.findUnique({ where: { id }, include: SESSION_INCLUDE });
+/** A session in this workspace; another workspace's session is reported as "not found". */
+export async function findWorkspaceSession(db: Db, id: string, workspaceId: string) {
+  const s = await db.chatSession.findFirst({
+    where: { id, workspaceId },
+    include: SESSION_INCLUDE,
+  });
   if (!s) throw new NotFoundError('Chat session');
   return s;
 }

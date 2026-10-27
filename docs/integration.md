@@ -311,6 +311,12 @@ everything in **Workspace settings** (admin area) instead of env:
 | Provider Keys | the workspace's own AI and voice provider keys (write-only, last 4 shown) | `/api/v1/workspace/provider-keys` |
 | Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed`; signing secret shown once; test delivery; last 20 deliveries | `/api/v1/workspace/webhooks` |
 
+**Platform settings stay with the platform operator.** The platform AI provider, its models and
+the outage switch (`/admin/ai/*`) apply to every workspace, so only admins of the default workspace
+can see or change them; other workspaces get 403 and choose their own models in Workspace
+Settings. Every admin read is limited to the admin's own workspace: chat transcripts, call
+transcripts, tickets, and the live event stream.
+
 Secrets are encrypted at rest (AES-256-GCM under the server's `SECRETS_MASTER_KEY`) and never
 returned; the screens show a last-4 hint only.
 

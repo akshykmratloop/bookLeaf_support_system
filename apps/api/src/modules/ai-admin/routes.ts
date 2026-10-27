@@ -7,10 +7,23 @@ import {
   ProblemSchema,
   UpdateAiSettingsSchema,
 } from '@bookleaf/shared';
+import type { FastifyRequest } from 'fastify';
+import { ForbiddenError } from '../../platform/errors.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
+import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 import type { AiAdminService } from './service.js';
 
 const ADMIN = { roles: ['ADMIN'] as const };
+
+/**
+ * The platform's AI provider, models and outage switch apply to every workspace, so only the
+ * platform operator (an admin of the default workspace) may see or change them. Other
+ * workspaces choose their own models in their workspace settings.
+ */
+async function platformOperatorOnly(req: FastifyRequest) {
+  if (sessionOf(req).workspaceId !== DEFAULT_WORKSPACE_ID)
+    throw new ForbiddenError('Platform AI settings are managed by the platform operator');
+}
 interface Deps {
   aiAdmin: AiAdminService;
 }
@@ -76,6 +89,7 @@ function registerChangeRoutes(app: RouteApp, { aiAdmin }: Deps) {
 }
 
 export const aiAdminRoutes: FastifyPluginAsyncZod<Deps> = async (app, deps) => {
+  app.addHook('preHandler', platformOperatorOnly);
   registerReadRoutes(app, deps);
   registerChangeRoutes(app, deps);
 };

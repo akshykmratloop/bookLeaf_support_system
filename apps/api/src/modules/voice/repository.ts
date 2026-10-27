@@ -15,8 +15,9 @@ export async function findOwnCall(db: Db, id: string, authorId: string) {
   return c;
 }
 
-export async function findCall(db: Db, id: string) {
-  const c = await db.voiceSession.findUnique({ where: { id }, include: WITH_TICKET });
+/** A call in this workspace; another workspace's call is reported as "not found". */
+export async function findWorkspaceCall(db: Db, id: string, workspaceId: string) {
+  const c = await db.voiceSession.findFirst({ where: { id, workspaceId }, include: WITH_TICKET });
   if (!c) throw new NotFoundError('Voice call');
   return c;
 }

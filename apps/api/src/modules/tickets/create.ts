@@ -163,7 +163,13 @@ export async function createTicket(
   });
   try {
     const id = await insertTicket(deps, data, origin);
-    deps.events.publish({ type: 'ticket.created', ticketId: id, authorId, authorVisible: true });
+    deps.events.publish({
+      type: 'ticket.created',
+      ticketId: id,
+      workspaceId: session.workspaceId,
+      authorId,
+      authorVisible: true,
+    });
     return { ticket: await getAuthorTicket(deps, session, id), created: true };
   } catch (err) {
     return replayOrThrow(deps, session, idempotencyKey, err);

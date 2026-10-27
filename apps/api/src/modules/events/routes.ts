@@ -6,8 +6,12 @@ import { SESSION_COOKIE, type Session, type SessionCodec } from '../auth/session
 
 const HEARTBEAT_MS = 25_000;
 
-/** Authors receive only author-visible events for their own tickets; admins receive everything. */
+/**
+ * Only the ticket's own workspace hears about it. There, admins receive everything and authors
+ * only author-visible events for their own tickets.
+ */
 export function canSee(session: Session, e: TicketEvent): boolean {
+  if (e.workspaceId !== session.workspaceId) return false;
   return session.role === 'ADMIN' || (e.authorVisible && e.authorId === session.authorId);
 }
 

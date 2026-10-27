@@ -57,6 +57,7 @@ async function applyDecision(
     deps.events.publish({
       type: 'ticket.updated',
       ticketId: t.id,
+      workspaceId: t.workspaceId,
       authorId: t.authorId,
       authorVisible: false,
     });

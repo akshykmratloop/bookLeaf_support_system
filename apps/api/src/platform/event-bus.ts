@@ -10,6 +10,8 @@ export type TicketEventType =
 export interface TicketEvent {
   type: TicketEventType;
   ticketId: string;
+  /** The ticket's workspace: nobody outside it ever receives the event. */
+  workspaceId: string;
   authorId: string;
   /** True when the author may see this event (public reply or status change). */
   authorVisible: boolean;

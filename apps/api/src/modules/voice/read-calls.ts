@@ -18,8 +18,12 @@ export async function resumableCall(deps: VoiceDeps, session: Session): Promise<
 }
 
 /** Admins see the whole conversation when a call continued a dropped one. */
-export async function adminGetCall(deps: VoiceDeps, id: string): Promise<AdminVoiceCall> {
-  const call = await repo.findCall(deps.db, id);
+export async function adminGetCall(
+  deps: VoiceDeps,
+  session: Session,
+  id: string,
+): Promise<AdminVoiceCall> {
+  const call = await repo.findWorkspaceCall(deps.db, id, session.workspaceId);
   const threadId = threadOf(call);
   const lines = await threadLines(deps.db, threadId);
   return toAdminVoiceCall(call, await threadDraft(deps.db, threadId), lines);

@@ -44,6 +44,7 @@ async function saveDraft(job: ClaimedJob, deps: JobDeps, toSave: DraftToSave) {
     deps.events.publish({
       type: 'ticket.draft_ready',
       ticketId: ctx.ticket.id,
+      workspaceId: ctx.ticket.workspaceId,
       authorId: ctx.ticket.authorId,
       authorVisible: false,
     });

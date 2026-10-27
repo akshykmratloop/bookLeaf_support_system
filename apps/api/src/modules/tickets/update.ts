@@ -131,6 +131,7 @@ export async function updateTicket(
   deps.events.publish({
     type: statusChanged ? 'ticket.status_changed' : 'ticket.updated',
     ticketId: id,
+    workspaceId: current.workspaceId,
     authorId: current.authorId,
     authorVisible: statusChanged,
   });
@@ -151,6 +152,7 @@ export async function retryAi(
   deps.events.publish({
     type: 'ticket.updated',
     ticketId: id,
+    workspaceId: current.workspaceId,
     authorId: current.authorId,
     authorVisible: false,
   });

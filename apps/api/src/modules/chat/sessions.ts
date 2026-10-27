@@ -2,7 +2,7 @@ import type { ChatSession, ChatTranscript } from '@bookleaf/shared';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { type ChatDeps } from './deps.js';
 import { toChatMessage, toChatSession } from './mappers.js';
-import { findOwnSession, findSessionById } from './repository.js';
+import { findOwnSession, findWorkspaceSession } from './repository.js';
 
 /** One of the author's own conversations, with its limit applied. */
 export async function loadChat(deps: ChatDeps, session: Session, id: string) {
@@ -38,9 +38,13 @@ export async function getChat(deps: ChatDeps, session: Session, id: string): Pro
   return loadChat(deps, session, id);
 }
 
-/** Admin read of any transcript (linked from a chat ticket); works even if chat is off. */
-export async function chatTranscript(deps: ChatDeps, id: string): Promise<ChatTranscript> {
-  const s = await findSessionById(deps.db, id);
+/** Admin read of a transcript in their own workspace (linked from a chat ticket); works even if chat is off. */
+export async function chatTranscript(
+  deps: ChatDeps,
+  session: Session,
+  id: string,
+): Promise<ChatTranscript> {
+  const s = await findWorkspaceSession(deps.db, id, session.workspaceId);
   return {
     id: s.id,
     createdAt: s.createdAt.toISOString(),

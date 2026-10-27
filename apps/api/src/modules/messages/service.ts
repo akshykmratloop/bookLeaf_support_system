@@ -115,6 +115,7 @@ export async function addAuthorMessage(
   deps.events.publish({
     type: 'ticket.updated',
     ticketId,
+    workspaceId: ticket.workspaceId,
     authorId: ticket.authorId,
     authorVisible: true,
   });
@@ -168,6 +169,7 @@ export async function addAdminMessage(
   deps.events.publish({
     type: authorVisible ? 'ticket.replied' : 'ticket.note_added',
     ticketId,
+    workspaceId: ticket.workspaceId,
     authorId: ticket.authorId,
     authorVisible,
   });

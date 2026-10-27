@@ -139,7 +139,7 @@ function registerAdminRoutes(app: RouteApp, { chat }: Deps) {
         response: { 200: ChatTranscriptSchema, ...errors },
       },
     },
-    async (req) => chat.transcript(req.params.id),
+    async (req) => chat.transcript(sessionOf(req), req.params.id),
   );
 }
 
