@@ -10,6 +10,7 @@ import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { useChatDraft } from '../../lib/useChatDraft';
 import { useVoiceCall } from '../../lib/voice/useVoiceCall';
+import { authorPaths } from '../../lib/paths';
 
 function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
   return (
@@ -19,7 +20,7 @@ function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
       </p>
       <p className="mt-1 text-ink-2">
         You can still{' '}
-        <Link to="/tickets/new" className="font-semibold text-brand underline">
+        <Link to={authorPaths.newTicket} className="font-semibold text-brand underline">
           raise a ticket
         </Link>{' '}
         and the support team will reply.

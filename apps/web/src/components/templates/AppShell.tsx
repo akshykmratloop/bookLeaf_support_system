@@ -1,16 +1,5 @@
 import type { AuthUser } from '@bookleaf/shared';
-import {
-  BookOpen,
-  Bot,
-  Inbox,
-  LifeBuoy,
-  LogOut,
-  MessagesSquare,
-  History,
-  Moon,
-  PlusCircle,
-  Sun,
-} from 'lucide-react';
+import { Bot, Inbox, LogOut, MessagesSquare, Moon, Sun } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import type { LiveState } from '../../lib/live-updates';
@@ -23,11 +12,6 @@ interface NavItem {
   end?: boolean;
 }
 
-const AUTHOR_NAV: NavItem[] = [
-  { to: '/books', label: 'My Books', icon: <BookOpen size={16} aria-hidden /> },
-  { to: '/tickets', label: 'My Tickets', icon: <LifeBuoy size={16} aria-hidden />, end: true },
-  { to: '/tickets/new', label: 'New Ticket', icon: <PlusCircle size={16} aria-hidden /> },
-];
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin', label: 'Ticket Queue', icon: <Inbox size={16} aria-hidden />, end: true },
   { to: '/admin/ai', label: 'AI Settings', icon: <Bot size={16} aria-hidden /> },
@@ -37,11 +21,6 @@ const ADMIN_NAV: NavItem[] = [
     icon: <MessagesSquare size={16} aria-hidden />,
   },
 ];
-const ASSISTANT_NAV: NavItem[] = [
-  { to: '/assistant', label: 'Ask BookLeaf', icon: <MessagesSquare size={16} aria-hidden /> },
-  { to: '/history', label: 'History', icon: <History size={16} aria-hidden /> },
-];
-
 const LIVE_TEXT: Record<LiveState, string> = {
   connecting: 'Connecting…',
   live: 'Live updates on',
@@ -79,20 +58,16 @@ interface Props {
   user: AuthUser;
   live: LiveState;
   onSignOut: () => void;
-  /** Show the author's "Ask BookLeaf" entry (an admin has switched an assistant channel on). */
-  showAssistant?: boolean;
   children: ReactNode;
 }
 
-/** Fixed frame: sidebar and header never move; only <main> scrolls. */
-export function AppShell({ user, live, onSignOut, showAssistant = false, children }: Props) {
+/**
+ * The staff dashboard's fixed frame: sidebar and header never move; only <main> scrolls.
+ * Authors never see it: their app is /embed.
+ */
+export function AppShell({ user, live, onSignOut, children }: Props) {
   const [theme, setTheme] = useState<Theme>(readTheme);
-  const nav =
-    user.role === 'ADMIN'
-      ? ADMIN_NAV
-      : showAssistant
-        ? [...AUTHOR_NAV, ...ASSISTANT_NAV]
-        : AUTHOR_NAV;
+  const nav = ADMIN_NAV;
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
@@ -105,9 +80,7 @@ export function AppShell({ user, live, onSignOut, showAssistant = false, childre
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <div>
             <p className="font-serif text-[16px] leading-none font-semibold">BookLeaf</p>
-            <p className="text-[11px] text-ink-3">
-              {user.role === 'ADMIN' ? 'Operations' : 'Author Support'}
-            </p>
+            <p className="text-[11px] text-ink-3">Operations</p>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">

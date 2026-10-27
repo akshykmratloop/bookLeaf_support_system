@@ -44,17 +44,10 @@ $('login').addEventListener('submit', async (e) => {
   }
 });
 
-$('support').addEventListener('click', async () => {
-  const tab = window.open('', '_blank');
-  if (!tab) return; // pop-up blocked
-  tab.opener = null;
-  try {
-    const { token } = await post('/support-token');
-    tab.location = `${supportUrl}/auth/host#t=${encodeURIComponent(token)}`;
-  } catch (err) {
-    tab.close();
-    $('home-error').textContent = err.message;
-  }
+// Help full screen, on this page: the author never leaves the product.
+$('support').addEventListener('click', () => {
+  if (window.BookLeafSupport) window.BookLeafSupport.expand();
+  else $('home-error').textContent = 'Help is still loading. Try again in a moment.';
 });
 
 $('logout').addEventListener('click', async () => {

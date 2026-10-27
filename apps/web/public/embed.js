@@ -5,10 +5,14 @@
  *
  * data-token-url  host endpoint (same origin as the page, POST, cookies sent) that returns
  *                 { "token": "<hand-over token>" } for the signed-in user. Required.
- * data-label      button text. Default "Help".
+ * data-label      launcher text. Default "Help".
+ * data-title      panel title. Default "BookLeaf Help".
  *
- * Load it with `defer` (or at the end of <body>). It draws a floating button. Opening it asks the host for a fresh token and shows the
- * support app in an iframe. Remove the tag and the widget is gone: nothing else to undo.
+ * It draws a launcher button. Opening it asks the host for a fresh token and shows the support
+ * app in a panel; Expand makes it full screen over the page. The user never leaves the host
+ * page. Remove the tag and the widget is gone: nothing else to undo.
+ *
+ * window.BookLeafSupport: open(), close(), expand(), collapse().
  */
 (() => {
   if (window.BookLeafSupport) return; // the tag was added twice
@@ -17,10 +21,25 @@
   const tokenUrl = script.dataset.tokenUrl;
   if (!tokenUrl) throw new Error('BookLeaf support: add data-token-url to the embed.js tag.');
   const label = script.dataset.label || 'Help';
-  const z = '2147483000';
-  let panel = null;
+  const title = script.dataset.title || 'BookLeaf Help';
+  const Z = 2147483000;
+  const BRAND = '#0e8a55';
+  const MSG = 'bookleaf-support:';
+  /** A frame path the app may ask to reopen after signing in again. */
+  const FRAME_PATH = /^\/embed(\/[\w\-/]*)?$/;
+  const REAUTH_LIMIT = 3; // per minute, so a broken session can never loop
 
+  const ICONS = {
+    chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/>',
+    expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+    collapse: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
+    close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  };
+  const svg = (name, size) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
   const style = (el, css) => Object.assign(el.style, css);
+
+  const state = { panel: null, frame: null, backdrop: null, expanded: false, reauths: [] };
 
   async function freshToken() {
     const res = await fetch(tokenUrl, {
@@ -35,119 +54,270 @@
     return token;
   }
 
-  function showNote(p, err) {
+  function showNote(err) {
+    const p = state.panel;
+    if (!p) return;
+    p.querySelector('[data-note]')?.remove();
     const note = document.createElement('p');
+    note.dataset.note = '';
     note.setAttribute('role', 'alert');
     note.textContent = err instanceof Error ? err.message : 'Help is not available right now.';
-    style(note, { padding: '16px', font: '14px system-ui, sans-serif' });
+    style(note, {
+      margin: '0',
+      padding: '24px',
+      font: '14px/1.5 system-ui, sans-serif',
+      color: '#3b4160',
+    });
     p.append(note);
   }
 
-  function headerButton(text, title, onClick) {
+  function iconButton(icon, text, onClick) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = text;
-    b.title = title;
-    b.setAttribute('aria-label', title);
+    b.innerHTML = svg(icon, 18);
+    b.title = text;
+    b.setAttribute('aria-label', text);
     style(b, {
+      display: 'grid',
+      placeItems: 'center',
+      width: '34px',
+      height: '34px',
       border: '0',
-      background: 'none',
-      color: 'inherit',
+      borderRadius: '10px',
+      background: 'rgba(255,255,255,.14)',
+      color: '#fff',
       cursor: 'pointer',
-      fontSize: '16px',
     });
     b.addEventListener('click', onClick);
     return b;
   }
 
-  function frame(token) {
+  function header() {
+    const bar = document.createElement('div');
+    style(bar, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '10px 12px 10px 16px',
+      background: `linear-gradient(135deg, ${BRAND}, #13a86a)`,
+      color: '#fff',
+      font: '700 15px system-ui, sans-serif',
+    });
+    const name = document.createElement('span');
+    name.textContent = title;
+    style(name, { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+    const toggle = iconButton('expand', 'Expand to full screen', () =>
+      state.expanded ? collapse() : expand(),
+    );
+    toggle.dataset.toggle = '';
+    bar.append(name, toggle, iconButton('close', 'Close help', close));
+    return bar;
+  }
+
+  function frameFor(path, token) {
     const f = document.createElement('iframe');
-    f.title = 'BookLeaf support';
+    f.title = title;
     f.allow = 'microphone';
-    f.src = `${supportUrl}/embed#t=${encodeURIComponent(token)}`;
-    style(f, { border: '0', width: '100%', flex: '1' });
+    f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}`;
+    style(f, { border: '0', width: '100%', flex: '1', background: '#f5f6fb' });
     return f;
   }
 
-  async function openInNewTab() {
-    const p = panel;
-    const tab = window.open('', '_blank');
-    if (!tab) return; // pop-up blocked: the panel stays open
-    tab.opener = null;
-    try {
-      tab.location = `${supportUrl}/auth/host#t=${encodeURIComponent(await freshToken())}`;
-    } catch (err) {
-      tab.close();
-      if (p) showNote(p, err);
-    }
-  }
+  const PANEL = {
+    position: 'fixed',
+    zIndex: String(Z),
+    display: 'flex',
+    flexDirection: 'column',
+    background: '#fff',
+    overflow: 'hidden',
+    boxShadow: '0 24px 64px -16px rgba(23,26,51,.35), 0 2px 6px rgba(23,26,51,.08)',
+    transition: 'all .22s cubic-bezier(.2,.8,.2,1)',
+  };
+  const DOCKED = {
+    top: 'auto',
+    left: 'auto',
+    right: '16px',
+    bottom: '88px',
+    width: 'min(420px, calc(100vw - 32px))',
+    height: 'min(700px, calc(100vh - 120px))',
+    borderRadius: '20px',
+  };
+  const FULL = {
+    top: '0',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    width: '100vw',
+    height: '100vh',
+    borderRadius: '0',
+  };
+  const wide = () => window.innerWidth >= 900;
+  const fullBox = () =>
+    wide()
+      ? {
+          top: '24px',
+          left: '24px',
+          right: '24px',
+          bottom: '24px',
+          width: 'auto',
+          height: 'auto',
+          borderRadius: '20px',
+        }
+      : FULL;
 
   function buildPanel() {
     const p = document.createElement('div');
     p.setAttribute('role', 'dialog');
-    p.setAttribute('aria-label', 'BookLeaf support');
-    style(p, {
-      position: 'fixed',
-      right: '16px',
-      bottom: '80px',
-      zIndex: z,
-      display: 'flex',
-      flexDirection: 'column',
-      width: 'min(420px, calc(100vw - 32px))',
-      height: 'min(680px, calc(100vh - 112px))',
-      background: '#fff',
-      color: '#1d1d1b',
-      borderRadius: '14px',
-      overflow: 'hidden',
-      boxShadow: '0 12px 40px rgba(0,0,0,.25)',
-    });
-    const bar = document.createElement('div');
-    style(bar, { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '6px 12px' });
-    bar.append(
-      headerButton('↗', 'Open support in a new tab', openInNewTab),
-      headerButton('×', 'Close help', close),
-    );
-    p.append(bar);
+    p.setAttribute('aria-label', title);
+    style(p, { ...PANEL, ...DOCKED, opacity: '0', transform: 'translateY(12px) scale(.98)' });
+    p.append(header());
+    requestAnimationFrame(() => style(p, { opacity: '1', transform: 'none' }));
     return p;
   }
 
-  async function open() {
-    if (panel) return;
-    const p = buildPanel();
-    panel = p;
-    document.body.append(p);
+  async function load(path) {
+    const p = state.panel;
     try {
       const token = await freshToken();
-      if (panel === p) p.append(frame(token)); // not closed while waiting
+      if (state.panel !== p) return; // closed while waiting
+      state.frame?.remove();
+      state.frame = frameFor(path, token);
+      p.append(state.frame);
     } catch (err) {
-      showNote(p, err);
+      showNote(err);
     }
   }
 
-  function close() {
-    panel?.remove();
-    panel = null;
+  async function open() {
+    if (state.panel) return;
+    state.panel = buildPanel();
+    document.body.append(state.panel);
+    launcher.setAttribute('aria-expanded', 'true');
+    launcher.innerHTML = `${svg('close', 20)}<span>Close</span>`;
+    await load('/embed');
   }
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
-  style(button, {
+  function close() {
+    collapse();
+    state.panel?.remove();
+    state.panel = null;
+    state.frame = null;
+    launcher.setAttribute('aria-expanded', 'false');
+    launcher.innerHTML = `${svg('chat', 20)}<span>${label}</span>`;
+    launcher.focus();
+  }
+
+  /** Keeps keyboard focus inside the full-screen panel (it is modal while expanded). */
+  function trapFocus(e) {
+    if (state.expanded && state.panel && !state.panel.contains(e.target)) {
+      state.panel.querySelector('button')?.focus();
+    }
+  }
+
+  function setToggle(expanded) {
+    const t = state.panel?.querySelector('[data-toggle]');
+    if (!t) return;
+    const text = expanded ? 'Exit full screen' : 'Expand to full screen';
+    t.innerHTML = svg(expanded ? 'collapse' : 'expand', 18);
+    t.title = text;
+    t.setAttribute('aria-label', text);
+  }
+
+  function expand() {
+    if (!state.panel) void open(); // sets the panel at once; the frame loads meanwhile
+    if (!state.panel || state.expanded) return;
+    state.expanded = true;
+    state.backdrop = document.createElement('div');
+    style(state.backdrop, {
+      position: 'fixed',
+      inset: '0',
+      zIndex: String(Z - 1),
+      background: 'rgba(15,18,40,.45)',
+    });
+    state.backdrop.addEventListener('click', collapse);
+    document.body.append(state.backdrop);
+    style(state.panel, fullBox());
+    state.panel.setAttribute('aria-modal', 'true');
+    launcher.style.display = 'none';
+    setToggle(true);
+  }
+
+  function collapse() {
+    if (!state.expanded) return;
+    state.expanded = false;
+    state.backdrop?.remove();
+    state.backdrop = null;
+    if (state.panel) {
+      style(state.panel, DOCKED);
+      state.panel.removeAttribute('aria-modal');
+    }
+    launcher.style.display = 'inline-flex';
+    setToggle(false);
+  }
+
+  /** Esc steps back: full screen → docked panel → closed. */
+  function escape() {
+    if (state.expanded) collapse();
+    else if (state.panel) close();
+  }
+
+  /** The app's session ran out: sign in again with a fresh token, on the same screen. */
+  function reauth(path) {
+    const now = Date.now();
+    state.reauths = state.reauths.filter((t) => now - t < 60_000);
+    if (state.reauths.length >= REAUTH_LIMIT)
+      return showNote(new Error('Please close help and open it again.'));
+    state.reauths.push(now);
+    void load(typeof path === 'string' && FRAME_PATH.test(path) ? path : '/embed');
+  }
+
+  /** Messages from our own frame only: checked by origin and by the sending window. */
+  window.addEventListener('message', (e) => {
+    if (e.origin !== supportUrl || !state.frame || e.source !== state.frame.contentWindow) return;
+    const data = e.data;
+    if (!data || typeof data.type !== 'string' || !data.type.startsWith(MSG)) return;
+    const type = data.type.slice(MSG.length);
+    if (type === 'reauth') reauth(data.path);
+    else if (type === 'escape') escape();
+    else if (type === 'expand') expand();
+    else if (type === 'close') close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.panel) escape();
+  });
+  document.addEventListener('focusin', trapFocus);
+  window.addEventListener(
+    'resize',
+    () => state.expanded && state.panel && style(state.panel, fullBox()),
+  );
+
+  const launcher = document.createElement('button');
+  launcher.type = 'button';
+  launcher.setAttribute('aria-expanded', 'false');
+  launcher.innerHTML = `${svg('chat', 20)}<span>${label}</span>`;
+  style(launcher, {
     position: 'fixed',
     right: '16px',
     bottom: '16px',
-    zIndex: z,
-    padding: '12px 20px',
+    zIndex: String(Z),
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    height: '56px',
+    padding: '0 22px 0 18px',
     border: '0',
     borderRadius: '999px',
-    background: '#2f5d50',
+    background: `linear-gradient(135deg, ${BRAND}, #13a86a)`,
     color: '#fff',
-    font: '600 14px system-ui, sans-serif',
+    font: '700 15px system-ui, sans-serif',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(0,0,0,.2)',
+    boxShadow: '0 12px 28px -8px rgba(14,138,85,.55), 0 2px 6px rgba(23,26,51,.12)',
+    transition: 'transform .15s ease, box-shadow .15s ease',
   });
-  button.addEventListener('click', () => (panel ? close() : void open()));
-  document.body.append(button);
+  launcher.addEventListener('mouseenter', () => (launcher.style.transform = 'translateY(-2px)'));
+  launcher.addEventListener('mouseleave', () => (launcher.style.transform = 'none'));
+  launcher.addEventListener('click', () => (state.panel ? close() : void open()));
+  document.body.append(launcher);
 
-  window.BookLeafSupport = { open, close };
+  window.BookLeafSupport = { open, close, expand, collapse };
 })();

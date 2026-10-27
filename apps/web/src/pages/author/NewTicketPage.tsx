@@ -9,6 +9,7 @@ import { TicketForm, type TicketFormValues } from '../../components/organisms/Ti
 import { api, errorMessage, isApiError } from '../../lib/api';
 import { newRequestKey } from '../../lib/ids';
 import { keys, useApiMutation, useBooks } from '../../lib/queries';
+import { authorPaths } from '../../lib/paths';
 
 export function NewTicketPage() {
   const books = useBooks();
@@ -25,7 +26,7 @@ export function NewTicketPage() {
     create.mutate(values, {
       onSuccess: (ticket) => {
         toast('success', `Ticket ${ticket.number} received. We'll reply here.`);
-        navigate(`/tickets/${ticket.id}`);
+        navigate(authorPaths.ticket(ticket.id));
       },
     });
   const serverError = (path: string) =>

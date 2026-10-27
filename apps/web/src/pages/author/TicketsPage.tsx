@@ -7,10 +7,11 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/molecules
 import { errorMessage } from '../../lib/api';
 import { relative } from '../../lib/format';
 import { useAuthorTickets } from '../../lib/queries';
+import { authorPaths } from '../../lib/paths';
 
 const newTicketLink = (
   <Link
-    to="/tickets/new"
+    to={authorPaths.newTicket}
     className="inline-flex h-9 items-center gap-2 rounded-control bg-brand-strong px-4 text-[12.5px] font-semibold text-white hover:bg-brand"
   >
     <PlusCircle size={15} aria-hidden /> New ticket
@@ -46,7 +47,7 @@ export function TicketsPage() {
             {items.map((t) => (
               <li key={t.id}>
                 <Link
-                  to={`/tickets/${t.id}`}
+                  to={authorPaths.ticket(t.id)}
                   className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-panel-2"
                 >
                   <span className="font-mono text-[12px] text-ink-3">{t.number}</span>

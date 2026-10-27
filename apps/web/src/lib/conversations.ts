@@ -19,7 +19,7 @@ const SEGMENT: Record<ConversationKind, 'chat' | 'call'> = { CHAT: 'chat', CALL:
 const API_SEGMENT: Record<ConversationKind, 'chats' | 'calls'> = { CHAT: 'chats', CALL: 'calls' };
 
 export const conversationPath = (c: Pick<ConversationSummary, 'kind' | 'id'>) =>
-  `/history/${SEGMENT[c.kind]}/${c.id}`;
+  `/embed/history/${SEGMENT[c.kind]}/${c.id}`;
 
 /** Reads the kind back from the URL segment; anything else is not a conversation. */
 export const kindOf = (segment: string | undefined): ConversationKind | null =>

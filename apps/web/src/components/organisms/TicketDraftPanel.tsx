@@ -9,6 +9,7 @@ import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
 import { DiscardDraftButton } from '../molecules/DiscardDraftButton';
 import { DraftFields } from '../molecules/DraftFields';
+import { authorPaths } from '../../lib/paths';
 
 interface Props {
   draft: TicketDraft | null;
@@ -47,7 +48,7 @@ function SentNote({ ticket }: { ticket: NonNullable<TicketDraft['ticket']> }) {
       <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0" />
       <span>
         Ticket{' '}
-        <Link className="font-semibold underline" to={`/tickets/${ticket.id}`}>
+        <Link className="font-semibold underline" to={authorPaths.ticket(ticket.id)}>
           {ticket.number}
         </Link>{' '}
         sent. The support team will reply there.

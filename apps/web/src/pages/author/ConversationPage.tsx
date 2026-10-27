@@ -9,9 +9,10 @@ import { TranscriptList } from '../../components/molecules/TranscriptList';
 import { errorMessage } from '../../lib/api';
 import { kindOf, useConversation } from '../../lib/conversations';
 import { dateTime } from '../../lib/format';
+import { authorPaths } from '../../lib/paths';
 
 const backLink = (
-  <Link to="/history" className="inline-flex items-center gap-1 text-[13px] text-ink-2">
+  <Link to={authorPaths.history} className="inline-flex items-center gap-1 text-[13px] text-ink-2">
     <ArrowLeft size={14} aria-hidden /> All conversations
   </Link>
 );
@@ -45,6 +46,6 @@ function Conversation({ kind, id }: { kind: ConversationKind; id: string }) {
 export function ConversationPage() {
   const { kind: segment, id } = useParams();
   const kind = kindOf(segment);
-  if (!kind || !id) return <Navigate to="/history" replace />;
+  if (!kind || !id) return <Navigate to={authorPaths.history} replace />;
   return <Conversation key={`${kind}-${id}`} kind={kind} id={id} />;
 }

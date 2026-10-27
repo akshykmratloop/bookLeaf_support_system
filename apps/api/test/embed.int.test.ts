@@ -16,6 +16,8 @@ const csp = async (url: string) =>
 describe('embed mode (HOST_ORIGINS set)', () => {
   it('lets only the configured host origins frame the widget page', async () => {
     expect(await csp('/embed')).toContain(`frame-ancestors ${HOST_PAGE} https://app.example.com`);
+    // In-frame pages of the author app (tickets, history) may be framed too.
+    expect(await csp('/embed/tickets/123')).toContain(`frame-ancestors ${HOST_PAGE}`);
     const res = await h.app.inject({ method: 'GET', url: '/embed' });
     expect(res.headers['x-frame-options']).toBeUndefined();
   });

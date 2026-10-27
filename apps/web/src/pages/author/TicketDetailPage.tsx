@@ -13,6 +13,7 @@ import { api, errorMessage } from '../../lib/api';
 import { dateTime } from '../../lib/format';
 import { newRequestKey } from '../../lib/ids';
 import { keys, useApiMutation, useAuthorTicket } from '../../lib/queries';
+import { authorPaths } from '../../lib/paths';
 
 function FollowUp({ ticketId, closed }: { ticketId: string; closed: boolean }) {
   const toast = useToast();
@@ -79,7 +80,7 @@ export function TicketDetailPage() {
   return (
     <div className="max-w-[820px]">
       <Link
-        to="/tickets"
+        to={authorPaths.tickets}
         className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink"
       >
         <ArrowLeft size={14} aria-hidden /> All tickets

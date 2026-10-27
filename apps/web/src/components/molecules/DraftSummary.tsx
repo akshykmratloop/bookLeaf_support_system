@@ -2,6 +2,7 @@ import { CATEGORY_LABELS, type TicketDraft } from '@bookleaf/shared';
 import { Link } from 'react-router';
 import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
+import { authorPaths } from '../../lib/paths';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -24,7 +25,7 @@ export function DraftSummary({ draft }: { draft: TicketDraft }) {
       <div className="flex items-center justify-between gap-2">
         <p className="text-[14px] font-semibold">Ticket</p>
         {sent ? (
-          <Link className="text-[12.5px] font-semibold underline" to={`/tickets/${sent.id}`}>
+          <Link className="text-[12.5px] font-semibold underline" to={authorPaths.ticket(sent.id)}>
             {sent.number}
           </Link>
         ) : (

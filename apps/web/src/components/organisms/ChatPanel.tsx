@@ -1,5 +1,6 @@
 import type { ChatSession } from '@bookleaf/shared';
 import { Fragment, useEffect, useRef } from 'react';
+import { useInitialQuestion } from '../../lib/useInitialQuestion';
 import { errorMessage } from '../../lib/api';
 import type { MessageQueue, QueuedMessage } from '../../lib/chatQueue';
 import { useChat } from '../../lib/useChat';
@@ -108,6 +109,7 @@ interface Props {
 export function ChatPanel({ maxChars, onRestarted }: Props) {
   const chat = useChat(true, onRestarted);
   const { current } = chat;
+  useInitialQuestion(current.isSuccess, chat.queue);
   if (current.isPending) return <LoadingState label="Opening chat…" />;
   if (current.isError)
     return (

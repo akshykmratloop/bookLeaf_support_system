@@ -5,7 +5,6 @@ import { Navigate, Outlet, useNavigate } from 'react-router';
 import { LoadingState } from '../components/molecules/States';
 import { AppShell } from '../components/templates/AppShell';
 import { api } from '../lib/api';
-import { useAssistantAvailability } from '../lib/assistant';
 import { useLiveUpdates } from '../lib/live-updates';
 import { useMe } from '../lib/queries';
 import { homeFor } from './user';
@@ -18,10 +17,6 @@ function Shell({ user }: { user: AuthUser }) {
     navigate('/login', { replace: true });
   }, [qc, navigate]);
   const live = useLiveUpdates(toLogin);
-  const assistant = useAssistantAvailability(user.role === 'AUTHOR');
-  const showAssistant =
-    assistant.data !== undefined &&
-    (assistant.data.chat.state !== 'DISABLED' || assistant.data.voice.state !== 'DISABLED');
   const signOut = async () => {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -30,18 +25,13 @@ function Shell({ user }: { user: AuthUser }) {
     }
   };
   return (
-    <AppShell
-      user={user}
-      live={live}
-      showAssistant={showAssistant}
-      onSignOut={() => void signOut()}
-    >
+    <AppShell user={user} live={live} onSignOut={() => void signOut()}>
       <Outlet context={user} />
     </AppShell>
   );
 }
 
-/** Route guard: signed-in users of the given role only; others are sent to their own home. */
+/** Route guard for the staff dashboard: others are sent to their own home (authors: /embed). */
 export function AuthedLayout({ role }: { role: Role }) {
   const me = useMe();
   if (me.isPending) return <LoadingState label="Signing you in…" />;
