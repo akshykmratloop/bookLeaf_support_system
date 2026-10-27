@@ -27,7 +27,12 @@ export interface ChatAnswer {
 export const SAFE_FALLBACK_TEXT =
   "I couldn't confirm that from your account records, so I'd rather not guess. I can raise a ticket so the support team checks it and replies to you.";
 
-const MAX_TOKENS = 700;
+/**
+ * The model's reasoning counts toward this limit, not just the answer. A payout question with
+ * a few claims measured ~1,400 output tokens; 700 cut it off and showed "unavailable". Only
+ * tokens actually used are billed, so the headroom costs nothing on short answers.
+ */
+const MAX_TOKENS = 4000;
 
 /** The author is waiting, so a temporary provider error gets one quick retry, not a backoff. */
 const RETRY_DELAY_MS = 400;
