@@ -17,6 +17,8 @@ export interface VoiceSessionConfig {
   tools: VoiceTool[];
   /** Spoken language for transcription (ISO 639-1), e.g. "en". */
   language: string;
+  /** The assistant's first words, spoken exactly as written. */
+  greeting: string;
 }
 
 export type VoiceErrorCode = 'VOICE_UNAVAILABLE' | 'VOICE_AUTH' | 'VOICE_PROTOCOL';

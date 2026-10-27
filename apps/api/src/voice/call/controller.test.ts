@@ -29,7 +29,7 @@ const speak = () => provider.emit({ type: 'barge_in' });
 async function call() {
   return startCall({
     provider,
-    config: { instructions: 'x', tools: [], language: 'en' },
+    config: { instructions: 'x', tools: [], language: 'en', greeting: 'Hi' },
     books: [{ id: BOOK }],
     limits: LIMITS,
     caller: {

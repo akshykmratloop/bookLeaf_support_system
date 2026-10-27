@@ -7,7 +7,6 @@ import {
   type VoiceSessionConfig,
 } from '../types.js';
 import {
-  GREETING,
   SAY_LINE,
   handleServerEvent,
   initialState,
@@ -66,7 +65,7 @@ function connect(
       send(requestReply(state));
     },
     say: (text) => send(requestReply(state, SAY_LINE(text))),
-    greet: () => send(requestReply(state, GREETING)),
+    greet: () => send(requestReply(state, SAY_LINE(config.greeting))),
     close: () => ws.close(1000),
   };
 

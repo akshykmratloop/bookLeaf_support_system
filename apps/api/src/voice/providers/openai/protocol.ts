@@ -33,9 +33,6 @@ const BYTES_PER_MS = (24_000 * 2) / 1000;
 export const SAY_LINE = (text: string) =>
   `Say exactly the following words, in your normal voice, and nothing else. Do not add a greeting, a question or any other words: ${text}`;
 
-export const GREETING =
-  'Greet the author by first name in one short sentence and ask how you can help with their books today.';
-
 export function initialState(): ProtocolState {
   return {
     ready: false,

@@ -141,6 +141,7 @@ describe('voice: the call socket', () => {
     const c = connect(started.socketPath, priya);
     expect(await c.waitFor('ready')).toEqual({ type: 'ready', maxSeconds: 300 });
     expect(fake.config?.instructions).toContain('VERIFIED FACTS');
+    expect(fake.config?.greeting).toMatch(/^Hi Priya, this is BookLeaf support/);
     expect(fake.config?.tools.map((t) => t.name)).toEqual(['suggest_ticket', 'end_call']);
     c.ws.send(Buffer.alloc(960));
     fake.emit({ type: 'audio', pcm16: Buffer.from([7, 7]) });

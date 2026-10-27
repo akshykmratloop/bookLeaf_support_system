@@ -44,6 +44,10 @@ export interface VoiceInstructionsInput {
   maxMinutes: number;
 }
 
+/** Fixed first words with the author's name (a free-form greeting once said "Hi, Author"). */
+export const voiceGreeting = (firstName: string) =>
+  `Hi ${firstName}, this is BookLeaf support. How can I help with your books today?`;
+
 /** Spoken-style rules plus this author's verified facts, fixed for the whole call. */
 export function voiceInstructions(input: VoiceInstructionsInput): string {
   const books = input.books.map((b) => `- ${b.id} | ${b.title}`).join('\n') || '- (no books)';

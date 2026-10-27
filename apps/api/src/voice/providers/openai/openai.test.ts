@@ -5,7 +5,12 @@ import type { VoiceEvent } from '../types.js';
 import { handleServerEvent, initialState, requestReply, sessionUpdate } from './protocol.js';
 import { openAiVoiceProvider } from './provider.js';
 
-const CONFIG = { instructions: 'Be brief.', tools: [], language: 'en' };
+const CONFIG = {
+  instructions: 'Be brief.',
+  tools: [],
+  language: 'en',
+  greeting: 'Hi Priya, this is BookLeaf support.',
+};
 const update = sessionUpdate(CONFIG, 'marin');
 const step = (s: ReturnType<typeof initialState>, m: Record<string, unknown>, now = 0) =>
   handleServerEvent(s, m, now, { update });
@@ -154,6 +159,26 @@ describe('OpenAI Realtime over a raw WebSocket (local fake server)', () => {
     expect(seen.url).toContain('model=gpt-realtime-2.1');
     expect(received).toEqual(['session.update', 'input_audio_buffer.append']);
     expect(events[0]).toEqual({ type: 'audio', pcm16: Buffer.from([1, 2]) });
+  });
+
+  it('greets with the exact configured line, so the author is greeted by name', async () => {
+    const sent: { type: string; response?: { instructions?: string } }[] = [];
+    const url = await fakeServer((ws) => {
+      ws.send(JSON.stringify({ type: 'session.created' }));
+      ws.on('message', (raw) => {
+        const m = JSON.parse(raw.toString()) as (typeof sent)[number];
+        sent.push(m);
+        if (m.type === 'session.update') ws.send(JSON.stringify({ type: 'session.updated' }));
+      });
+    });
+    const provider = openAiVoiceProvider({ apiKey: 'k', model: 'm', voice: 'marin', url });
+    const session = await provider.connect(CONFIG, () => undefined);
+    session.greet();
+    await new Promise((r) => setTimeout(r, 100));
+    session.close();
+    const reply = sent.find((m) => m.type === 'response.create');
+    expect(reply?.response?.instructions).toContain('Hi Priya, this is BookLeaf support.');
+    expect(reply?.response?.instructions).toMatch(/^Say exactly/);
   });
 
   it('reports a rejected key as VOICE_AUTH and a silent server as VOICE_UNAVAILABLE', async () => {

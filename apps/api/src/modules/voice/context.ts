@@ -1,7 +1,7 @@
 import type { Fact } from '@bookleaf/shared';
 import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
 import type { Db } from '../../platform/db.js';
-import { VOICE_TOOLS, voiceInstructions } from '../../voice/call/instructions.js';
+import { VOICE_TOOLS, voiceGreeting, voiceInstructions } from '../../voice/call/instructions.js';
 import type { VoiceSessionConfig } from '../../voice/providers/types.js';
 import { loadAuthorRecord } from '../chat/repository.js';
 
@@ -22,8 +22,9 @@ export async function buildCallContext(
   const author = await loadAuthorRecord(db, authorId);
   const facts = buildAuthorFacts(author, '', dataAsOf);
   const books = author.books.map((b) => ({ id: b.id, title: b.title }));
+  const firstName = author.name.split(' ')[0] ?? author.name;
   const instructions = voiceInstructions({
-    authorFirstName: author.name.split(' ')[0] ?? author.name,
+    authorFirstName: firstName,
     books,
     facts,
     maxMinutes: Math.round(maxSeconds / 60),
@@ -32,6 +33,11 @@ export async function buildCallContext(
     facts,
     books,
     ignorePhrases: books.map((b) => b.title),
-    config: { instructions, tools: VOICE_TOOLS, language: 'en' },
+    config: {
+      instructions,
+      tools: VOICE_TOOLS,
+      language: 'en',
+      greeting: voiceGreeting(firstName),
+    },
   };
 }
