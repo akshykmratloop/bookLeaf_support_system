@@ -5,7 +5,8 @@
   "type": "module",
   "description": "A stand-in for BookLeaf's own product: owns authors and books, attaches the support module.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./dashboard": "./src/dashboard/schema.ts"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",

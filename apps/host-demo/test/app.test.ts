@@ -94,3 +94,20 @@ describe('display details', () => {
     ]);
   });
 });
+
+describe('GET /api/dashboard', () => {
+  it('needs the signed-in author (401 without the session cookie)', async () => {
+    expect((await app.inject({ method: 'GET', url: '/api/dashboard' })).statusCode).toBe(401);
+  });
+
+  it("returns the signed-in author's own dashboard, never cached", async () => {
+    const login = await signIn();
+    const cookie = login.headers['set-cookie'] as string;
+    const res = await app.inject({ method: 'GET', url: '/api/dashboard', headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const body = res.json<{ profile: { id: string }; books: { id: string }[] }>();
+    expect(body.profile.id).toBe('AUTH001');
+    expect(body.books.map((b) => b.id)).toEqual(['BK001', 'BK002']);
+  });
+});

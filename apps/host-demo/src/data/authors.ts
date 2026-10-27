@@ -6,6 +6,8 @@ import { SampleDataSchema, toBookFields } from './sample-data.js';
 export interface AuthorAccount {
   email: string;
   record: AuthorRecord;
+  /** Shown on BookLeaf's own dashboard only; never sent to the support module. */
+  profile: { phone: string; city: string; memberSince: string };
 }
 
 const SAMPLE_FILE = new URL('./sample-data.json', import.meta.url);
@@ -15,6 +17,7 @@ export function loadAuthors(file: URL = SAMPLE_FILE): AuthorAccount[] {
   const data = SampleDataSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
   return data.authors.map((a) => ({
     email: a.email.toLowerCase(),
+    profile: { phone: a.phone, city: a.city, memberSince: a.joined_date },
     record: {
       id: a.author_id,
       externalId: a.author_id,
