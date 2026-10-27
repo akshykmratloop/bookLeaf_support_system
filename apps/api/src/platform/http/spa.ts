@@ -10,11 +10,12 @@ const SHORT = 'public, max-age=3600';
 const FILE_PATH = /\/[^/]+\.[a-z0-9]+$/i;
 
 /**
- * index.html must be revalidated on every load, or users keep running the previous release
- * after a deploy. Files under /assets/ carry a content hash in their name, so they never change.
+ * index.html and the widget script (embed.js, loaded by host pages under a fixed name) must be
+ * revalidated on every load, or users keep running the previous release after a deploy; the ETag
+ * makes that a cheap 304. Files under /assets/ carry a content hash in their name, so never change.
  */
 function cacheControlFor(path: string): string {
-  if (path.endsWith('index.html')) return NO_CACHE;
+  if (path.endsWith('index.html') || /[\\/]embed\.js$/.test(path)) return NO_CACHE;
   if (/[\\/]assets[\\/]/.test(path)) return HASHED_ASSET;
   return SHORT;
 }

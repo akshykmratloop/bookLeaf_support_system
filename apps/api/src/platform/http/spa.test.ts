@@ -14,6 +14,7 @@ beforeAll(async () => {
   writeFileSync(join(dir, 'index.html'), '<!doctype html><title>t</title>');
   writeFileSync(join(dir, 'assets', 'index-abc123.js'), 'console.log(1)');
   writeFileSync(join(dir, 'favicon.svg'), '<svg/>');
+  writeFileSync(join(dir, 'embed.js'), '(() => {})();');
   app = Fastify();
   await registerSpa(app, dir);
   await app.ready();
@@ -48,5 +49,12 @@ describe('web app caching', () => {
   it('caches other static files briefly', async () => {
     const res = await app.inject({ url: '/favicon.svg' });
     expect(res.headers['cache-control']).toBe('public, max-age=3600');
+  });
+
+  it('revalidates the widget script on every load, so host pages pick up a new widget at once', async () => {
+    const res = await app.inject({ url: '/embed.js' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-cache');
+    expect(res.headers.etag).toBeTruthy();
   });
 });
