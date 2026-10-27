@@ -1,9 +1,9 @@
 import type { StartVoiceCall } from '@bookleaf/shared';
 import { AppError } from '../../platform/errors.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { newCallIds } from './call-setup.js';
-import { authorIdOf, type VoiceDeps } from './deps.js';
+import { type VoiceDeps } from './deps.js';
 import { checkQuota } from './quota.js';
 import * as repo from './repository.js';
 

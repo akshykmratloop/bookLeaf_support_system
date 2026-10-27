@@ -1,7 +1,7 @@
 import type { AdminVoiceCall, VoiceCall } from '@bookleaf/shared';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { threadDraft } from './call-setup.js';
-import { authorIdOf, type VoiceDeps } from './deps.js';
+import { type VoiceDeps } from './deps.js';
 import { toAdminVoiceCall, toVoiceCall } from './mappers.js';
 import * as repo from './repository.js';
 import { findResumable, threadLines, threadOf } from './thread.js';

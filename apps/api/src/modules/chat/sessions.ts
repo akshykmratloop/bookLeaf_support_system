@@ -1,6 +1,6 @@
 import type { ChatSession, ChatTranscript } from '@bookleaf/shared';
-import type { Session } from '../auth/session.js';
-import { authorIdOf, type ChatDeps } from './deps.js';
+import { authorIdOf, type Session } from '../auth/session.js';
+import { type ChatDeps } from './deps.js';
 import { toChatMessage, toChatSession } from './mappers.js';
 import { findOwnSession, findSessionById } from './repository.js';
 

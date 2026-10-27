@@ -1,10 +1,10 @@
 import type { Fact } from '@bookleaf/shared';
 import { ConflictError } from '../../platform/errors.js';
 import type { CallLimits, CallOutcome } from '../../voice/call/controller.js';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { contextFor } from './call-setup.js';
 import type { CallContext } from './context.js';
-import { authorIdOf, type VoiceDeps } from './deps.js';
+import { type VoiceDeps } from './deps.js';
 import { finishCall } from './finish.js';
 import * as repo from './repository.js';
 

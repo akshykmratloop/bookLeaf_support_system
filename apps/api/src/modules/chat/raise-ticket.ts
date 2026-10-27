@@ -1,9 +1,9 @@
 import type { AuthorTicket, ChatTicketRequestSchema } from '@bookleaf/shared';
 import type { z } from 'zod';
 import { isUniqueViolation } from '../../platform/db.js';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { createTicket, getAuthorTicket } from '../tickets/create.js';
-import { authorIdOf, type ChatDeps } from './deps.js';
+import { type ChatDeps } from './deps.js';
 import { findOwnSession } from './repository.js';
 
 export interface ChatTicketInput {

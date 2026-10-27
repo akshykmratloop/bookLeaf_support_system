@@ -9,8 +9,8 @@ import type { z } from 'zod';
 import { enqueueJob } from '../../ai/jobs/queue.js';
 import { higherPriority, priorityFloor } from '../../ai/triage/rules.js';
 import { isUniqueViolation } from '../../platform/db.js';
-import { ForbiddenError, NotFoundError } from '../../platform/errors.js';
-import type { Session } from '../auth/session.js';
+import { NotFoundError } from '../../platform/errors.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import type { TicketDeps } from './deps.js';
 import { toAuthorTicket } from './mappers.js';
 import { findMessages, findTicketOrThrow } from './repository.js';
@@ -114,12 +114,6 @@ export interface CreateTicketOptions {
 interface Created {
   ticket: AuthorTicket;
   created: boolean;
-}
-
-function authorIdOf(session: Session): string {
-  if (session.role !== 'AUTHOR' || !session.authorId)
-    throw new ForbiddenError('Only authors can raise tickets');
-  return session.authorId;
 }
 
 async function requireOwnBook(deps: TicketDeps, authorId: string, bookId: string | null) {

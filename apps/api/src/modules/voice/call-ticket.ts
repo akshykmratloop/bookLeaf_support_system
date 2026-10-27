@@ -2,10 +2,9 @@ import { isUniqueViolation } from '../../platform/db.js';
 import type { AuthorTicket, ChatTicketRequestSchema } from '@bookleaf/shared';
 import type { z } from 'zod';
 import { ConflictError } from '../../platform/errors.js';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { createTicket, getAuthorTicket } from '../tickets/create.js';
 import type { TicketDeps } from '../tickets/deps.js';
-import { authorIdOf } from './deps.js';
 import { findOwnCall } from './repository.js';
 
 export interface CallTicketInput {

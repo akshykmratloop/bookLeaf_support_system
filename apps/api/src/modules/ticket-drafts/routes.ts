@@ -10,6 +10,7 @@ import {
   TicketDraftSchema,
 } from '@bookleaf/shared';
 import { sessionOf } from '../../platform/http/auth-guard.js';
+import { authorIdOf } from '../auth/session.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import type { TicketDraftService } from './service.js';
 
@@ -31,7 +32,7 @@ const perUser = (max: number) => ({
   keyGenerator: (req: FastifyRequest) => `drafts:${req.session?.userId ?? req.ip}`,
 });
 
-const authorIdOf = (req: FastifyRequest) => sessionOf(req).authorId ?? '';
+const authorOf = (req: FastifyRequest) => authorIdOf(sessionOf(req));
 
 interface Deps {
   drafts: TicketDraftService;
@@ -51,7 +52,7 @@ function registerReadAndEdit(app: RouteApp, { drafts, limits }: Deps) {
         response: { 200: TicketDraftSchema, ...errors },
       },
     },
-    async (req) => drafts.forChat(authorIdOf(req), req.params.sessionId),
+    async (req) => drafts.forChat(authorOf(req), req.params.sessionId),
   );
 
   app.patch(
@@ -66,7 +67,7 @@ function registerReadAndEdit(app: RouteApp, { drafts, limits }: Deps) {
         response: { 200: TicketDraftSchema, ...errors },
       },
     },
-    async (req) => drafts.edit(authorIdOf(req), req.params.id, req.body, 'AUTHOR'),
+    async (req) => drafts.edit(authorOf(req), req.params.id, req.body, 'AUTHOR'),
   );
 }
 

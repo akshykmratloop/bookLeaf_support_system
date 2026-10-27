@@ -1,10 +1,8 @@
 import type { Db } from '../../platform/db.js';
-import type { Session } from '../auth/session.js';
+import { authorIdOf, type Session } from '../auth/session.js';
 import { getCall } from './calls.js';
 import { getChat } from './chats.js';
 import { listConversations } from './list.js';
-
-const authorIdOf = (s: Session) => s.authorId ?? '';
 
 /** An author's past chats and calls, read-only. Works even when an admin has switched chat off. */
 export function createConversationService(db: Db) {

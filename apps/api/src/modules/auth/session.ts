@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { ROLES } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
-import { UnauthorizedError } from '../../platform/errors.js';
+import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
 
 export const SESSION_COOKIE = 'bl_session';
 
@@ -20,6 +20,13 @@ export interface Session {
   authorId: string | null;
   name: string;
   email: string;
+}
+
+/** The signed-in author's id. Admins, and sessions without an author, get 403. */
+export function authorIdOf(session: Session): string {
+  if (session.role !== 'AUTHOR' || !session.authorId)
+    throw new ForbiddenError('This is for authors only.');
+  return session.authorId;
 }
 
 export interface SessionCodec {
