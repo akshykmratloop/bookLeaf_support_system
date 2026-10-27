@@ -12,6 +12,8 @@ export interface CallContext {
   ignorePhrases: string[];
   config: VoiceSessionConfig;
   draft: TicketDraft;
+  /** Author messages the chat this call joins still allows; null when it is not in a chat. */
+  turnsLeft: number | null;
 }
 
 export interface ThreadContext {
@@ -26,6 +28,7 @@ export interface CallContextInput {
   authorId: string;
   maxSeconds: number;
   thread: ThreadContext;
+  turnsLeft: number | null;
 }
 
 const greetingFor = (t: ThreadContext) =>
@@ -34,7 +37,7 @@ const greetingFor = (t: ThreadContext) =>
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   deps: { db: Db; records: HostRecords },
-  { authorId, maxSeconds, thread }: CallContextInput,
+  { authorId, maxSeconds, thread, turnsLeft }: CallContextInput,
 ): Promise<CallContext> {
   const { facts, books, firstName } = await loadAuthorView(deps, authorId);
   const instructions = voiceInstructions({
@@ -51,6 +54,7 @@ export async function buildCallContext(
     books,
     ignorePhrases: books.map((b) => b.title),
     draft: thread.draft,
+    turnsLeft,
     config: {
       instructions,
       tools: VOICE_TOOLS,

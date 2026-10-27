@@ -31,7 +31,7 @@ export async function claimCall(
       'This call has expired or is already connected.',
     );
   try {
-    return await contextFor(deps, authorId, id, deps.limits.voice.maxCallSeconds);
+    return await contextFor(deps, authorId, id, deps.limits);
   } catch (err) {
     // The row is already ACTIVE: release it so the author is not blocked until it expires.
     await repo.markCallFailed(deps.db, id, deps.clock.now());

@@ -6,7 +6,8 @@ import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
-import { chatLines } from './chat-link.js';
+import type { AssistantLimits } from '../assistant/limits.js';
+import { chatLines, turnsLeft } from './chat-link.js';
 import { buildCallContext, type CallContext, type ThreadContext } from './context.js';
 import { findOwnCall } from './repository.js';
 import { findResumable, recentLines, threadLines, threadOf } from './thread.js';
@@ -66,9 +67,11 @@ export async function contextFor(
   deps: SetupDeps,
   authorId: string,
   callId: string,
-  maxSeconds: number,
+  limits: AssistantLimits,
 ): Promise<CallContext> {
   const call = await findOwnCall(deps.db, callId, authorId);
   const thread = await threadContext(deps, authorId, call);
-  return buildCallContext(deps, { authorId, maxSeconds, thread });
+  const left = await turnsLeft(deps.db, call.chatSessionId, limits.chat.maxTurnsPerSession);
+  const maxSeconds = limits.voice.maxCallSeconds;
+  return buildCallContext(deps, { authorId, maxSeconds, thread, turnsLeft: left });
 }

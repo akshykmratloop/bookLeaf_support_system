@@ -105,7 +105,7 @@ export async function bridgeCall(
     provider: deps.provider,
     config: ctx.config,
     draft: deps.voice.draftPort(session, ctx),
-    limits: deps.voice.callLimits(),
+    limits: { ...deps.voice.callLimits(), turnsLeft: ctx.turnsLeft },
     caller: channelFor(socket),
     now: deps.now,
     isStillAllowed: () => deps.voice.isVoiceStillOn(),

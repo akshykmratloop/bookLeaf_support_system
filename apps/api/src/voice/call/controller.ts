@@ -2,6 +2,7 @@ import type { VoiceEvent } from '../providers/types.js';
 import { onDraftUpdate, runDraftTool } from './draft-sync.js';
 import { armLimits, endCall, endSoon, markActivity, secondsLeft } from './lifecycle.js';
 import { DRAFT_TOOLS, END_CALL } from './tool-defs.js';
+import { countAuthorTurn, sayLimitGoodbye } from './turn-limit.js';
 import type { CallDeps, CallHandle, CallState } from './types.js';
 
 export { TIME_WARNING } from './lifecycle.js';
@@ -41,9 +42,11 @@ const ON_EVENT: EventHandlers = {
   },
   transcript: (st, e) => {
     markActivity(st);
-    if (e.role === 'AUTHOR') st.answeredSinceConfirm = true;
     st.transcript.push({ role: e.role, text: e.text, at: st.deps.now().toISOString() });
     st.deps.caller.send({ type: 'transcript', role: e.role, text: e.text });
+    if (e.role !== 'AUTHOR') return;
+    st.answeredSinceConfirm = true;
+    countAuthorTurn(st);
   },
   barge_in: (st) => {
     markActivity(st);
@@ -53,7 +56,8 @@ const ON_EVENT: EventHandlers = {
   tool_call: (st, e) => runTool(st, e.callId, e.name, e.argumentsJson),
   reply_done: (st) => {
     markActivity(st);
-    if (st.goodbyeStarted) endSoon(st, 'ASSISTANT_ENDED');
+    if (st.goodbyeStarted) endSoon(st, st.endReason);
+    else sayLimitGoodbye(st);
   },
   usage: (st, e) => {
     st.usage.inputTokens += e.inputTokens;
@@ -84,6 +88,9 @@ function newState(deps: CallDeps): CallState {
     lastActivityAt: performance.now(),
     endRequested: false,
     goodbyeStarted: false,
+    endReason: 'ASSISTANT_ENDED',
+    authorTurns: 0,
+    turnLimitHit: false,
     checkingSwitch: false,
     ended: false,
     timers: [],

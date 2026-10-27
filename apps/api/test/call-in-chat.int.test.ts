@@ -10,6 +10,7 @@ import type {
   VoiceServerMessage,
 } from '@bookleaf/shared';
 import type { FakeVoiceProvider } from '../src/voice/providers/fake/provider.js';
+import { TURN_LIMIT_GOODBYE } from '../src/voice/call/turn-limit.js';
 import { call, createHarness, EMAILS, ORIGIN, type Harness } from './helpers/app.js';
 
 /** A small conversation limit, and call quotas that other test files cannot use up. */
@@ -153,5 +154,23 @@ describe('a call started from a chat is part of that conversation', () => {
     const list = (await call(h, 'GET', '/conversations', kavita)).json<ConversationPage>();
     expect(list.items.filter((i) => i.id === chat.id)).toHaveLength(1);
     expect(list.items.some((i) => i.kind === 'CALL' && i.id === callId)).toBe(false);
+  });
+
+  it('answers the last allowed spoken question, says the limit is reached, and ends', async () => {
+    const chat = await chatWithHistory(kavita, MAX_TURNS - 1);
+    const started = await call(h, 'POST', '/voice/calls', kavita, { chatSessionId: chat.id });
+    const c = connect(started.json<StartVoiceCall>().socketPath, kavita);
+    await c.waitFor('ready');
+    fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'One more thing, my cover?' });
+    fake.emit({ type: 'audio', pcm16: Buffer.from([1, 1]) });
+    fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'Your cover is approved.' });
+    fake.emit({ type: 'reply_done' });
+    expect(fake.said).toContain(TURN_LIMIT_GOODBYE);
+    fake.emit({ type: 'audio', pcm16: Buffer.from([2, 2]) });
+    fake.emit({ type: 'reply_done' });
+    expect(await c.waitFor('ended')).toEqual({ type: 'ended', reason: 'TURN_LIMIT' });
+    await c.closed;
+    const after = (await call(h, 'GET', `/chat/sessions/${chat.id}`, kavita)).json<ChatSession>();
+    expect(after.turnCount).toBe(MAX_TURNS);
   });
 });

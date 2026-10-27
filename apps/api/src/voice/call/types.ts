@@ -31,6 +31,11 @@ export interface CallLimits {
   recheckSeconds: number;
   /** Longest wait for the goodbye after end_call before hanging up anyway. */
   goodbyeSeconds: number;
+  /**
+   * Author messages the conversation still allows (a call inside a chat), or null for no limit.
+   * Counted once when the call connects.
+   */
+  turnsLeft?: number | null;
 }
 
 /** A change to the call's ticket draft, from a tool or from the author's screen. */
@@ -97,6 +102,12 @@ export interface CallState {
   endRequested: boolean;
   /** Assistant audio arrived after end_call, so the next finished reply is the goodbye. */
   goodbyeStarted: boolean;
+  /** Why the call ends once the goodbye has been spoken. */
+  endReason: VoiceEndReason;
+  /** Author lines spoken in this call, counted against `limits.turnsLeft`. */
+  authorTurns: number;
+  /** The last allowed author line was spoken: answer it, then say the limit goodbye. */
+  turnLimitHit: boolean;
   checkingSwitch: boolean;
   ended: boolean;
   timers: ReturnType<typeof setTimeout>[];
