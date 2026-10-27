@@ -221,6 +221,26 @@ instruction). Guides: `docs/integration.md`, `docs/architecture.md` §17–§20.
 | P.17 | Hinglish voice persona (default), `VOICE_STYLE`, automatic transcription language for Hinglish | ✅ | `1611217` |
 | P.18 | Docs brought up to date with this branch (README, integration guide, architecture, PLAN, TASKS) | ✅ | see `git log` (docs commit "author experience, call-in-chat, widget theme and voice persona") |
 | P.19 | A real Hinglish call with a microphone, in a chat, to the limit | ⛔ (you): needs a person speaking | |
+## Phase 5 — Multi-tenant SaaS foundation · branch `feature/saas-platform` (27 Oct, from `6b0b14e`)
+
+Any business signs up, gets a workspace and configures the product from the UI: product connection
+(encrypted secrets), customer-data fields, assistant/chat/voice/widget settings, API keys. BookLeaf is
+workspace #1, seeded from env and unchanged in behaviour. Not merged. Plan: `docs/saas/PLAN.md`.
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| S.0 | Register the session; research (Prisma RLS via Context7, envelope encryption, Zendesk/Intercom shapes, widget identity) and `docs/saas/PLAN.md` | ✅ | `2a389e3` `68381f8` |
+| S.1 | Tenancy core: `workspaces`, `workspace_members`, `workspace_id` on every tenant table (expand → backfill → require), per-workspace unique keys, `workspaceId` in the session, scoped ticket/book queries, `POST /signup`, cross-tenant tests (404), envelope crypto + SSRF guard with unit tests | ✅ | `6bbadc5` |
+| S.2 | Connectors: encrypted per-workspace connection, hints only, test-connection, SSRF policy, per-workspace `HostRecords`, host tokens with `iss`, env fallback for `bookleaf` | ✅ | `90a9d8e` |
+| S.3 | Customer-data fields CRUD (BookLeaf fields seeded) and workspace settings API (models, tone, chat/voice limits, widget, nouns) with version + audit | ✅ | `091c7fd` |
+| S.4 | Web: signup page, Product Connection, Customer Data, Workspace Settings pages; verified in a browser | ✅ | `4c9c75f` |
+| S.5 | API keys (hashed, shown once, revoke, audit) + page | ✅ | `2a52d9a` |
+| S.6 | Docs: integration guide section, README, TASKS, SHARED_PLAN | ✅ | (this commit) |
+| S.7 | Wire chat/voice limits, switches, prompts and the fact checker to the workspace rows (readers still use the singleton settings + env for every workspace) | ⬜ | |
+| S.8 | Postgres RLS policies + per-request Prisma client (`SET LOCAL app.workspace_id`); SQL in `docs/saas/PLAN.md` §5.2 | ⬜ | |
+| S.9 | Ticket categories and knowledge-base articles per workspace (replace the hard-coded enum/KB) | ⬜ | |
+| S.10 | Server-to-server endpoints that accept workspace API keys; signed webhooks | ⬜ | |
+| S.11 | Member management and invitations; email verification at signup | ⬜ | |
 
 ---
 

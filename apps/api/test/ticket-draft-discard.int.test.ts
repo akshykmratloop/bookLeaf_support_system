@@ -17,7 +17,9 @@ const FILLED = {
 /** A conversation made directly in the database, with a filled-in draft. */
 async function filledDraft(): Promise<TicketDraft> {
   const author = await h.db.author.findFirstOrThrow({ where: { user: { email: EMAILS.priya } } });
-  const chat = await h.db.chatSession.create({ data: { authorId: author.id } });
+  const chat = await h.db.chatSession.create({
+    data: { workspaceId: author.workspaceId, authorId: author.id },
+  });
   const draft = (await call(h, 'GET', `/ticket-drafts/chat/${chat.id}`, priya)).json<TicketDraft>();
   const res = await call(h, 'PATCH', `/ticket-drafts/${draft.id}`, priya, FILLED);
   expect(res.statusCode).toBe(200);

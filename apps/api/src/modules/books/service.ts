@@ -21,14 +21,14 @@ const toBook = (b: BookRow, customer: HostCustomer | null): Book => ({
 
 /** Authors see only their own books (someone else's is "not found"); admins see all. */
 const scopeFor = (s: Session): Prisma.BookWhereInput =>
-  s.role === 'ADMIN' ? {} : { authorId: authorIdOf(s) };
+  s.role === 'ADMIN' ? { workspaceId: s.workspaceId } : { authorId: authorIdOf(s) };
 
 export function createBooksService(deps: { db: Db; records: HostRecords }) {
   /** Details come from the host, asked once for the signed-in author (admins get titles only). */
   const customerOf = async (s: Session) => {
     if (s.role !== 'AUTHOR') return null;
     const author = await deps.db.author.findUniqueOrThrow({ where: { id: authorIdOf(s) } });
-    return customerOrNull(deps.records, author.externalId);
+    return customerOrNull(deps.records, author.externalId, author.workspaceId);
   };
   return {
     async list(session: Session): Promise<BookList> {

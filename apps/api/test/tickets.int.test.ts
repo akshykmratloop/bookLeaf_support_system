@@ -174,7 +174,7 @@ describe('admin updates', () => {
 
   it('refuses assigning a ticket to another admin (422)', async () => {
     const { id, version } = await freshTicket();
-    const other = await h.db.user.findUniqueOrThrow({ where: { email: EMAILS.admin2 } });
+    const other = await h.db.user.findFirstOrThrow({ where: { email: EMAILS.admin2 } });
     const res = await call(h, 'PATCH', `/tickets/${id}`, admin, { version, assigneeId: other.id });
     expect(res.statusCode).toBe(422);
   });

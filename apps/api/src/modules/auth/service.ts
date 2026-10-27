@@ -9,19 +9,32 @@ export function toAuthUser(s: Session): AuthUser {
   return { id: s.userId, email: s.email, name: s.name, role: s.role, authorId: s.authorId };
 }
 
+/** The same staff email may exist in several workspaces; the password decides which one. */
+const MAX_ACCOUNTS_PER_EMAIL = 5;
+
 export function createAuthService(db: Db, sessions: SessionCodec) {
   /** Verified against when the email is unknown, so response time does not reveal which emails exist. */
   const dummyHash = hashPassword(randomUUID());
+  const findAccount = async (input: LoginRequest) => {
+    const users = await db.user.findMany({
+      where: { email: input.email, passwordHash: { not: null } },
+      include: { author: true },
+      orderBy: { createdAt: 'asc' },
+      take: MAX_ACCOUNTS_PER_EMAIL,
+    });
+    for (const user of users) {
+      if (await verifyPassword(user.passwordHash ?? '', input.password)) return user;
+    }
+    await verifyPassword(await dummyHash, input.password);
+    return null;
+  };
   return {
     async login(input: LoginRequest): Promise<{ user: AuthUser; token: string }> {
-      const user = await db.user.findUnique({
-        where: { email: input.email },
-        include: { author: true },
-      });
-      const ok = await verifyPassword(user?.passwordHash ?? (await dummyHash), input.password);
-      if (!user || !ok) throw new UnauthorizedError('Invalid email or password');
+      const user = await findAccount(input);
+      if (!user) throw new UnauthorizedError('Invalid email or password');
       const session: Session = {
         userId: user.id,
+        workspaceId: user.workspaceId,
         role: user.role,
         authorId: user.author?.id ?? null,
         name: user.name,

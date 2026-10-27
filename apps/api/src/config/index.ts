@@ -4,6 +4,7 @@ import { AuthConfig } from './auth.js';
 import { ChatConfig } from './chat.js';
 import { DatabaseConfig } from './database.js';
 import { HostConfig } from './host.js';
+import { PlatformConfig } from './platform.js';
 import { ServerConfig } from './server.js';
 import { VoiceConfig } from './voice.js';
 
@@ -17,10 +18,19 @@ const EnvSchema = z
     ...ChatConfig.shape,
     ...VoiceConfig.shape,
     ...HostConfig.shape,
+    ...PlatformConfig.shape,
   })
   .refine((env) => env.HOST_SIGNING_SECRET !== env.JWT_SECRET, {
     path: ['HOST_SIGNING_SECRET'],
     message: 'must differ from JWT_SECRET (the host knows it)',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.SECRETS_MASTER_KEY !== undefined, {
+    path: ['SECRETS_MASTER_KEY'],
+    message: 'is required in production (workspace secrets are encrypted with it)',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || !env.CONNECTOR_ALLOW_PRIVATE_HOSTS, {
+    path: ['CONNECTOR_ALLOW_PRIVATE_HOSTS'],
+    message: 'must be false in production',
   });
 
 export type Env = z.infer<typeof EnvSchema>;

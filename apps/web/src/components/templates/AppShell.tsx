@@ -1,5 +1,16 @@
 import type { AuthUser } from '@bookleaf/shared';
-import { Bot, Inbox, LogOut, MessagesSquare, Moon, Sun } from 'lucide-react';
+import {
+  Bot,
+  Database,
+  Inbox,
+  KeyRound,
+  LogOut,
+  MessagesSquare,
+  Moon,
+  Plug,
+  Settings2,
+  Sun,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import type { LiveState } from '../../lib/live-updates';
@@ -20,6 +31,22 @@ const ADMIN_NAV: NavItem[] = [
     label: 'Author Assistant',
     icon: <MessagesSquare size={16} aria-hidden />,
   },
+  {
+    to: '/admin/workspace/connection',
+    label: 'Product Connection',
+    icon: <Plug size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/fields',
+    label: 'Customer Data',
+    icon: <Database size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/settings',
+    label: 'Workspace Settings',
+    icon: <Settings2 size={16} aria-hidden />,
+  },
+  { to: '/admin/workspace/api-keys', label: 'API Keys', icon: <KeyRound size={16} aria-hidden /> },
 ];
 const LIVE_TEXT: Record<LiveState, string> = {
   connecting: 'Connecting…',

@@ -25,6 +25,7 @@ export interface StartOptions {
 }
 
 interface NewCall extends StartOptions {
+  workspaceId: string;
   authorId: string;
   provider: VoiceProvider;
   now: Date;
@@ -34,7 +35,8 @@ interface NewCall extends StartOptions {
  * One call at a time per author: the lock makes the quota check and insert atomic. A call that
  * joins a chat is a fresh thread: the chat already holds the earlier conversation.
  */
-function insertCall(deps: VoiceDeps, { authorId, provider, resume, chatSessionId, now }: NewCall) {
+function insertCall(deps: VoiceDeps, call: NewCall) {
+  const { workspaceId, authorId, provider, resume, chatSessionId, now } = call;
   const maxSeconds = deps.limits.voice.maxCallSeconds;
   const maxTurns = deps.limits.chat.maxTurnsPerSession;
   return deps.db.$transaction(async (tx) => {
@@ -47,6 +49,7 @@ function insertCall(deps: VoiceDeps, { authorId, provider, resume, chatSessionId
     return tx.voiceSession.create({
       data: {
         ...ids,
+        workspaceId,
         authorId,
         chatSessionId: chatId,
         provider: providerId,
@@ -71,7 +74,13 @@ export async function startCall(
   const now = deps.clock.now();
   const maxSeconds = deps.limits.voice.maxCallSeconds;
   await repo.expireStale(deps.db, authorId, now, maxSeconds);
-  const call = await insertCall(deps, { ...opts, authorId, provider, now });
+  const call = await insertCall(deps, {
+    ...opts,
+    workspaceId: session.workspaceId,
+    authorId,
+    provider,
+    now,
+  });
   return {
     id: call.id,
     socketPath: `/api/v1/voice/calls/${call.id}/stream`,

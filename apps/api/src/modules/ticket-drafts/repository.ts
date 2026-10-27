@@ -11,21 +11,26 @@ export async function findOwnDraft(db: Db, id: string, authorId: string) {
 
 export type TicketDraftRow = Awaited<ReturnType<typeof findOwnDraft>>;
 
+/** The draft belongs to the author's workspace (one indexed read, only when creating). */
+const workspaceOf = async (db: Db, authorId: string) =>
+  (await db.author.findUniqueOrThrow({ where: { id: authorId }, select: { workspaceId: true } }))
+    .workspaceId;
+
 /** The draft of one chat conversation, created on first use (unique per conversation). */
-export function upsertChatDraft(db: Db, authorId: string, chatSessionId: string) {
+export async function upsertChatDraft(db: Db, authorId: string, chatSessionId: string) {
   return db.ticketDraft.upsert({
     where: { chatSessionId },
-    create: { authorId, chatSessionId },
+    create: { workspaceId: await workspaceOf(db, authorId), authorId, chatSessionId },
     update: {},
     include: WITH_TICKET,
   });
 }
 
 /** The draft of one call thread, created on first use (unique per thread). */
-export function upsertThreadDraft(db: Db, authorId: string, voiceThreadId: string) {
+export async function upsertThreadDraft(db: Db, authorId: string, voiceThreadId: string) {
   return db.ticketDraft.upsert({
     where: { voiceThreadId },
-    create: { authorId, voiceThreadId },
+    create: { workspaceId: await workspaceOf(db, authorId), authorId, voiceThreadId },
     update: {},
     include: WITH_TICKET,
   });

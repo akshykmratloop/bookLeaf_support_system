@@ -21,8 +21,12 @@ const findTicket = (db: Db, ticketId: string) =>
 
 /** The author's facts from the host, for the ticket's book (or the account when no book). */
 /** Facts from the host, by the host's own ids for the customer and the item. */
-async function ticketFacts(deps: ContextDeps, customerId: string, itemId: string | null) {
-  const customer = await customerOrNull(deps.records, customerId);
+async function ticketFacts(
+  deps: ContextDeps,
+  customer$: { externalId: string; workspaceId: string },
+  itemId: string | null,
+) {
+  const customer = await customerOrNull(deps.records, customer$.externalId, customer$.workspaceId);
   return customer ? factsFor(customer, itemId) : [RECORDS_UNAVAILABLE];
 }
 
@@ -33,7 +37,7 @@ export async function loadTicketContext(deps: ContextDeps, ticketId: string) {
   const book = ticket.book
     ? { externalId: ticket.book.externalId, title: ticket.book.title }
     : null;
-  const facts: Fact[] = await ticketFacts(deps, ticket.author.externalId, book?.externalId ?? null);
+  const facts: Fact[] = await ticketFacts(deps, ticket.author, book?.externalId ?? null);
   const authorMessages = [
     ticket.description,
     ...ticket.messages.filter((m) => m.kind === 'AUTHOR').map((m) => m.body),

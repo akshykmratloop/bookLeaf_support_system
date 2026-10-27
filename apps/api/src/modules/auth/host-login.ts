@@ -15,13 +15,15 @@ export interface HostSignInDeps {
   records: HostRecords;
   sessions: SessionCodec;
   clock: Clock;
+  /** The workspace this token was issued for, and that workspace's signing secret. */
+  workspaceId: string;
   signingSecret: string;
   usedTokens: UsedTokenIds;
 }
 
-async function customerFor(records: HostRecords, externalId: string) {
+async function customerFor(records: HostRecords, externalId: string, workspaceId: string) {
   try {
-    return await records.customer(externalId);
+    return await records.customer(externalId, workspaceId);
   } catch (err) {
     if (err instanceof CustomerNotFoundError) throw new UnauthorizedError('Unknown account');
     throw err;
@@ -39,10 +41,11 @@ export async function signInFromHost(
   const claims = await verifyHostToken(token, deps.signingSecret, deps.clock.now());
   if (!deps.usedTokens.claim(claims.jti, claims.exp))
     throw new UnauthorizedError('This sign-in link has already been used');
-  const customer = await customerFor(deps.records, claims.sub);
-  const { userId, authorId } = await syncCustomer(deps.db, customer);
+  const customer = await customerFor(deps.records, claims.sub, deps.workspaceId);
+  const { userId, authorId } = await syncCustomer(deps.db, deps.workspaceId, customer);
   const session: Session = {
     userId,
+    workspaceId: deps.workspaceId,
     role: 'AUTHOR',
     authorId,
     name: customer.name,

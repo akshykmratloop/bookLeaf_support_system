@@ -12,6 +12,7 @@ import { EmbedGate } from '../pages/embed/EmbedGate';
 import { EmbedHomePage } from '../pages/embed/EmbedHomePage';
 import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
+import { SignupPage } from '../pages/workspace/SignupPage';
 import { adminRoutes } from './adminRoutes';
 import { HomeRedirect } from './AuthedLayout';
 
@@ -64,6 +65,7 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/host" element={<HostSignInPage />} />
             {authorRoutes}
             {oldAuthorRoutes}

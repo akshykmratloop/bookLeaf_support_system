@@ -35,14 +35,31 @@ const AssistantSettingsPage = lazyPage(() =>
   import('../pages/admin/AssistantSettingsPage').then((m) => m.AssistantSettingsPage),
 );
 
+const ConnectorPage = lazyPage(() =>
+  import('../pages/workspace/ConnectorPage').then((m) => m.ConnectorPage),
+);
+const FieldsPage = lazyPage(() =>
+  import('../pages/workspace/FieldsPage').then((m) => m.FieldsPage),
+);
+const WorkspaceSettingsPage = lazyPage(() =>
+  import('../pages/workspace/WorkspaceSettingsPage').then((m) => m.WorkspaceSettingsPage),
+);
+const ApiKeysPage = lazyPage(() =>
+  import('../pages/workspace/ApiKeysPage').then((m) => m.ApiKeysPage),
+);
+
 const loading = (page: ReactNode) => <Suspense fallback={<LoadingState />}>{page}</Suspense>;
 
-/** The staff screens, behind the admin sign-in, each loaded on first use. */
+/** The staff and workspace-owner screens, behind the admin sign-in, each loaded on first use. */
 export const adminRoutes = (
   <Route element={<AuthedLayout role="ADMIN" />}>
     <Route path="/admin" element={loading(<QueuePage />)} />
     <Route path="/admin/tickets/:id" element={loading(<TicketWorkspacePage />)} />
     <Route path="/admin/ai" element={loading(<AiSettingsPage />)} />
     <Route path="/admin/assistant" element={loading(<AssistantSettingsPage />)} />
+    <Route path="/admin/workspace/connection" element={loading(<ConnectorPage />)} />
+    <Route path="/admin/workspace/fields" element={loading(<FieldsPage />)} />
+    <Route path="/admin/workspace/settings" element={loading(<WorkspaceSettingsPage />)} />
+    <Route path="/admin/workspace/api-keys" element={loading(<ApiKeysPage />)} />
   </Route>
 );

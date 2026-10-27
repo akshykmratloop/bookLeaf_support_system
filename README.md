@@ -181,6 +181,15 @@ English. Calls last at most `VOICE_MAX_CALL_SECONDS` (300).
 7. **Detach:** stop the host demo. Support keeps working. The assistant says it could not confirm
    the answer and offers a ticket instead of guessing.
 
+## Many businesses, one service (workspaces)
+
+Support is a multi-tenant product. A business creates its own workspace at `/signup` and configures
+the product connection (URL, API key, signing secret, encrypted at rest), its customer-data fields,
+assistant/chat/voice/widget settings and API keys in the admin area, with nothing in env. BookLeaf
+is the default workspace, seeded from the `HOST_*` env values. A product's sign-in token names its
+workspace with `iss`. Guide: `docs/integration.md` ("Many products on one support service");
+design and roadmap: `docs/saas/PLAN.md`. New env: `SECRETS_MASTER_KEY` (required in production).
+
 ## Checks
 
 | Command | What it does |

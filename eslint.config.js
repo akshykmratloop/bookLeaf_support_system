@@ -45,6 +45,7 @@ export default tseslint.config(
     ignores: [
       'apps/api/src/ai/providers/anthropic/**',
       'apps/api/src/host/registry.ts',
+      'apps/api/src/host/workspaces.ts',
       'apps/api/src/host/http/**',
       'apps/api/src/host/fake/**',
       'apps/api/src/**/*.test.ts',
