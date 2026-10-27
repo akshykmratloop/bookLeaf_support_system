@@ -13,6 +13,8 @@ import { settingsRoutes } from './modules/settings/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
 import { providerKeyRoutes } from './modules/provider-keys/routes.js';
+import { serverApiRoutes } from './modules/server-api/routes.js';
+import { webhookRoutes } from './modules/webhooks/routes.js';
 import { voiceRoutes } from './modules/voice/routes.js';
 import { apiKeyRoutes } from './modules/workspaces/api-key-routes.js';
 import { workspaceRoutes } from './modules/workspaces/routes.js';
@@ -45,6 +47,8 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(connectorRoutes, { connectors: c.connectors });
   await api.register(settingsRoutes, { settings: c.settings });
   await api.register(providerKeyRoutes, { providerKeys: c.providerKeys });
+  await api.register(webhookRoutes, { webhooks: c.webhooks });
+  await api.register(serverApiRoutes, { server: c.serverApi });
   await api.register(apiKeyRoutes, { workspaces: c.workspaces });
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,

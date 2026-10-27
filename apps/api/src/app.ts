@@ -33,7 +33,13 @@ async function registerDocs(app: FastifyInstance) {
       info: {
         title: 'BookLeaf Author Support API',
         version: '1.0.0',
-        description: 'Session cookie auth. Errors are RFC 7807 problem+json.',
+        description:
+          'Session cookie auth; the /server routes take a workspace API key instead. Errors are RFC 7807 problem+json.',
+      },
+      components: {
+        securitySchemes: {
+          apiKey: { type: 'http', scheme: 'bearer', description: 'Workspace API key (blsk_…)' },
+        },
       },
     },
     transform: jsonSchemaTransform,

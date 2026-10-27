@@ -313,6 +313,7 @@ export async function deleteWorkspace(db: Db, slug: string): Promise<void> {
     db.workspaceSettings.deleteMany({ where: { workspaceId } }),
     db.workspaceApiKey.deleteMany({ where: { workspaceId } }),
     db.workspaceProviderKey.deleteMany({ where: { workspaceId } }),
+    db.workspaceWebhook.deleteMany({ where: { workspaceId } }),
     db.user.deleteMany({ where: { workspaceId } }),
     db.workspace.delete({ where: { id: workspaceId } }),
   ]);

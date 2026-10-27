@@ -22,3 +22,4 @@ export * from './schemas/customer-fields.js';
 export * from './schemas/workspace-settings.js';
 export * from './schemas/api-keys.js';
 export * from './schemas/provider-keys.js';
+export * from './schemas/webhooks.js';

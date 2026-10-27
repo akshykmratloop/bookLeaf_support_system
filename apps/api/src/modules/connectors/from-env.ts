@@ -13,16 +13,19 @@ export function envelopeFromEnv(env: Env) {
   return createEnvelope(keys);
 }
 
+/** Outbound calls to customer-supplied URLs (connectors, webhooks) follow one SSRF policy. */
+export const ssrfPolicyFromEnv = (env: Env) => ({
+  requireHttps: env.NODE_ENV === 'production',
+  allowPrivateHosts: env.CONNECTOR_ALLOW_PRIVATE_HOSTS,
+});
+
 /** Connector deps from validated env: the master key, the SSRF policy and BookLeaf's defaults. */
 export function connectorDepsFromEnv(env: Env, db: Db, clock: Clock): ConnectorDeps {
   return {
     db,
     clock,
     envelope: envelopeFromEnv(env),
-    ssrf: {
-      requireHttps: env.NODE_ENV === 'production',
-      allowPrivateHosts: env.CONNECTOR_ALLOW_PRIVATE_HOSTS,
-    },
+    ssrf: ssrfPolicyFromEnv(env),
     envDefaults: {
       baseUrl: env.HOST_API_URL.replace(/\/+$/, ''),
       signInUrl: env.HOST_SIGN_IN_URL ?? null,

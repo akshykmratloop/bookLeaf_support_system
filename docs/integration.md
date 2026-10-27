@@ -308,9 +308,36 @@ everything in **Workspace settings** (admin area) instead of env:
 | Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
 | Workspace Settings | models per job, tone guide, chat and voice switches and limits, voice name, widget origins, branding, nouns | `GET/PUT /api/v1/workspace/settings` |
 | API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
+| Provider Keys | the workspace's own AI and voice provider keys (write-only, last 4 shown) | `/api/v1/workspace/provider-keys` |
+| Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed`; signing secret shown once; test delivery; last 20 deliveries | `/api/v1/workspace/webhooks` |
 
 Secrets are encrypted at rest (AES-256-GCM under the server's `SECRETS_MASTER_KEY`) and never
 returned; the screens show a last-4 hint only.
+
+**Server API (workspace API keys).** Your server reads its own tickets with a key that has the
+`tickets:read` scope: `Authorization: Bearer blsk_…`.
+
+| Route | Returns |
+| --- | --- |
+| `GET /api/v1/server/tickets?status=&updatedSince=&cursor=&limit=` | newest first, `limit` 1–200 (default 50), `nextCursor` for the next page |
+| `GET /api/v1/server/tickets/:id` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
+
+Tickets use your own ids: `customerId` is the customer id your product sends, and `itemId` is the
+item id (book), or `null` for account-level tickets. Errors: 401 for a missing, unknown or revoked
+key, 403 for a missing scope, 404 for another workspace's ticket. Limit: 120 requests per minute.
+
+**Webhooks.** Each event is saved in the same database transaction as the change (an outbox), then
+POSTed as JSON: `{ "id", "type", "createdAt", "data": { "ticket", "message"? } }`. Headers:
+`X-BookLeaf-Event`, `X-BookLeaf-Delivery` (the same id on every retry, so you can drop duplicates)
+and `X-BookLeaf-Signature: t=<unix seconds>,v1=<hex>`. To check a delivery:
+
+1. Compute HMAC-SHA256 of `"<t>.<raw body>"` with the signing secret.
+2. Compare it to `v1` in constant time.
+3. Refuse it if `t` is more than 5 minutes old.
+
+Any 2xx answer counts as delivered. Otherwise the delivery is retried 6 times in total, with
+backoff from 30 s doubling, plus jitter. Redirects are not followed. The receiving address must
+pass the same checks as connector URLs, and it is checked again at every send.
 
 **Sign-in tokens name the workspace.** Add the claim `iss: "<workspace id>"` (the slug chosen at
 signup, e.g. `acme`) to the token from step 2a and sign it with the secret saved in Product

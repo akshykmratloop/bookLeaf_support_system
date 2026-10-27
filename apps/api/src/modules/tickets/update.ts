@@ -8,6 +8,7 @@ import { getAdminTicket } from './queries.js';
 import { findTicketOrThrow } from './repository.js';
 import { slaDueAt } from './sla.js';
 import { assertTransition } from './status-machine.js';
+import { queueTicketEvent } from '../webhooks/outbox.js';
 
 type Current = Awaited<ReturnType<typeof findTicketOrThrow>>;
 
@@ -63,6 +64,41 @@ const snapshot = (t: Current) => ({
   assigneeId: t.assigneeId,
 });
 
+type Tx = Parameters<Parameters<TicketDeps['db']['$transaction']>[0]>[0];
+
+/** The audit row and, for a status change, the webhook event, in the update's own write. */
+async function recordUpdate(
+  tx: Tx,
+  u: {
+    session: Session;
+    current: Current;
+    input: UpdateTicketRequest;
+    now: Date;
+    statusChanged: boolean;
+  },
+) {
+  const { session, current, input, now } = u;
+  await tx.auditEvent.create({
+    data: {
+      workspaceId: current.workspaceId,
+      actorId: session.userId,
+      entityType: 'ticket',
+      entityId: current.id,
+      action: 'ticket.updated',
+      before: snapshot(current),
+      after: { ...snapshot(current), ...input },
+    },
+  });
+  if (!u.statusChanged) return;
+  const event = 'ticket.status_changed' as const;
+  await queueTicketEvent(tx, {
+    workspaceId: current.workspaceId,
+    ticketId: current.id,
+    event,
+    now,
+  });
+}
+
 /** Optimistic locking: the update applies only if nobody changed the ticket since the admin loaded it. */
 export async function updateTicket(
   deps: TicketDeps,
@@ -83,15 +119,12 @@ export async function updateTicket(
         'VERSION_CONFLICT',
         'This ticket was changed by someone else. Reload to see the latest version.',
       );
-    await tx.auditEvent.create({
-      data: {
-        actorId: session.userId,
-        entityType: 'ticket',
-        entityId: id,
-        action: 'ticket.updated',
-        before: snapshot(current),
-        after: { ...snapshot(current), ...input },
-      },
+    await recordUpdate(tx, {
+      session,
+      current,
+      input,
+      now,
+      statusChanged: data.status !== undefined,
     });
   });
   const statusChanged = data.status !== undefined;

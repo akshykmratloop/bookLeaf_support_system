@@ -12,7 +12,14 @@ import {
 import type { VoiceProvider } from './voice/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
 import { createConnectorService } from './modules/connectors/service.js';
-import { connectorDepsFromEnv, envelopeFromEnv } from './modules/connectors/from-env.js';
+import {
+  connectorDepsFromEnv,
+  envelopeFromEnv,
+  ssrfPolicyFromEnv,
+} from './modules/connectors/from-env.js';
+import { createWebhookService } from './modules/webhooks/service.js';
+import { createServerApiService } from './modules/server-api/service.js';
+import { verifyApiKey } from './modules/workspaces/api-keys.js';
 import { createKeyedProviders } from './modules/provider-keys/keyed.js';
 import { createProviderKeyService } from './modules/provider-keys/service.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
@@ -137,6 +144,27 @@ function createAssistants({ env, db, ai, configs, ticketDeps, keyed }: Core) {
   };
 }
 
+/** How the workspace's own systems connect: provider keys, webhooks, the server API. */
+function createIntegrations(core: Core) {
+  return {
+    providerKeys: createProviderKeyService({
+      db: core.db,
+      envelope: core.envelope,
+      keyed: core.keyed,
+      providers: { AI: PROVIDER_CATALOG.map((p) => p.id), VOICE: VOICE_PROVIDER_IDS },
+    }),
+    webhooks: createWebhookService({
+      db: core.db,
+      clock: core.clock,
+      envelope: core.envelope,
+      ssrf: ssrfPolicyFromEnv(core.env),
+    }),
+    serverApi: createServerApiService(core.db, (key) =>
+      verifyApiKey({ db: core.db, clock: core.clock }, key),
+    ),
+  };
+}
+
 /** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
 export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const core = createCore(env, overrides);
@@ -158,12 +186,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       configs: core.configs,
       embedOrigins: core.embedOrigins,
     }),
-    providerKeys: createProviderKeyService({
-      db: core.db,
-      envelope: core.envelope,
-      keyed: core.keyed,
-      providers: { AI: PROVIDER_CATALOG.map((p) => p.id), VOICE: VOICE_PROVIDER_IDS },
-    }),
+    ...createIntegrations(core),
     books: createBooksService(core),
     conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),

@@ -40,7 +40,7 @@ describe('API key never leaves the server', () => {
       h.app.inject({ method: 'GET', url: '/health' }),
     ]);
     for (const res of responses) {
-      expect(res.statusCode).toBeLessThan(500);
+      expect(res.statusCode, `${res.raw.req.url} ${res.body.slice(0, 300)}`).toBeLessThan(500);
       expect(res.body).not.toContain(SENTINEL_KEY);
       expect(JSON.stringify(res.headers)).not.toContain(SENTINEL_KEY);
     }

@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { createWorker } from './ai/jobs/worker.js';
 import type { Container } from './container.js';
+import { ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { failInterruptedCalls } from './modules/voice/repository.js';
+import { createWebhookDispatcher } from './modules/webhooks/dispatcher.js';
 
 /**
  * The work the module does beside its routes, tied to the app's lifecycle so a host that
@@ -14,12 +16,24 @@ export function runInBackground(app: FastifyInstance, c: Container): { stop(): P
     { db: c.db, ai: c.ai, clock: c.clock, events: c.events, records: c.records, log: app.log },
     { pollMs: c.env.WORKER_POLL_MS },
   );
+  const webhooks = createWebhookDispatcher(
+    {
+      db: c.db,
+      clock: c.clock,
+      envelope: c.envelope,
+      ssrf: ssrfPolicyFromEnv(c.env),
+      log: app.log,
+    },
+    { pollMs: c.env.WORKER_POLL_MS },
+  );
   app.addHook('onReady', async () => {
     // Single instance: calls live in this process, so any left PENDING or ACTIVE died with the
     // last one. Running two instances would need this scoped to calls older than the time cap.
     const interrupted = await failInterruptedCalls(c.db, c.clock.now());
     if (interrupted.count) app.log.warn({ count: interrupted.count }, 'marked interrupted calls');
-    if (c.env.WORKER_ENABLED) worker.start();
+    if (!c.env.WORKER_ENABLED) return;
+    worker.start();
+    webhooks.start();
   });
-  return { stop: () => worker.stop() };
+  return { stop: async () => void (await Promise.all([worker.stop(), webhooks.stop()])) };
 }

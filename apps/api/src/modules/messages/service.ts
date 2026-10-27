@@ -11,6 +11,7 @@ import type { TicketDeps } from '../tickets/deps.js';
 import { getAdminTicket, getAuthorTicket } from '../tickets/queries.js';
 import { findTicketOrThrow } from '../tickets/repository.js';
 import { statusAfterAuthorMessage } from '../tickets/status-machine.js';
+import { queueTicketEvent } from '../webhooks/outbox.js';
 
 export interface MessageInput {
   body: string;
@@ -147,7 +148,7 @@ export async function addAdminMessage(
   const now = deps.clock.now();
   await writeOnce(() =>
     deps.db.$transaction(async (tx) => {
-      await tx.ticketMessage.create({
+      const message = await tx.ticketMessage.create({
         data: {
           ticketId,
           kind,
@@ -157,7 +158,10 @@ export async function addAdminMessage(
           createdAt: now,
         },
       });
-      if (kind === 'REPLY') await markReplied(tx, ticket, now);
+      if (kind !== 'REPLY') return;
+      await markReplied(tx, ticket, now);
+      const event = { ticketId, now, messageId: message.id, event: 'ticket.replied' as const };
+      await queueTicketEvent(tx, { ...event, workspaceId: ticket.workspaceId });
     }),
   );
   const authorVisible = kind === 'REPLY';

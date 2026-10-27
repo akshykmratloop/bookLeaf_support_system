@@ -15,6 +15,7 @@ import type { TicketDeps } from './deps.js';
 import { toAuthorTicket } from './mappers.js';
 import { findMessages, findTicketOrThrow } from './repository.js';
 import { slaDueAt } from './sla.js';
+import { queueTicketEvent } from '../webhooks/outbox.js';
 
 export type CreateTicketInput = z.output<typeof CreateTicketRequestSchema>;
 
@@ -103,6 +104,12 @@ async function insertTicket(
     });
     await enqueueJob(tx, t.id, 'TRIAGE', now);
     await origin.afterCreate?.(tx, t.id);
+    await queueTicketEvent(tx, {
+      workspaceId: t.workspaceId,
+      ticketId: t.id,
+      event: 'ticket.created',
+      now,
+    });
     return t.id;
   });
 }

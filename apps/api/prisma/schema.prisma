@@ -191,6 +191,7 @@ model Workspace {
   fields        CustomerField[]
   apiKeys       WorkspaceApiKey[]
   providerKeys  WorkspaceProviderKey[]
+  webhooks      WorkspaceWebhook[]
 
   @@map("workspaces")
 }
@@ -697,4 +698,51 @@ model WorkspaceProviderKey {
 
   @@unique([workspaceId, capability])
   @@map("workspace_provider_keys")
+}
+
+/// Where a workspace's server is told about ticket events. The signing secret is encrypted.
+model WorkspaceWebhook {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  url         String
+  events      String[]
+  secretEnc   String   @map("secret_enc")
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId])
+  @@map("workspace_webhooks")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+/// One event for one webhook (the outbox): written in the same transaction as the change.
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Uuid
+  webhookId      String                @map("webhook_id") @db.Uuid
+  event          String
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  nextAttemptAt  DateTime              @map("next_attempt_at") @db.Timestamptz(3)
+  leaseUntil     DateTime?             @map("lease_until") @db.Timestamptz(3)
+  responseStatus Int?                  @map("response_status")
+  lastError      String?               @map("last_error")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  deliveredAt    DateTime?             @map("delivered_at") @db.Timestamptz(3)
+
+  webhook WorkspaceWebhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
 }
