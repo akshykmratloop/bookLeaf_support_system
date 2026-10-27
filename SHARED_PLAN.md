@@ -112,7 +112,7 @@ to a host token (`POST /api/v1/auth/host`); BookLeaf facts engine moves to `apps
 | **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf-saas` |
 | **Base commit** | `6b0b14e`                              |
 | **Started**     | 2026-10-27                             |
-| **Status**      | 🔄 In Progress                          |
+| **Status**      | ✅ Foundation built and verified on its branch (7 commits); awaiting review; not merged |
 
 **Goal:** workspaces (tenants), self-serve signup, encrypted per-workspace connector config,
 tenant-editable customer-data schema, per-workspace AI/chat/voice/widget settings. BookLeaf

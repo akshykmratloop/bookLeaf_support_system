@@ -159,6 +159,6 @@ test: 10 per workspace per minute. API keys: sha256 hashed, prefix shown, compar
 | 4 | Customer-data schema (customer fields) API + UI; BookLeaf fields as seed | ✅ API + UI | Fact validation driven by field definitions; triage rules per field |
 | 5 | Workspace settings (AI models, tone, chat/voice switches + limits, voice name, widget origins + branding) API + UI | ✅ API + UI | Wire every reader (chat/voice limits, prompts) to the workspace row; categories and KB CRUD replacing the hard-coded enum |
 | 6 | Generic wording in new surfaces ("customer", "item") | ✅ new surfaces | Rename old routes behind aliases |
-| 7 | Workspace API keys + audit log of config changes | partial | Scoped keys for server-to-server calls, webhooks |
+| 7 | Workspace API keys + audit log of config changes | ✅ keys + audit + UI | Endpoints that accept the keys, webhooks |
 
 Status per slice is kept in the final hand-over and in `TASKS.md`.

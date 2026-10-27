@@ -200,6 +200,31 @@ starts the AI worker when the app is ready and stops it when the app closes.
 - To move to another support system, export the support database. Customer records were never
   copied into it beyond the reference rows described in step 2a.
 
+## Many products on one support service (workspaces)
+
+The service hosts one **workspace** per business. A business signs up at `/signup`, then configures
+everything in **Workspace settings** (admin area) instead of env:
+
+| Screen | What it sets | API |
+| --- | --- | --- |
+| Product Connection | the base URL of the customer endpoint (step 2b), the Bearer API key, the HS256 signing secret, sign-in URL, timeout, cache; a **Test** button fetches one customer | `GET/PUT /api/v1/workspace/connector`, `POST …/connector/test` |
+| Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
+| Workspace Settings | models per job, tone guide, chat and voice switches and limits, voice name, widget origins, branding, nouns | `GET/PUT /api/v1/workspace/settings` |
+| API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
+
+Secrets are encrypted at rest (AES-256-GCM under the server's `SECRETS_MASTER_KEY`) and never
+returned; the screens show a last-4 hint only.
+
+**Sign-in tokens name the workspace.** Add the claim `iss: "<workspace id>"` (the slug chosen at
+signup, e.g. `acme`) to the token from step 2a and sign it with the secret saved in Product
+Connection. A token without `iss` belongs to the default `bookleaf` workspace and is verified with
+`HOST_SIGNING_SECRET` from env, so the BookLeaf demo keeps working unchanged.
+
+Connector URLs are checked before use: https only in production, and no address that resolves to a
+loopback, private, link-local or metadata range (development override `CONNECTOR_ALLOW_PRIVATE_HOSTS`).
+
+Design, data model and roadmap: [`saas/PLAN.md`](saas/PLAN.md).
+
 ## Using it for a product other than BookLeaf
 
 The engine is generic. These parts describe BookLeaf's business and would be replaced:
