@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.API_PROXY_TARGET ?? 'http://localhost:3000';
   return {
     plugins: [react(), tailwindcss()],
-    server: { port: 5173, proxy: { '/api': { target: apiTarget, changeOrigin: false } } },
+    server: { port: 5173, proxy: { '/api': { target: apiTarget, changeOrigin: false, ws: true } } },
     build: { outDir: 'dist', sourcemap: false },
   };
 });

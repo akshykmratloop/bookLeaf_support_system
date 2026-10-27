@@ -3,13 +3,16 @@ import { Card } from '../../components/atoms/Card';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { ChatPanel } from '../../components/organisms/ChatPanel';
+import { VoiceCallPanel } from '../../components/organisms/VoiceCallPanel';
 import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
 
-function Unavailable() {
+function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
   return (
     <Card className="p-5 text-[13.5px]">
-      <p className="font-semibold">Chat is unavailable right now.</p>
+      <p className="font-semibold">
+        {channel} {channel === 'Chat' ? 'is' : 'are'} unavailable right now.
+      </p>
       <p className="mt-1 text-ink-2">
         You can still{' '}
         <Link to="/tickets/new" className="font-semibold text-brand underline">
@@ -24,14 +27,15 @@ function Unavailable() {
 export function AssistantPage() {
   const availability = useAssistantAvailability();
   if (availability.isPending) return <LoadingState />;
-  if (availability.isError)
+  // A failed background refresh keeps the last answer, so a live call is never unmounted by it.
+  if (!availability.data)
     return (
       <ErrorState
         message={errorMessage(availability.error)}
         onRetry={() => void availability.refetch()}
       />
     );
-  const { chat } = availability.data;
+  const { chat, voice } = availability.data;
   return (
     <div className="max-w-[820px]">
       <PageHeader
@@ -46,7 +50,16 @@ export function AssistantPage() {
       ) : chat.state === 'AVAILABLE' ? (
         <ChatPanel maxChars={chat.maxMessageChars} />
       ) : (
-        <Unavailable />
+        <Unavailable channel="Chat" />
+      )}
+      {voice.state === 'DISABLED' ? null : (
+        <section className="mt-6" aria-label="Voice call">
+          {voice.state === 'AVAILABLE' ? (
+            <VoiceCallPanel maxSeconds={voice.maxCallSeconds} callsPerHour={voice.callsPerHour} />
+          ) : (
+            <Unavailable channel="Voice calls" />
+          )}
+        </section>
       )}
     </div>
   );

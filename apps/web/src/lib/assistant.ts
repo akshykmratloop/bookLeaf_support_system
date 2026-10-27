@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  AdminVoiceCall,
   AssistantAdminStatus,
   AssistantAvailability,
   AssistantSettings,
@@ -9,6 +10,7 @@ import type {
   ChatTicketRequest,
   ChatTranscript,
   ChannelState,
+  VoiceCall,
 } from '@bookleaf/shared';
 import { api } from './api';
 
@@ -17,6 +19,8 @@ export const assistantKeys = {
   admin: ['assistant', 'admin'] as const,
   currentChat: ['chat', 'current'] as const,
   transcript: (id: string) => ['chat', 'transcript', id] as const,
+  voiceCall: (id: string) => ['voice', 'call', id] as const,
+  adminVoiceCall: (id: string) => ['voice', 'admin-call', id] as const,
 };
 
 /** Whether chat/voice are on. Polled slowly so an admin switch reaches open pages. */
@@ -73,3 +77,27 @@ export const CHANNEL_LABEL: Record<ChannelState, string> = {
   NOT_CONFIGURED: 'No credential on the server',
   AI_OUTAGE: 'AI unavailable',
 };
+
+/** Re-fetches while the server is still saving a call that dropped without a goodbye. */
+export const useVoiceCallRecord = (id: string | null) =>
+  useQuery({
+    queryKey: assistantKeys.voiceCall(id ?? ''),
+    queryFn: () => api<VoiceCall>(`/voice/calls/${id ?? ''}`),
+    enabled: id !== null,
+    refetchInterval: (q) =>
+      q.state.data?.status === 'ACTIVE' && q.state.dataUpdateCount < 10 ? 1000 : false,
+  });
+
+export const useAdminVoiceCall = (id: string | null) =>
+  useQuery({
+    queryKey: assistantKeys.adminVoiceCall(id ?? ''),
+    queryFn: () => api<AdminVoiceCall>(`/admin/voice/calls/${id ?? ''}`),
+    enabled: id !== null,
+  });
+
+export const raiseVoiceTicket = (callId: string, body: ChatTicketRequest, key: string) =>
+  api<AuthorTicket>(`/voice/calls/${callId}/ticket`, {
+    method: 'POST',
+    body,
+    idempotencyKey: key,
+  });
