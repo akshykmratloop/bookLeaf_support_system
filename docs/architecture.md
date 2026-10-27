@@ -430,8 +430,8 @@ sequenceDiagram
 - **Facts are read live** whenever a ticket is triaged or drafted, a chat answers, a call starts, or
   *My Books* opens. One answer is cached for `HOST_CACHE_SECONDS`.
 - **Host down or slow:** a typed `HostUnavailableError` becomes the single fact
-  `host.records_unavailable`. The assistant says it cannot see the records and offers a ticket. A
-  failure is never cached.
+  `host.records_unavailable`. The assistant does not guess: it says it could not confirm the answer
+  and offers a ticket. A failure is never cached.
 - **Bad data from the host:** the response is checked against `HostCustomerSchema`. Anything that
   does not match is treated as "host unavailable", not trusted.
 

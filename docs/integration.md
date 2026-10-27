@@ -140,8 +140,9 @@ The parts of the module written for BookLeaf look for these fact ids
 | `book.{id}.isbn` | TEXT | ISBN questions |
 
 **If the host is slow or down:** support waits `HOST_TIMEOUT_MS`, never caches the failure, and the
-assistant receives one fact, `host.records_unavailable`. It then tells the customer it cannot see
-their records right now and offers to raise a ticket. Tickets, chat and history keep working.
+assistant receives one fact, `host.records_unavailable`. It then says it could not confirm the answer
+from the customer's records, does not guess, and offers to raise a ticket. *My Books* lists the item
+titles with "Details are not available right now". Tickets, chat and history keep working.
 
 ---
 

@@ -721,7 +721,7 @@ detached again. Full guide for a host: [`docs/integration.md`](docs/integration.
 | Part | Design |
 | --- | --- |
 | Customer data | `GET {HOST_API_URL}/support/customers/{id}` (Bearer key) returns the customer, their items and verified facts. Zod-checked, 3 s timeout, 60 s cache, failures never cached |
-| Host down | The assistant gets one fact, `host.records_unavailable`, says it cannot see the records and offers a ticket. Tickets, chat and history keep working |
+| Host down | The assistant gets one fact, `host.records_unavailable`, does not guess, and offers a ticket. Tickets, chat and history keep working |
 | Sign-in | Host token → `POST /auth/host` → support's own session cookie. Customers only (role `AUTHOR`) |
 | Seam | `src/host/`: `HostRecords` interface, `http/` and `fake/` implementations, chosen in `registry.ts`. ESLint blocks core code from importing an implementation |
 | Attach | Link to `/auth/host#t=…` · `embed.js` widget (iframe `/embed`, `HOST_ORIGINS`, partitioned cookie) · `supportPlugin` for Fastify hosts (starts its own worker) |

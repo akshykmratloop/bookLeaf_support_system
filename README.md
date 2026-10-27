@@ -78,15 +78,16 @@ for any real deployment.
 4. Try sending a reply with an invented amount (for example "₹9,999"). It is blocked, and the
    reason is shown.
 5. **History** (author menu): every past chat and call, newest first, read-only.
-6. **Detach:** stop host-demo. Support keeps working; the assistant says it cannot see the records
-   right now and offers a ticket.
+6. **Detach:** stop host-demo. Support keeps working. The assistant says it could not confirm the
+   answer and offers a ticket instead of guessing, and *My Books* shows "Details are not available
+   right now".
 
 ## Checks
 
 | Command | What it does |
 | --- | --- |
 | `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | Static checks. ESLint also enforces the boundaries and size limits (files ≤ 200 lines, functions ≤ 40, complexity ≤ 10) |
-| `pnpm test` | API: 250 tests (unit, plus integration on a real Postgres via testcontainers, with host-demo running as a real HTTP host) · web: 29 · host-demo: 21 |
+| `pnpm test` | API: 261 tests (unit, plus integration on a real Postgres via testcontainers, with host-demo running as a real HTTP host) · web: 29 · host-demo: 21 |
 | `pnpm build && pnpm start` | Production build: one Node process serves the API and the built web app |
 | `pnpm eval` | Live triage evaluation → `docs/eval-results.md` (needs the Anthropic key; costs cents) |
 
