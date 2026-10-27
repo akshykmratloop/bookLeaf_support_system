@@ -62,7 +62,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     assistant,
     draftLive,
     ticketDrafts,
-    chat: createChatService({ ...ticketDeps, assistant, limits }),
+    chat: createChatService({ ...ticketDeps, assistant, limits, drafts: ticketDrafts }),
     voiceProvider,
     voice: createVoiceService({ ...ticketDeps, assistant, limits, provider: voiceProvider }),
   };

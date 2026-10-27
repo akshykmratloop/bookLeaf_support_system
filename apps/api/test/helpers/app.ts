@@ -43,6 +43,15 @@ function testClock(dataAsOf: string): TestClock {
   };
 }
 
+/** The chat model leaves the ticket draft alone. */
+export const NO_DRAFT = {
+  action: 'none',
+  category: null,
+  bookId: null,
+  subject: null,
+  description: null,
+} as const;
+
 /** A fake AI that answers plausibly unless a test swaps the handler. */
 export function defaultHandler(req: StructuredRequest<unknown>): unknown {
   if (req.task === 'TRIAGE') {
@@ -64,7 +73,7 @@ export function defaultHandler(req: StructuredRequest<unknown>): unknown {
     return {
       answer: 'Happy to help with questions about your books, royalties and payouts.',
       claims: [],
-      ticketSuggestion: null,
+      draft: NO_DRAFT,
     };
   }
   return { ok: true };

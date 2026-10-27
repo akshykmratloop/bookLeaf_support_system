@@ -6,6 +6,7 @@ import { NotFoundError } from '../../platform/errors.js';
 const SESSION_INCLUDE = {
   messages: { orderBy: { createdAt: 'asc' as const } },
   ticket: { select: { id: true, number: true } },
+  ticketDraft: { include: { ticket: { select: { id: true, number: true } } } },
 };
 
 /** A session the author owns. Another author's session is reported as "not found". */

@@ -1,12 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AssistantSettings, ChatReply, ChatSession } from '@bookleaf/shared';
-import { defaultHandler } from './helpers/app.js';
+import { defaultHandler, NO_DRAFT } from './helpers/app.js';
+import { CONFIRM_FIRST_TEXT } from '../src/modules/chat/draft-turn.js';
+import type { StructuredRequest } from '../src/ai/providers/types.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
 
 let h: Harness;
 let priya: string;
 let rohit: string;
 let arjun: string;
+let kavita: string;
 let admin: string;
 
 async function setAssistant(patch: Partial<Omit<AssistantSettings, 'version' | 'updatedAt'>>) {
@@ -31,10 +34,11 @@ const send = (cookie: string, id: string, body: string) =>
 
 beforeAll(async () => {
   h = await createHarness();
-  [priya, rohit, arjun, admin] = await Promise.all([
+  [priya, rohit, arjun, kavita, admin] = await Promise.all([
     h.login(EMAILS.priya),
     h.login(EMAILS.rohit),
     h.login(EMAILS.arjun),
+    h.login(EMAILS.kavita),
     h.login(EMAILS.admin),
   ]);
 });
@@ -113,7 +117,7 @@ describe('grounded answers', () => {
         ? {
             answer: `${fact.title} has ${pending} pending.`,
             claims: [{ quote: pending, factIds: ['book.BK001.royalty_pending'] }],
-            ticketSuggestion: null,
+            draft: NO_DRAFT,
           }
         : defaultHandler(req),
     );
@@ -133,7 +137,7 @@ describe('grounded answers', () => {
     h.setAi((req) => {
       if (req.task !== 'CHAT') return defaultHandler(req);
       prompts.push(req.user);
-      return { answer: `Answer number ${prompts.length}.`, claims: [], ticketSuggestion: null };
+      return { answer: `Answer number ${prompts.length}.`, claims: [], draft: NO_DRAFT };
     });
     const [first, second] = await Promise.all([
       send(priya, chat.id, 'First question about my book'),
@@ -173,7 +177,7 @@ describe('grounded answers', () => {
     const chat = await startChat(priya);
     h.setAi((req) =>
       req.task === 'CHAT'
-        ? { answer: 'You will get ₹77,777 tomorrow.', claims: [], ticketSuggestion: null }
+        ? { answer: 'You will get ₹77,777 tomorrow.', claims: [], draft: NO_DRAFT }
         : defaultHandler(req),
     );
     const { reply } = (
@@ -193,7 +197,8 @@ describe('grounded answers', () => {
     const res = await send(priya, chat.id, 'Is my book available on Flipkart yet?');
     expect(res.statusCode).toBe(200);
     expect(res.json<ChatReply>().reply.source).toBe('UNAVAILABLE');
-    expect(res.json<ChatReply>().reply.proposal).not.toBeNull();
+    expect(res.json<ChatReply>().reply.proposal).toBeNull();
+    expect(res.json<ChatReply>().session.draft).toBeNull();
     const after = await h.db.aiSettings.findUniqueOrThrow({ where: { id: 1 } });
     await call(h, 'PUT', '/admin/ai/settings', admin, {
       version: after.version,
@@ -246,6 +251,87 @@ describe('isolation and validation', () => {
       codes.push((await send(arjun, chat.id, `question ${i}`)).statusCode);
     expect(codes.slice(0, 20).every((c) => c === 200)).toBe(true);
     expect(codes[20]).toBe(429);
+  });
+});
+
+describe('ticket draft from chat', () => {
+  const ISSUE = {
+    category: 'ROYALTY_PAYMENTS',
+    bookId: null,
+    subject: 'Royalty statement looks wrong',
+    description: 'My royalty statement for last quarter looks lower than my sales.',
+  } as const;
+  /** The fake model fills the draft, asks to confirm, or sends, depending on the message. */
+  const draftModel = (req: StructuredRequest<unknown>) => {
+    if (req.task !== 'CHAT') return defaultHandler(req);
+    const latest = req.user.slice(req.user.lastIndexOf('<author_message>'));
+    const reply = (answer: string, draft: Record<string, unknown>) => ({
+      answer,
+      claims: [],
+      draft: { ...NO_DRAFT, ...draft },
+    });
+    if (latest.includes('looks wrong'))
+      return reply('I have started a ticket on the right.', { action: 'update', ...ISSUE });
+    if (latest.includes('send it'))
+      return reply('Royalty & Payments: "Royalty statement looks wrong". Shall I send it?', {
+        action: 'confirm',
+      });
+    if (latest.includes('yes')) return reply('Sending it now.', { action: 'submit' });
+    return reply('Happy to help.', {});
+  };
+
+  it('fills the draft, asks before sending, and sends exactly one ticket after a yes', async () => {
+    h.setAi(draftModel);
+    const chat = await startChat(kavita);
+    const first = (
+      await send(kavita, chat.id, 'My royalty statement looks wrong')
+    ).json<ChatReply>();
+    expect(first.session.draft).toMatchObject({
+      ...ISSUE,
+      status: 'OPEN',
+      lastEditedBy: 'ASSISTANT',
+    });
+    const draftId = first.session.draft?.id ?? '';
+    await call(h, 'PATCH', `/ticket-drafts/${draftId}`, kavita, {
+      subject: 'Royalty statement is low',
+    });
+    const asked = (await send(kavita, chat.id, 'ok please send it')).json<ChatReply>();
+    expect(h.aiCalls.at(-1)?.dynamicSystem).toContain('<author_editable>Royalty statement is low');
+    expect(asked.session.draft?.status).toBe('AWAITING_CONFIRMATION');
+    expect(await h.db.ticket.count({ where: { chatSessionId: chat.id } })).toBe(0);
+    const sent = (await send(kavita, chat.id, 'yes')).json<ChatReply>();
+    expect(sent.session.draft?.status).toBe('SUBMITTED');
+    const number = sent.session.draft?.ticket?.number ?? 'missing';
+    expect(sent.reply.body).toContain(number);
+    const tickets = await h.db.ticket.findMany({ where: { chatSessionId: chat.id } });
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).toMatchObject({
+      source: 'CHAT',
+      subject: 'Royalty statement is low',
+      category: 'ROYALTY_PAYMENTS',
+    });
+    h.setAi(defaultHandler);
+  });
+
+  it('asks for confirmation instead of sending when the author was never asked', async () => {
+    h.setAi(draftModel);
+    const chat = await startChat(kavita);
+    await send(kavita, chat.id, 'My royalty statement looks wrong');
+    const res = (await send(kavita, chat.id, 'yes')).json<ChatReply>();
+    expect(res.reply.body).toBe(CONFIRM_FIRST_TEXT);
+    expect(res.session.draft?.status).toBe('AWAITING_CONFIRMATION');
+    expect(await h.db.ticket.count({ where: { chatSessionId: chat.id } })).toBe(0);
+    h.setAi(defaultHandler);
+  });
+
+  it('instant answers from records never touch the draft', async () => {
+    h.setAi(draftModel);
+    const chat = await startChat(kavita);
+    await send(kavita, chat.id, 'My royalty statement looks wrong');
+    const res = (await send(kavita, chat.id, 'When is the next payout?')).json<ChatReply>();
+    expect(res.reply.source).toBe('RECORDS');
+    expect(res.session.draft).toMatchObject({ ...ISSUE, version: 1 });
+    h.setAi(defaultHandler);
   });
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { cleanText } from '../sanitize.js';
+import { TicketDraftSchema } from './ticket-drafts.js';
 import { DESCRIPTION_LIMITS, SUBJECT_LIMITS } from './tickets.js';
 
 export const CHAT_MESSAGE_LIMITS = { min: 1, max: 1000 } as const;
@@ -44,6 +45,8 @@ export const ChatSessionSchema = z.object({
   maxTurns: z.int(),
   ticket: z.object({ id: z.uuid(), number: z.string() }).nullable(),
   messages: z.array(ChatMessageSchema),
+  /** The conversation's ticket draft (null until the author or the assistant starts one). */
+  draft: TicketDraftSchema.nullable(),
   createdAt: z.iso.datetime(),
 });
 export type ChatSession = z.infer<typeof ChatSessionSchema>;

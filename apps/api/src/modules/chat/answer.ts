@@ -1,7 +1,7 @@
-import type { CheckResult, ChatAnswerSource, Fact, TicketProposal } from '@bookleaf/shared';
+import type { CheckResult, ChatAnswerSource, Fact, TicketDraft } from '@bookleaf/shared';
+import type { DraftAction } from '../../ai/chat/draft-action.js';
 import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
 import { CHAT_PROMPT_VERSION } from '../../ai/chat/prompt.v1.js';
-import { toProposal } from '../../ai/chat/proposal.js';
 import { quickAnswer } from '../../ai/chat/quick/answers.js';
 import { answerChat } from '../../ai/chat/service.js';
 import { recordRun } from '../../ai/jobs/runs.js';
@@ -16,7 +16,8 @@ export interface StoredAnswer {
   body: string;
   factsUsed: { id: string; label: string; display: string }[];
   check: CheckResult | null;
-  proposal: TicketProposal | null;
+  /** Ticket draft change requested by the AI; null for instant and "unavailable" answers. */
+  draft: DraftAction | null;
   model: string | null;
   latencyMs: number | null;
 }
@@ -34,15 +35,16 @@ export interface AnswerRequest {
   authorId: string;
   message: string;
   history: { role: 'AUTHOR' | 'ASSISTANT'; body: string }[];
+  draft: TicketDraft | null;
 }
 
-function unavailable(message: string): StoredAnswer {
+function unavailable(): StoredAnswer {
   return {
     source: 'UNAVAILABLE',
     body: UNAVAILABLE_TEXT,
     factsUsed: [],
     check: null,
-    proposal: toProposal({ subject: '', description: '', bookId: null }, [], message),
+    draft: null,
     model: null,
     latencyMs: null,
   };
@@ -94,7 +96,7 @@ function fromRecords(req: AnswerRequest, turn: TurnContext, started: number): St
     body: quick.body,
     factsUsed: factRefs(quick.factIds, turn.facts),
     check: quick.check,
-    proposal: null,
+    draft: null,
     model: null,
     latencyMs: Math.round(performance.now() - started),
   };
@@ -111,6 +113,7 @@ async function runModel(
     facts: turn.facts,
     history: req.history,
     message: req.message,
+    draft: req.draft,
     ignorePhrases: turn.ignorePhrases,
   });
 }
@@ -126,7 +129,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
   const instant = fromRecords(req, turn, started);
   if (instant) return instant;
   const access = await deps.assistant.chatAccess();
-  if (!access.ok) return unavailable(req.message);
+  if (!access.ok) return unavailable();
   const log = { ticketId: null, task: 'CHAT', provider: access.providerId, model: access.model };
   try {
     const res = await runModel(access, req, turn);
@@ -143,7 +146,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
       body: res.body,
       factsUsed: factRefs(res.factIds, turn.facts),
       check: res.check,
-      proposal: res.proposal,
+      draft: res.draft,
       model: res.runs[res.runs.length - 1]?.model ?? access.model,
       latencyMs: res.runs.reduce((sum, r) => sum + r.latencyMs, 0),
     };
@@ -156,6 +159,6 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
       latencyMs: Math.round(performance.now() - started),
       errorCode: err.code,
     });
-    return unavailable(req.message);
+    return unavailable();
   }
 }

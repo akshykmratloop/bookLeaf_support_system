@@ -3,8 +3,11 @@ import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
 import { AiAuthError, AiUnavailableError } from '../providers/errors.js';
 import { fakeProvider } from '../providers/fake/provider.js';
 import { buildAuthorFacts } from './author-facts.js';
-import { CHAT_SYSTEM, chatUserMessage, splitHistory } from './prompt.v1.js';
+import { TICKET_CATEGORIES } from '@bookleaf/shared';
+import { CHAT_SYSTEM, chatContext, chatUserMessage, splitHistory } from './prompt.v1.js';
 import { answerChat, SAFE_FALLBACK_TEXT } from './service.js';
+
+const NO_DRAFT = { action: 'none', category: null, bookId: null, subject: null, description: null };
 
 const AS_OF = new Date('2025-12-31T00:00:00Z');
 
@@ -17,6 +20,7 @@ function chatInput(authorId: string, message: string) {
     facts,
     history: [],
     message,
+    draft: null,
     ignorePhrases: author.books.map((b) => b.title),
   };
 }
@@ -56,7 +60,7 @@ describe('answerChat', () => {
     const provider = fakeProvider(() => ({
       answer: `You have ${pending.display} pending in total across your books, Priya.`,
       claims: [{ quote: pending.display, factIds: [pending.id] }],
-      ticketSuggestion: null,
+      draft: NO_DRAFT,
     }));
     await answerChat(provider, 'm', input);
     expect(provider.calls[0]?.maxTokens).toBeGreaterThanOrEqual(3000);
@@ -68,7 +72,7 @@ describe('answerChat', () => {
     const provider = fakeProvider(() => ({
       answer: `You have ${pending.display} pending in total across your books, Priya.`,
       claims: [{ quote: pending.display, factIds: [pending.id] }],
-      ticketSuggestion: null,
+      draft: NO_DRAFT,
     }));
     const res = await answerChat(provider, 'm', input);
     expect(res.source).toBe('AI');
@@ -84,11 +88,11 @@ describe('answerChat', () => {
     const provider = fakeProvider(() => {
       call += 1;
       return call === 1
-        ? { answer: 'You have ₹99,999 pending right now.', claims: [], ticketSuggestion: null }
+        ? { answer: 'You have ₹99,999 pending right now.', claims: [], draft: NO_DRAFT }
         : {
             answer: `You have ${pending.display} pending in total.`,
             claims: [{ quote: pending.display, factIds: [pending.id] }],
-            ticketSuggestion: null,
+            draft: NO_DRAFT,
           };
     });
     const res = await answerChat(provider, 'm', input);
@@ -103,34 +107,63 @@ describe('answerChat', () => {
     const provider = fakeProvider(() => ({
       answer: 'You will receive ₹50,000 on 3 Mar 2026, guaranteed.',
       claims: [],
-      ticketSuggestion: {
+      draft: {
+        action: 'confirm',
+        category: 'ROYALTY_PAYMENTS',
+        bookId: null,
         subject: 'Pending royalty',
         description: 'I would like the team to confirm my pending royalty amount and payout date.',
-        bookId: null,
       },
     }));
     const res = await answerChat(provider, 'm', input);
     expect(res.source).toBe('SAFE_FALLBACK');
     expect(res.body).toBe(SAFE_FALLBACK_TEXT);
     expect(res.body).not.toContain('₹50,000');
-    expect(res.proposal?.subject).toBe('Pending royalty');
+    // The replaced answer can't ask "shall I send it?", so only the field edits survive.
+    expect(res.draft).toEqual({
+      kind: 'update',
+      patch: {
+        category: 'ROYALTY_PAYMENTS',
+        subject: 'Pending royalty',
+        description: 'I would like the team to confirm my pending royalty amount and payout date.',
+      },
+    });
     expect(res.runs).toHaveLength(2);
   });
 
-  it("drops a suggested book that is not the author's own", async () => {
+  it("cleans draft text and drops a book that is not the author's own", async () => {
     const input = chatInput('AUTH001', 'My book is missing on Flipkart');
     const foreignBook = sampleAuthor('AUTH009').books[0]?.id ?? 'x';
     const provider = fakeProvider(() => ({
       answer: 'I can raise this with the team so they can check the listing for you.',
       claims: [],
-      ticketSuggestion: { subject: 'Hi', description: 'short', bookId: foreignBook },
+      draft: {
+        action: 'update',
+        category: 'DISTRIBUTION_AVAILABILITY',
+        bookId: foreignBook,
+        subject: ' <b>Missing</b> on Flipkart ',
+        description: 's'.repeat(5000),
+      },
     }));
     const res = await answerChat(provider, 'm', input);
-    expect(res.proposal).toEqual({
-      subject: 'Question from Ask BookLeaf chat',
-      description: 'My book is missing on Flipkart',
-      bookId: null,
+    expect(res.draft.kind).toBe('update');
+    expect(res.draft.patch).toMatchObject({
+      category: 'DISTRIBUTION_AVAILABILITY',
+      subject: 'Missing on Flipkart',
     });
+    expect(res.draft.patch.bookId).toBeUndefined();
+    expect(res.draft.patch.description).toHaveLength(4000);
+  });
+
+  it('never lets "submit" carry edits (an edit would cancel the confirmation)', async () => {
+    const input = chatInput('AUTH001', 'yes send it');
+    const provider = fakeProvider(() => ({
+      answer: 'Sending it now.',
+      claims: [],
+      draft: { ...NO_DRAFT, action: 'submit', subject: 'Changed at the last second' },
+    }));
+    const res = await answerChat(provider, 'm', input);
+    expect(res.draft).toEqual({ kind: 'submit', patch: {} });
   });
 
   it('retries once on a temporary provider error before giving up', async () => {
@@ -138,7 +171,7 @@ describe('answerChat', () => {
     const provider = fakeProvider(() => {
       call += 1;
       if (call === 1) throw new AiUnavailableError('blip');
-      return { answer: 'Happy to help with your books.', claims: [], ticketSuggestion: null };
+      return { answer: 'Happy to help with your books.', claims: [], draft: NO_DRAFT };
     });
     const res = await answerChat(provider, 'm', chatInput('AUTH001', 'hi'));
     expect(res.source).toBe('AI');
@@ -211,6 +244,7 @@ describe('chat prompt: reading follow-ups in context', () => {
       facts: [],
       history,
       message: 'why',
+      draft: null,
     });
     const recentBlock = text.slice(
       text.indexOf('MOST RECENT EXCHANGE'),
@@ -225,5 +259,46 @@ describe('chat prompt: reading follow-ups in context', () => {
     expect(CHAT_SYSTEM).toContain('Short or vague messages');
     expect(CHAT_SYSTEM).toContain("don't give one overall time");
     expect(CHAT_SYSTEM).toContain('timelines together');
+  });
+});
+
+describe('chat prompt: the shared ticket draft', () => {
+  it('shows the draft as it is now, marking its text as untrusted', () => {
+    const input = chatInput('AUTH001', 'change the subject');
+    const book = input.books[0];
+    const text = chatContext({
+      ...input,
+      draft: {
+        id: '00000000-0000-4000-8000-000000000001',
+        category: 'PRINTING_QUALITY',
+        bookId: book?.id ?? null,
+        subject: 'Pages are blurry',
+        description: '',
+        status: 'AWAITING_CONFIRMATION',
+        version: 3,
+        lastEditedBy: 'AUTHOR',
+        isComplete: false,
+        ticket: null,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    expect(text).toContain('status: AWAITING_CONFIRMATION');
+    expect(text).toContain('PRINTING_QUALITY | Printing & Quality');
+    expect(text).toContain(`book: ${book?.id} | ${book?.title}`);
+    expect(text).toContain('subject: <author_editable>Pages are blurry</author_editable>');
+    expect(text).toContain('description: (empty)');
+    expect(text).toContain('last edited by: the author');
+  });
+
+  it('says so when no draft has been started', () => {
+    expect(chatContext(chatInput('AUTH001', 'hi'))).toContain('CURRENT TICKET DRAFT: empty');
+  });
+
+  it('lists every issue type and requires asking before sending', () => {
+    for (const c of TICKET_CATEGORIES) expect(CHAT_SYSTEM).toContain(c);
+    expect(CHAT_SYSTEM).toContain('Shall I send it?');
+    expect(CHAT_SYSTEM).toContain(
+      'Use "submit" only when the draft status is AWAITING_CONFIRMATION',
+    );
   });
 });

@@ -1,4 +1,4 @@
-import type { CheckResult, TicketProposal } from '@bookleaf/shared';
+import type { CheckResult } from '@bookleaf/shared';
 import { checkReply } from '../checker/index.js';
 import { AiError } from '../providers/errors.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
@@ -10,7 +10,7 @@ import {
   type ChatOutput,
   type ChatPromptInput,
 } from './prompt.v1.js';
-import { toProposal } from './proposal.js';
+import { toDraftAction, withoutSending, type DraftAction } from './draft-action.js';
 
 export type ChatRunMeta = Omit<StructuredResult<unknown>, 'data'>;
 
@@ -19,7 +19,8 @@ export interface ChatAnswer {
   body: string;
   factIds: string[];
   check: CheckResult;
-  proposal: TicketProposal | null;
+  /** What to do to the ticket draft; the caller applies it under the server's rules. */
+  draft: DraftAction;
   /** One entry per model call (1 or 2), for cost and latency logging. */
   runs: ChatRunMeta[];
 }
@@ -92,17 +93,17 @@ export async function answerChat(
     data = second.data;
     ({ body, check } = checkOutput(input, data, input.ignorePhrases));
   }
-  const proposal = toProposal(data.ticketSuggestion, input.books, input.message);
+  const draft = toDraftAction(data.draft, input.books);
   if (!check.passed) {
     return {
       source: 'SAFE_FALLBACK',
       body: SAFE_FALLBACK_TEXT,
       factIds: [],
       check,
-      proposal,
+      draft: withoutSending(draft),
       runs,
     };
   }
   const factIds = [...new Set(data.claims.flatMap((c) => c.factIds))];
-  return { source: 'AI', body, factIds, check, proposal, runs };
+  return { source: 'AI', body, factIds, check, draft, runs };
 }

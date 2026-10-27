@@ -1,5 +1,10 @@
 import { DESCRIPTION_LIMITS, SUBJECT_LIMITS, type TicketProposal } from '@bookleaf/shared';
-import type { ChatOutput } from './prompt.v1.js';
+/** A model-written ticket suggestion (voice calls; chat uses the shared ticket draft). */
+export interface TicketSuggestion {
+  subject: string;
+  description: string;
+  bookId: string | null;
+}
 
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max).trim() : text);
 
@@ -9,7 +14,7 @@ const clip = (text: string, max: number) => (text.length > max ? text.slice(0, m
  * falls back to the author's own message. The author still reviews it before a ticket exists.
  */
 export function toProposal(
-  suggestion: ChatOutput['ticketSuggestion'],
+  suggestion: TicketSuggestion | null,
   books: readonly { id: string }[],
   authorMessage: string,
 ): TicketProposal | null {

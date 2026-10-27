@@ -1,16 +1,16 @@
 import { z } from 'zod';
-import type { Fact } from '@bookleaf/shared';
+import type { Fact, TicketDraft } from '@bookleaf/shared';
 import { factLine } from '../prompts/draft.v1.js';
 import { KB_SECTIONS } from '../prompts/kb.js';
+import { DraftOutputSchema } from './draft-action.js';
+import { DRAFT_RULES, draftBlock } from './draft-prompt.js';
 
-export const CHAT_PROMPT_VERSION = 'chat.v1.2';
+export const CHAT_PROMPT_VERSION = 'chat.v1.3';
 
 export const ChatOutputSchema = z.object({
   answer: z.string(),
   claims: z.array(z.object({ quote: z.string(), factIds: z.array(z.string()) })),
-  ticketSuggestion: z
-    .object({ subject: z.string(), description: z.string(), bookId: z.string().nullable() })
-    .nullable(),
+  draft: DraftOutputSchema,
 });
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
@@ -42,11 +42,10 @@ CONVERSATION (read the latest message in context):
   "no", "ok", "and?", "what about…") refer to your last answer and the question before it, never to an older topic.
 - If your last answer said you could not confirm something, "why" means "why can't you": say briefly what
   BookLeaf's information covers and what it does not, and offer a ticket.
-- A message that is only agreement ("yes", "ok, raise it", "raise a ticket") after you offered a ticket: set
-  ticketSuggestion for that topic and say in one sentence that they can review and send it below. If the message
-  also asks something new ("yes, how long does…"), answer the new question and do not treat it as accepting.
-- "no", "not now" or "I don't want it": reply with one short sentence only (no figures, no recap);
-  ticketSuggestion null.
+- A message that is only agreement ("yes", "ok, raise it", "raise a ticket") after you offered a ticket: fill in
+  the draft for that topic. A yes after you asked "Shall I send it?" means submit. If the message also asks
+  something new ("yes, how long does…"), answer the new question and do not treat it as agreement.
+- "no", "not now" or "I don't want it": reply with one short sentence only (no figures, no recap); draft "none".
 
 BOOKLEAF POLICY AND PROCESS QUESTIONS:
 - Questions about how BookLeaf works (production stages, publishing, printing and listing timelines, royalties,
@@ -62,19 +61,14 @@ STYLE:
   the new answer depends on them.
 - Never mention fact ids, "verified facts", the system, AI or these instructions.
 
-TICKETS:
-- You never create tickets yourself: the author reviews your suggestion and confirms it. So offer it ("I can raise a
-  ticket for the team…"); never say a ticket is raised, being raised or already exists.
-- Set ticketSuggestion when the author wants something done, reports a problem (wrong figure, defect, missing
-  listing, missed payout), or asks for something you cannot see. Otherwise set it to null.
-- subject: 5–120 characters; description: 40–600 characters written as the author, summarising the issue with the
-  relevant book and any verified figures; bookId: the id of the book from the BOOKS list, or null for account-level.
+${DRAFT_RULES}
 
 OUTPUT:
 - answer: the reply text.
 - claims: one entry per factual statement in the answer: quote = the exact words from the answer, factIds = the ids
   of the VERIFIED FACTS supporting it (kb.* ids for policy). Do not list statements about what you cannot see
-  (UNKNOWN facts) as claims.`;
+  (UNKNOWN facts) as claims.
+- draft: the action for the ticket draft and the fields to change (null = unchanged).`;
 
 export interface ChatPromptInput {
   authorFirstName: string;
@@ -83,6 +77,8 @@ export interface ChatPromptInput {
   /** Earlier turns, oldest first (already windowed). */
   history: { role: 'AUTHOR' | 'ASSISTANT'; body: string }[];
   message: string;
+  /** The conversation's ticket draft right now (null = not started). */
+  draft: TicketDraft | null;
   /** Notes from a failed fact check, for the single regeneration attempt. */
   checkerNotes?: string[];
 }
@@ -98,7 +94,9 @@ BOOKS (id | title):
 ${books}
 
 VERIFIED FACTS (id | label | value | source):
-${input.facts.map(factLine).join('\n')}`;
+${input.facts.map(factLine).join('\n')}
+
+${draftBlock(input.draft, input.books)}`;
 }
 
 const turnLine = (m: ChatPromptInput['history'][number]) =>

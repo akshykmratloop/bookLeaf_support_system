@@ -15,12 +15,16 @@ import type { AssistantService } from '../assistant/service.js';
 import type { Session } from '../auth/session.js';
 import { createTicket, getAuthorTicket } from '../tickets/create.js';
 import type { TicketDeps } from '../tickets/deps.js';
+import type { TicketDraftService } from '../ticket-drafts/service.js';
 import { produceAnswer } from './answer.js';
+import { applyDraftAction } from './draft-turn.js';
+import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import { toChatMessage, toChatSession } from './mappers.js';
 import { authorMessagesSince, findOwnSession, findSessionById, reserveTurn } from './repository.js';
 
 interface Deps extends TicketDeps {
   assistant: AssistantService;
+  drafts: TicketDraftService;
   limits: AssistantLimits;
 }
 
@@ -51,7 +55,8 @@ export function createChatService(deps: Deps) {
   }
 
   /** One turn, run inside the conversation's queue: reads history only after earlier turns. */
-  async function answerTurn(authorId: string, id: string, body: string): Promise<ChatReply> {
+  async function answerTurn(session: Session, id: string, body: string): Promise<ChatReply> {
+    const authorId = authorIdOf(session);
     const chat = await findOwnSession(db, id, authorId);
     await enforceDailyLimit(authorId);
     if (!(await reserveTurn(db, chat.id, maxTurns)))
@@ -65,16 +70,18 @@ export function createChatService(deps: Deps) {
     const history = chat.messages
       .slice(-HISTORY_MESSAGES)
       .map((m) => ({ role: m.role, body: m.body }));
-    const a = await produceAnswer(deps, { authorId, message: body, history });
+    const draft = chat.ticketDraft ? toTicketDraft(chat.ticketDraft) : null;
+    const a = await produceAnswer(deps, { authorId, message: body, history, draft });
+    const applied = await applyDraftAction(deps.drafts, session, chat.id, a.draft);
     const reply = await db.chatMessage.create({
       data: {
         sessionId: chat.id,
         role: 'ASSISTANT',
-        body: a.body,
+        body: applied.bodyOverride ?? a.body,
         source: a.source,
         factsUsed: a.factsUsed,
         check: a.check ?? Prisma.JsonNull,
-        proposal: a.proposal ?? Prisma.JsonNull,
+        proposal: Prisma.JsonNull,
         model: a.model,
         latencyMs: a.latencyMs,
         createdAt: clock.now(),
@@ -122,9 +129,8 @@ export function createChatService(deps: Deps) {
 
     async send(session: Session, id: string, body: string): Promise<ChatReply> {
       await assistant.requireChatEnabled();
-      const authorId = authorIdOf(session);
       try {
-        return await inOrder(id, () => answerTurn(authorId, id, body));
+        return await inOrder(id, () => answerTurn(session, id, body));
       } catch (err) {
         if (!(err instanceof QueueFullError)) throw err;
         throw new UsageLimitError(

@@ -7,6 +7,7 @@ import {
 } from '@bookleaf/shared';
 import type { ChatMessage as ChatMessageRow } from '@prisma/client';
 import { z } from 'zod';
+import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { SessionWithMessages } from './repository.js';
 
 const FactsUsedSchema = z.array(ChatFactRefSchema);
@@ -32,6 +33,7 @@ export function toChatSession(s: SessionWithMessages, maxTurns: number): ChatSes
     maxTurns,
     ticket: s.ticket ? { id: s.ticket.id, number: ticketNumberLabel(s.ticket.number) } : null,
     messages: s.messages.map(toChatMessage),
+    draft: s.ticketDraft ? toTicketDraft(s.ticketDraft) : null,
     createdAt: s.createdAt.toISOString(),
   };
 }
