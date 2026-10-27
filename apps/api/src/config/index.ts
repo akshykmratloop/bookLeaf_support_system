@@ -8,15 +8,20 @@ import { ServerConfig } from './server.js';
 import { VoiceConfig } from './voice.js';
 
 /** Every runtime setting, one small schema per area, validated once at startup. */
-const EnvSchema = z.object({
-  ...ServerConfig.shape,
-  ...DatabaseConfig.shape,
-  ...AuthConfig.shape,
-  ...AiConfig.shape,
-  ...ChatConfig.shape,
-  ...VoiceConfig.shape,
-  ...HostConfig.shape,
-});
+const EnvSchema = z
+  .object({
+    ...ServerConfig.shape,
+    ...DatabaseConfig.shape,
+    ...AuthConfig.shape,
+    ...AiConfig.shape,
+    ...ChatConfig.shape,
+    ...VoiceConfig.shape,
+    ...HostConfig.shape,
+  })
+  .refine((env) => env.HOST_SIGNING_SECRET !== env.JWT_SECRET, {
+    path: ['HOST_SIGNING_SECRET'],
+    message: 'must differ from JWT_SECRET (the host knows it)',
+  });
 
 export type Env = z.infer<typeof EnvSchema>;
 

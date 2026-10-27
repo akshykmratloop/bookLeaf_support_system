@@ -1,4 +1,5 @@
 import { HOST_TOKEN_AUDIENCE, HOST_TOKEN_MAX_SECONDS } from '@bookleaf/shared';
+import { randomUUID } from 'node:crypto';
 import { errors, jwtVerify, SignJWT } from 'jose';
 import type { AuthorAccount } from './data/authors.js';
 
@@ -10,6 +11,7 @@ export function mintSupportToken(account: AuthorAccount, secret: string): Promis
   return new SignJWT({ name: account.record.name, email: account.email })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(account.record.externalId)
+    .setJti(randomUUID())
     .setAudience(HOST_TOKEN_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(`${HOST_TOKEN_MAX_SECONDS}s`)

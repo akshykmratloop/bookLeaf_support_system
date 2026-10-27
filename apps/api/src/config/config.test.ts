@@ -42,4 +42,9 @@ describe('loadEnv', () => {
     expect(() => loadEnv(withoutHost)).toThrow(/HOST_API_URL/);
     expect(loadEnv(REQUIRED)).toMatchObject({ HOST_TIMEOUT_MS: 3000, HOST_CACHE_SECONDS: 60 });
   });
+
+  it('refuses a host signing secret equal to the session secret', () => {
+    const same = { ...REQUIRED, HOST_SIGNING_SECRET: REQUIRED.JWT_SECRET };
+    expect(() => loadEnv(same)).toThrow(/HOST_SIGNING_SECRET/);
+  });
 });

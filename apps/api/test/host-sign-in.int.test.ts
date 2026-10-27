@@ -1,4 +1,5 @@
 import { HOST_TOKEN_AUDIENCE, type AuthUser, type BookList } from '@bookleaf/shared';
+import { randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { syncCustomer } from '../src/host/sync.js';
@@ -13,13 +14,21 @@ interface TokenOptions {
   audience?: string;
   issuedAgo?: number;
   lifetime?: number;
+  /** Token id; null leaves it out. */
+  jti?: string | null;
   extra?: Record<string, unknown>;
 }
 
 /** A hand-over token as a host would make it; each option bends one rule. */
 function token(o: TokenOptions = {}) {
   const iat = Math.floor(h.clock.now().getTime() / 1000) - (o.issuedAgo ?? 0);
-  return new SignJWT({ name: 'Priya Sharma', email: EMAILS.priya, ...o.extra })
+  const jti = o.jti === undefined ? randomUUID() : o.jti;
+  return new SignJWT({
+    name: 'Priya Sharma',
+    email: EMAILS.priya,
+    ...(jti ? { jti } : {}),
+    ...o.extra,
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(o.sub ?? 'AUTH001')
     .setAudience(o.audience ?? HOST_TOKEN_AUDIENCE)
@@ -63,6 +72,18 @@ describe('POST /auth/host', () => {
     expect((await signIn(o)).statusCode).toBe(401);
   });
 
+  it('accepts each token once: a replayed token is refused', async () => {
+    const once = await token();
+    const first = await call(h, 'POST', '/auth/host', undefined, { token: once });
+    expect(first.statusCode).toBe(200);
+    const replay = await call(h, 'POST', '/auth/host', undefined, { token: once });
+    expect(replay.statusCode).toBe(401);
+  });
+
+  it('refuses a token without a token id (jti), which could not be checked for replay', async () => {
+    expect((await signIn({ jti: null })).statusCode).toBe(401);
+  });
+
   it('ignores a role claim: host users are always authors', async () => {
     const res = await signIn({ extra: { role: 'ADMIN' } });
     expect(res.json<{ user: AuthUser }>().user.role).toBe('AUTHOR');
@@ -74,6 +95,18 @@ describe('POST /auth/host', () => {
 });
 
 describe('accounts', () => {
+  it('never moves an item that belongs to another author (a host mix-up is refused)', async () => {
+    await signIn();
+    const other = { ...sampleCustomer('AUTH002'), id: 'AUTH-NEW', email: 'new.author@example.com' };
+    const stolen = { ...other, items: sampleCustomer('AUTH001').items };
+    await expect(syncCustomer(h.db, stolen)).rejects.toMatchObject({ status: 409 });
+    const book = await h.db.book.findUniqueOrThrow({
+      where: { externalId: 'BK001' },
+      include: { author: true },
+    });
+    expect(book.author.externalId).toBe('AUTH001');
+  });
+
   it('a host author has no password here, so password sign-in never works for them', async () => {
     await signIn();
     const res = await call(h, 'POST', '/auth/login', undefined, {

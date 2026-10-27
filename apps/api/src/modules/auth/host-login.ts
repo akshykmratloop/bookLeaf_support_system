@@ -8,6 +8,7 @@ import { UnauthorizedError } from '../../platform/errors.js';
 import { verifyHostToken } from './host-token.js';
 import { toAuthUser } from './service.js';
 import type { Session, SessionCodec } from './session.js';
+import type { UsedTokenIds } from './used-tokens.js';
 
 export interface HostSignInDeps {
   db: Db;
@@ -15,6 +16,7 @@ export interface HostSignInDeps {
   sessions: SessionCodec;
   clock: Clock;
   signingSecret: string;
+  usedTokens: UsedTokenIds;
 }
 
 async function customerFor(records: HostRecords, externalId: string) {
@@ -27,14 +29,16 @@ async function customerFor(records: HostRecords, externalId: string) {
 }
 
 /**
- * An author arrives from the host product with a hand-over token. We check it, read who they
- * are from the host, keep a reference row, and start our own session (role AUTHOR only).
+ * An author arrives from the host product with a hand-over token. We check it (once only), read
+ * who they are from the host, keep a reference row, and start our own session (role AUTHOR only).
  */
 export async function signInFromHost(
   deps: HostSignInDeps,
   token: string,
 ): Promise<{ user: AuthUser; token: string }> {
   const claims = await verifyHostToken(token, deps.signingSecret, deps.clock.now());
+  if (!deps.usedTokens.claim(claims.jti, claims.exp))
+    throw new UnauthorizedError('This sign-in link has already been used');
   const customer = await customerFor(deps.records, claims.sub);
   const { userId, authorId } = await syncCustomer(deps.db, customer);
   const session: Session = {

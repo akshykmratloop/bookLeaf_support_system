@@ -20,9 +20,10 @@ const findTicket = (db: Db, ticketId: string) =>
   });
 
 /** The author's facts from the host, for the ticket's book (or the account when no book). */
-async function ticketFacts(deps: ContextDeps, authorId: string, bookId: string | null) {
-  const customer = await customerOrNull(deps.records, authorId);
-  return customer ? factsFor(customer, bookId) : [RECORDS_UNAVAILABLE];
+/** Facts from the host, by the host's own ids for the customer and the item. */
+async function ticketFacts(deps: ContextDeps, customerId: string, itemId: string | null) {
+  const customer = await customerOrNull(deps.records, customerId);
+  return customer ? factsFor(customer, itemId) : [RECORDS_UNAVAILABLE];
 }
 
 /** Everything an AI handler needs for one ticket, scoped to the ticket's author. */

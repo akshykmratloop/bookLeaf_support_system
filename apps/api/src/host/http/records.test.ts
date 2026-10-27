@@ -84,8 +84,19 @@ describe('httpHostRecords', () => {
     expect(await r.customer('C1')).toEqual(CUSTOMER);
   });
 
+  it('refuses an answer about a different customer than the one asked for', async () => {
+    reply = () => ({ status: 200, body: { ...CUSTOMER, id: 'C2' } });
+    await expect(records().customer('C1')).rejects.toBeInstanceOf(HostUnavailableError);
+  });
+
+  it('never asks the host for a path-like id', async () => {
+    await expect(records().customer('..')).rejects.toBeInstanceOf(CustomerNotFoundError);
+    expect(calls).toEqual([]);
+  });
+
   it('encodes the customer id in the URL', async () => {
-    await records().customer('a/b?c');
-    expect(calls[0]?.id).toBe('a/b?c');
+    reply = (id) => ({ status: 200, body: { ...CUSTOMER, id } });
+    await records().customer('a:b@c');
+    expect(calls[0]?.id).toBe('a:b@c');
   });
 });

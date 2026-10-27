@@ -15,6 +15,11 @@ describe('history cursor', () => {
     expect(() => decodeCursor('not-a-cursor')).toThrow('Invalid cursor');
   });
 
+  it('rejects a well-formed cursor whose id is not a uuid (the database would refuse it)', () => {
+    const forged = encodeCursor({ at: AT, id: '-'.repeat(36) });
+    expect(() => decodeCursor(forged)).toThrow('Invalid cursor');
+  });
+
   it('sorts newest first, breaking a tie on time by the larger id', () => {
     const older = { at: new Date(AT.getTime() - 1000), id: ID_B };
     const rows = [older, { at: AT, id: ID_A }, { at: AT, id: ID_B }].sort(newestFirst);

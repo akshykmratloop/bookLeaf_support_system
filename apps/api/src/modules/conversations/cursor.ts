@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ValidationError } from '../../platform/errors.js';
 
 /** Position in a newest-first list: the last row shown. Ties on time are broken by id. */
@@ -12,7 +13,7 @@ export const encodeCursor = (c: Cursor): string =>
 export function decodeCursor(text: string): Cursor {
   const [iso = '', id = ''] = Buffer.from(text, 'base64url').toString('utf8').split('|');
   const at = new Date(iso);
-  if (Number.isNaN(at.getTime()) || !/^[0-9a-f-]{36}$/.test(id))
+  if (Number.isNaN(at.getTime()) || !z.uuid().safeParse(id).success)
     throw new ValidationError('Invalid cursor');
   return { at, id };
 }

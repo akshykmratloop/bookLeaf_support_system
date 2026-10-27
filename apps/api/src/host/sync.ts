@@ -27,6 +27,20 @@ async function upsertAuthor(tx: Tx, c: HostCustomer) {
   return { authorId: author.id, userId: user.id };
 }
 
+const ITEM_ELSEWHERE = () =>
+  new ConflictError('ITEM_OWNED_ELSEWHERE', 'An item in this account belongs to another account.');
+
+/** Adds or renames one item. An item never moves between authors: that is a host mix-up. */
+async function syncItem(tx: Tx, authorId: string, item: { id: string; title: string }) {
+  const existing = await tx.book.findUnique({ where: { externalId: item.id } });
+  if (existing && existing.authorId !== authorId) throw ITEM_ELSEWHERE();
+  await tx.book.upsert({
+    where: { externalId: item.id },
+    update: { title: item.title },
+    create: { externalId: item.id, title: item.title, authorId },
+  });
+}
+
 /**
  * Keeps a small reference copy of the customer and their items (ids, names, titles) so
  * tickets, chats and calls can point at them. Facts are never copied: they are read live.
@@ -34,14 +48,7 @@ async function upsertAuthor(tx: Tx, c: HostCustomer) {
 export async function syncCustomer(db: Db, c: HostCustomer): Promise<SyncedAuthor> {
   return db.$transaction(async (tx) => {
     const ids = await upsertAuthor(tx, c);
-    const { authorId } = ids;
-    for (const item of c.items) {
-      await tx.book.upsert({
-        where: { externalId: item.id },
-        update: { title: item.title, authorId },
-        create: { externalId: item.id, title: item.title, authorId },
-      });
-    }
+    for (const item of c.items) await syncItem(tx, ids.authorId, item);
     return ids;
   });
 }
