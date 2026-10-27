@@ -1,5 +1,6 @@
 import { Input } from '../atoms/Input';
 import { Field } from '../molecules/Field';
+import { VoiceNameField } from '../molecules/VoiceNameField';
 import { NumberField, Section, Toggle, type SectionProps } from './WorkspaceSettingsSections';
 
 export function ChatSection({ status, isSaving, update, fieldError }: SectionProps) {
@@ -71,16 +72,15 @@ export function VoiceSection({ status, isSaving, update, fieldError }: SectionPr
         onChange={(voiceEnabled) => update({ voiceEnabled })}
       />
       <div className="grid gap-4 md:grid-cols-4">
-        <Field id="voiceName" label="Voice" error={fieldError('voiceName')}>
-          <Input
-            id="voiceName"
-            defaultValue={s.voiceName}
-            disabled={isSaving}
-            onBlur={(e) => {
-              if (e.target.value !== s.voiceName) update({ voiceName: e.target.value });
-            }}
-          />
-        </Field>
+        <VoiceNameField
+          value={s.voiceName}
+          voices={status.voices}
+          disabled={isSaving}
+          error={fieldError('voiceName')}
+          onCommit={(voiceName) => {
+            if (voiceName !== s.voiceName) update({ voiceName });
+          }}
+        />
         <NumberField
           id="maxCallSeconds"
           label="Seconds per call"

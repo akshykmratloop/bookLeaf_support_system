@@ -26,6 +26,8 @@ export interface OpenAiVoiceOptions {
   connectTimeoutMs?: number;
 }
 
+import { OPENAI_VOICES } from './voices.js';
+
 const DEFAULT_URL = 'wss://api.openai.com/v1/realtime';
 
 /** OpenAI Realtime over a raw WebSocket (no SDK). Audio is PCM16 24 kHz both ways. */
@@ -35,6 +37,7 @@ export function openAiVoiceProvider(opts: OpenAiVoiceOptions): VoiceProvider {
     model: opts.model,
     inputSampleRate: 24_000,
     outputSampleRate: 24_000,
+    voices: OPENAI_VOICES,
     connect: (config, onEvent) => connect(opts, config, onEvent),
   };
 }

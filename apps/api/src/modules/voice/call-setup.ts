@@ -7,7 +7,7 @@ import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
 import type { VoiceStyle } from '../../voice/call/persona.js';
-import type { AssistantLimits } from '../assistant/limits.js';
+import type { WorkspaceConfig } from '../settings/configs.js';
 import { turnLimitError } from '../chat/limit.js';
 import { chatLines, turnsLeft } from './chat-link.js';
 import { buildCallContext, type CallContext, type ThreadContext } from './context.js';
@@ -70,7 +70,7 @@ export async function contextFor(
   deps: SetupDeps,
   authorId: string,
   callId: string,
-  limits: AssistantLimits,
+  { limits, voiceName }: Pick<WorkspaceConfig, 'limits' | 'voiceName'>,
 ): Promise<CallContext> {
   const call = await findOwnCall(deps.db, callId, authorId);
   const thread = await threadContext(deps, authorId, call);
@@ -87,5 +87,6 @@ export async function contextFor(
     turnsLeft: left,
     style,
     limits,
+    voiceName,
   });
 }

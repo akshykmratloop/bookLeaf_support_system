@@ -118,6 +118,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       db: core.db,
       ai: core.ai,
       voiceConfigured: core.voiceProvider !== null,
+      voices: core.voiceProvider?.voices ?? [],
       configs: core.configs,
     }),
     books: createBooksService(core),

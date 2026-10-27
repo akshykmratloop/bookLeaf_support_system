@@ -1,4 +1,5 @@
 import type { VoiceEvent, VoiceSessionConfig } from '../types.js';
+import { OPENAI_VOICES } from './voices.js';
 
 /**
  * OpenAI Realtime wire protocol (GA event names), as pure functions: server JSON in, domain
@@ -44,6 +45,10 @@ export function initialState(): ProtocolState {
   };
 }
 
+/** The workspace's voice when OpenAI has it, else the configured default. */
+const voiceFor = (config: VoiceSessionConfig, fallback: string) =>
+  config.voice && OPENAI_VOICES.includes(config.voice) ? config.voice : fallback;
+
 export function sessionUpdate(config: VoiceSessionConfig, voice: string): ClientEvent {
   return {
     type: 'session.update',
@@ -68,7 +73,7 @@ export function sessionUpdate(config: VoiceSessionConfig, voice: string): Client
             ...(config.language ? { language: config.language } : {}),
           },
         },
-        output: { voice, format: { type: 'audio/pcm', rate: 24_000 } },
+        output: { voice: voiceFor(config, voice), format: { type: 'audio/pcm', rate: 24_000 } },
       },
       tools: config.tools.map((t) => ({ type: 'function', ...t })),
       tool_choice: 'auto',

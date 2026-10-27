@@ -41,6 +41,7 @@ export async function runAiDraft(
     subject: input.subject,
     authorMessages: input.authorMessages,
     lastTeamReply: input.lastTeamReply,
+    toneGuide: input.toneGuide ?? '',
   };
   const result = await provider.generateStructured({
     task: 'DRAFT',

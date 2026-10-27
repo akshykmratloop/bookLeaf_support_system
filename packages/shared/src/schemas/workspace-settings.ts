@@ -77,6 +77,8 @@ export const WorkspaceSettingsStatusSchema = z.object({
   settings: WorkspaceSettingsSchema,
   models: z.array(z.object({ id: z.string(), label: z.string(), tier: z.string() })),
   voiceConfigured: z.boolean(),
+  /** Voices the platform's voice provider offers; empty when there is none. */
+  voices: z.array(z.string()),
   aiConfigured: z.boolean(),
 });
 export type WorkspaceSettingsStatus = z.infer<typeof WorkspaceSettingsStatusSchema>;

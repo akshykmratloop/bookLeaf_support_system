@@ -38,6 +38,8 @@ export interface CallContextInput {
   turnsLeft: number | null;
   style: VoiceStyle;
   limits: AssistantLimits;
+  /** The workspace's chosen voice. */
+  voiceName: string;
 }
 
 const greetingFor = (t: ThreadContext) =>
@@ -46,7 +48,7 @@ const greetingFor = (t: ThreadContext) =>
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   deps: { db: Db; records: HostRecords },
-  { authorId, maxSeconds, thread, turnsLeft, style, limits }: CallContextInput,
+  { authorId, maxSeconds, thread, turnsLeft, style, limits, voiceName }: CallContextInput,
 ): Promise<CallContext> {
   const { facts, books, firstName } = await loadAuthorView(deps, authorId);
   const instructions = voiceInstructions({
@@ -73,6 +75,7 @@ export async function buildCallContext(
       tools: VOICE_TOOLS,
       language: transcriptionLanguage(style),
       greeting: greeting[greetingFor(thread)](firstName),
+      voice: voiceName,
     },
   };
 }

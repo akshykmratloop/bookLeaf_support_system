@@ -28,6 +28,8 @@ export interface SettingsDeps {
   db: Db;
   ai: AiRuntime;
   voiceConfigured: boolean;
+  /** Voice names the platform's voice provider speaks with (empty without one). */
+  voices: readonly string[];
   configs: WorkspaceConfigs;
 }
 
@@ -41,6 +43,15 @@ async function assertAllowedModels(deps: SettingsDeps, input: UpdateWorkspaceSet
     return typeof model === 'string' && !findModel(provider, model);
   }).map((path) => ({ path, message: 'Model is not in the allowed list for the active provider' }));
   if (errors.length) throw new ValidationError('Invalid workspace settings', errors);
+}
+
+/** A chosen voice must be one the platform's voice provider has. */
+function assertAllowedVoice(deps: SettingsDeps, input: UpdateWorkspaceSettings) {
+  const name = input.voiceName;
+  if (name === undefined || deps.voices.length === 0 || deps.voices.includes(name)) return;
+  throw new ValidationError('Invalid workspace settings', [
+    { path: 'voiceName', message: 'Voice is not one the voice provider offers' },
+  ]);
 }
 
 /** Per-workspace assistant, chat, voice and widget settings, plus the customer-data schema. */
@@ -57,10 +68,12 @@ export function createSettingsService(deps: SettingsDeps) {
         settings: toSettingsDto(row),
         models: (provider?.models ?? []).map((m) => ({ id: m.id, label: m.label, tier: m.tier })),
         voiceConfigured: deps.voiceConfigured,
+        voices: [...deps.voices],
         aiConfigured: deps.ai.configuredProviders().includes(ai$.provider),
       };
     },
     async update(session: Session, input: UpdateWorkspaceSettings): Promise<WorkspaceSettings> {
+      assertAllowedVoice(deps, input);
       await assertAllowedModels(deps, input);
       const row = await updateWorkspaceSettings(db, session, input, configs.seed);
       configs.invalidate(session.workspaceId);

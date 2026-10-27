@@ -39,6 +39,18 @@ describe('OpenAI Realtime protocol rules', () => {
     expect(auto.session.audio.input.transcription).toEqual({ model: 'gpt-realtime-whisper' });
   });
 
+  it("speaks with the workspace's voice when OpenAI has it, else the default", () => {
+    const voiceOf = (voice: string | null) =>
+      (
+        sessionUpdate({ ...CONFIG, voice }, 'marin') as unknown as {
+          session: { audio: { output: { voice: string } } };
+        }
+      ).session.audio.output.voice;
+    expect(voiceOf('cedar')).toBe('cedar');
+    expect(voiceOf('robot-9000')).toBe('marin');
+    expect(voiceOf(null)).toBe('marin');
+  });
+
   it('marks only a completed spoken answer as final, not a cut-off or tool-only reply', () => {
     const done = (response: Record<string, unknown>) =>
       step(initialState(), { type: 'response.done', response }).events[0];

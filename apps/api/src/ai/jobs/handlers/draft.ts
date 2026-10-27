@@ -7,6 +7,7 @@ import { loadTicketContext, type TicketContext } from '../context.js';
 import { isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
+import { workspaceAiFor } from '../workspace-ai.js';
 
 /** One draft and everything it was written from. */
 interface DraftToSave {
@@ -50,9 +51,10 @@ async function saveDraft(job: ClaimedJob, deps: JobDeps, toSave: DraftToSave) {
 
 export const draftHandler: JobHandler = {
   async runAi(job, deps) {
-    const { provider, model } = await deps.ai.resolve('DRAFT');
+    const { draftModel, toneGuide } = await workspaceAiFor(deps.db, job.ticketId);
+    const { provider, model } = await deps.ai.resolve('DRAFT', draftModel);
     const ctx = await loadTicketContext(deps, job.ticketId);
-    const input = draftInputFromContext(ctx);
+    const input = { ...draftInputFromContext(ctx), toneGuide };
     const meta = {
       ticketId: job.ticketId,
       task: 'DRAFT' as const,

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 import { AiAuthError, AiUnavailableError } from '../src/ai/providers/errors.js';
 import type { StructuredRequest } from '../src/ai/providers/types.js';
 import {
@@ -252,5 +253,32 @@ describe('job safety', () => {
     expect(msg.json<{ status: string }>().status).toBe('OPEN');
     const drafts = (await jobsOf(id)).filter((j) => j.kind === 'DRAFT');
     expect(drafts.map((j) => j.generation)).toEqual([1, 2]);
+  });
+});
+
+describe("the workspace's own AI choices", () => {
+  it('triages and drafts with its chosen models and passes its tone notes as style only', async () => {
+    const { settings } = (await call(h, 'GET', '/workspace/settings', admin)).json<{
+      settings: { version: number };
+    }>();
+    const saved = await call(h, 'PUT', '/workspace/settings', admin, {
+      version: settings.version,
+      triageModel: 'claude-opus-5-5',
+      draftModel: 'claude-haiku-5-5',
+      toneGuide: 'Thank the author for their patience.',
+    });
+    expect(saved.statusCode).toBe(200);
+    const before = h.aiCalls.length;
+    await settle(await royaltyTicket());
+    const calls = h.aiCalls.slice(before);
+    expect(calls.find((c) => c.task === 'TRIAGE')?.model).toBe('claude-opus-5-5');
+    const draft = calls.find((c) => c.task === 'DRAFT');
+    expect(draft?.model).toBe('claude-haiku-5-5');
+    expect(draft?.dynamicSystem).toContain(
+      '<tone_notes>\nThank the author for their patience.\n</tone_notes>',
+    );
+    expect(draft?.stableSystem).not.toContain('patience');
+    // Back to the platform's choices for any later file.
+    await h.db.workspaceSettings.deleteMany({ where: { workspaceId: DEFAULT_WORKSPACE_ID } });
   });
 });

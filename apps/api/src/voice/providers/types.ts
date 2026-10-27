@@ -19,6 +19,8 @@ export interface VoiceSessionConfig {
   language: string | null;
   /** The assistant's first words, spoken exactly as written. */
   greeting: string;
+  /** The voice to speak with; left out or unknown to the provider, its default voice. */
+  voice?: string | null;
 }
 
 export type VoiceErrorCode = 'VOICE_UNAVAILABLE' | 'VOICE_AUTH' | 'VOICE_PROTOCOL';
@@ -62,6 +64,8 @@ export interface VoiceProvider {
   readonly model: string;
   readonly inputSampleRate: number;
   readonly outputSampleRate: number;
+  /** Voice names this provider can speak with (what a workspace may choose). */
+  readonly voices: readonly string[];
   /** Resolves once the vendor session is configured and ready for audio. */
   connect(config: VoiceSessionConfig, onEvent: (e: VoiceEvent) => void): Promise<VoiceSession>;
 }

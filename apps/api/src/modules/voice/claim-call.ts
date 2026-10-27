@@ -32,8 +32,7 @@ export async function claimCall(
       'This call has expired or is already connected.',
     );
   try {
-    const { limits } = await deps.assistant.config(session.workspaceId);
-    return await contextFor(deps, authorId, id, limits);
+    return await contextFor(deps, authorId, id, await deps.assistant.config(session.workspaceId));
   } catch (err) {
     // The row is already ACTIVE: release it so the author is not blocked until it expires.
     await repo.markCallFailed(deps.db, id, deps.clock.now());

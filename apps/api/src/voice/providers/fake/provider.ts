@@ -46,6 +46,7 @@ export function fakeVoiceProvider(): FakeVoiceProvider {
     model: 'fake-realtime',
     inputSampleRate: 24_000,
     outputSampleRate: 24_000,
+    voices: ['marin', 'cedar', 'alloy'],
     config: null,
     audioIn: [],
     toolResults: [],

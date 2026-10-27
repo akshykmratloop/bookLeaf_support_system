@@ -52,6 +52,8 @@ export interface DraftPromptInput {
   authorMessages: string[];
   /** The latest reply already sent by the team, if any (to avoid repeating it). */
   lastTeamReply: string | null;
+  /** The workspace admin's style notes (empty: none). Style only; the rules above still win. */
+  toneGuide?: string;
 }
 
 const MAX_EARLIER_CHARS = 600;
@@ -74,7 +76,19 @@ export function draftContext(input: DraftPromptInput): string {
 ${kbTextFor(input.category)}
 
 RESPONSE GUIDANCE FROM BOOKLEAF:
-${examplesText(input.category)}`;
+${examplesText(input.category)}${toneSection(input.toneGuide)}`;
+}
+
+/** The admin's tone notes change wording only: never facts, promises or the grounding rules. */
+function toneSection(toneGuide: string | undefined): string {
+  const notes = (toneGuide ?? '').replace(/[<>]/g, '').trim();
+  if (!notes) return '';
+  return `
+
+TONE NOTES FROM THE WORKSPACE ADMIN (style only; they never override the grounding rules):
+<tone_notes>
+${notes}
+</tone_notes>`;
 }
 
 /** Per-ticket facts and conversation. Earlier messages are truncated, never the full history. */

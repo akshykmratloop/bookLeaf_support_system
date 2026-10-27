@@ -156,6 +156,18 @@ describe('workspace settings', () => {
     expect(await h.container.assistant.config(DEFAULT_WORKSPACE_ID)).toEqual(before);
   });
 
+  it("offers the voice provider's voices and refuses one it does not have (422)", async () => {
+    const res = await call(h, 'GET', '/workspace/settings', acme);
+    const status = res.json<{ voices: string[]; settings: { version: number } }>();
+    expect(status.voices).toContain('marin');
+    const { version } = status.settings;
+    const bad = await call(h, 'PUT', '/workspace/settings', acme, { version, voiceName: 'robot' });
+    expect(bad.statusCode).toBe(422);
+    expect(bad.json<{ errors: { path: string }[] }>().errors[0]?.path).toBe('voiceName');
+    const ok = await call(h, 'PUT', '/workspace/settings', acme, { version, voiceName: 'cedar' });
+    expect(ok.json()).toMatchObject({ voiceName: 'cedar' });
+  });
+
   it("never shows one workspace's settings to another, and keeps authors out (403)", async () => {
     const bl = await call(h, 'GET', '/workspace/settings', admin);
     expect(bl.json<{ settings: { customerNoun: string } }>().settings.customerNoun).toBe(

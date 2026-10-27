@@ -193,6 +193,7 @@ describe('voice: the call socket', () => {
     expect(fake.config?.instructions).toContain('VERIFIED FACTS');
     // Default VOICE_STYLE: warm Hinglish, with the language left to automatic detection.
     expect(fake.config?.greeting).toMatch(/^Namaste Priya ji, main BookLeaf support se/);
+    expect(fake.config?.voice).toBe('marin');
     expect(fake.config?.instructions).toContain('Speak natural Hinglish by default');
     expect(fake.config?.language).toBeNull();
     expect(fake.config?.tools.map((t) => t.name)).toEqual([

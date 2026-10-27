@@ -12,6 +12,7 @@ import { loadTicketContext, type TicketContext } from '../context.js';
 import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
+import { workspaceAiFor } from '../workspace-ai.js';
 
 function triageInput(ctx: TicketContext): TriageInput {
   const bookId = ctx.book?.externalId ?? null;
@@ -63,7 +64,8 @@ async function applyDecision(
 
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
-    const { provider, model } = await deps.ai.resolve('TRIAGE');
+    const { triageModel } = await workspaceAiFor(deps.db, job.ticketId);
+    const { provider, model } = await deps.ai.resolve('TRIAGE', triageModel);
     const ctx = await loadTicketContext(deps, job.ticketId);
     const meta = {
       ticketId: job.ticketId,
