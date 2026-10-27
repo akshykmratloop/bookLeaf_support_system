@@ -21,7 +21,7 @@ export async function loadAuthorView(
     where: { id: authorId },
     include: { user: true, books: { orderBy: { externalId: 'asc' } } },
   });
-  const customer = await customerOrNull(deps.records, author.externalId);
+  const customer = await customerOrNull(deps.records, author.externalId, author.workspaceId);
   const name = customer?.name ?? author.user.name;
   return {
     name,

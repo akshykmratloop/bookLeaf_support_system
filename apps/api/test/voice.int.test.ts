@@ -10,6 +10,7 @@ import type {
 } from '@bookleaf/shared';
 import type { FakeVoiceProvider } from '../src/voice/providers/fake/provider.js';
 import { call, createHarness, EMAILS, ORIGIN, type Harness } from './helpers/app.js';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 
 let h: Harness;
 let fake: FakeVoiceProvider;
@@ -144,6 +145,7 @@ describe('voice: admin control and limits', () => {
     const ended = (n: number) =>
       h.db.voiceSession.createMany({
         data: Array.from({ length: n }, () => ({
+          workspaceId: DEFAULT_WORKSPACE_ID,
           authorId: author.id,
           provider: 'fake',
           model: 'fake',

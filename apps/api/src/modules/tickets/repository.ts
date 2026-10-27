@@ -20,9 +20,15 @@ export type TicketListQuery = z.output<typeof TicketListQuerySchema>;
 const NO_AUTHOR = '00000000-0000-0000-0000-000000000000';
 const DAY_MS = 86_400_000;
 
-/** The only place ticket visibility is decided: authors are always filtered to their own tickets. */
+/**
+ * The only place ticket visibility is decided: every query stays inside the session's workspace,
+ * and authors are always filtered to their own tickets.
+ */
 export function ownership(session: Session): Prisma.TicketWhereInput {
-  return session.role === 'ADMIN' ? {} : { authorId: session.authorId ?? NO_AUTHOR };
+  const workspaceId = session.workspaceId;
+  return session.role === 'ADMIN'
+    ? { workspaceId }
+    : { workspaceId, authorId: session.authorId ?? NO_AUTHOR };
 }
 
 function searchFilter(q: string | undefined): Prisma.TicketWhereInput {

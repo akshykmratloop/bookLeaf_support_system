@@ -24,9 +24,13 @@ export const factsFor = (c: HostCustomer, itemId: string | null): Fact[] =>
   unique([...c.facts, ...(c.items.find((i) => i.id === itemId)?.facts ?? [])]);
 
 /** The customer, or null while the host is unavailable. Other errors still propagate. */
-export async function customerOrNull(records: HostRecords, externalId: string) {
+export async function customerOrNull(
+  records: HostRecords,
+  externalId: string,
+  workspaceId?: string,
+) {
   try {
-    return await records.customer(externalId);
+    return await records.customer(externalId, workspaceId);
   } catch (err) {
     if (err instanceof HostUnavailableError) return null;
     throw err;

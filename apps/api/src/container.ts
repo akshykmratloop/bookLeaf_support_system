@@ -8,7 +8,6 @@ import type { VoiceProvider } from './voice/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
 import { createAssistantService } from './modules/assistant/service.js';
-import { signInFromHost } from './modules/auth/host-login.js';
 import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
@@ -18,6 +17,8 @@ import { createConversationService } from './modules/conversations/service.js';
 import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
 import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
+import { createHostSignIn } from './modules/workspaces/host-sign-in.js';
+import { createWorkspaceService } from './modules/workspaces/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
 import type { Env } from './config/index.js';
@@ -85,15 +86,16 @@ function createAssistants({ db, ai, limits, ticketDeps, voiceProvider }: Core) {
 /** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
 export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const core = createCore(env, overrides);
-  const hostSignIn = {
-    ...core,
-    signingSecret: env.HOST_SIGNING_SECRET,
-    usedTokens: usedTokenIds(core.clock),
-  };
+  const hostSignIn = { ...core, usedTokens: usedTokenIds(core.clock) };
   return {
     ...core,
     auth: createAuthService(core.db, core.sessions),
-    signInFromHost: (token: string) => signInFromHost(hostSignIn, token),
+    signInFromHost: createHostSignIn(hostSignIn, {
+      db: core.db,
+      defaultSecret: env.HOST_SIGNING_SECRET,
+      secretFor: async () => null,
+    }),
+    workspaces: createWorkspaceService(core),
     books: createBooksService(core),
     conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),

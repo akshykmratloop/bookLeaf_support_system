@@ -15,6 +15,22 @@ enum Role {
   ADMIN
 }
 
+/// What a staff member may do in a workspace. OWNER: everything incl. billing and deletion.
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  AGENT
+}
+
+/// The shape of one customer-data field a workspace defines (matches Fact.type).
+enum CustomerFieldType {
+  MONEY
+  DATE
+  TEXT
+  STATUS
+  NUMBER
+}
+
 enum BookStage {
   MANUSCRIPT_RECEIVED
   EDITING
@@ -143,32 +159,180 @@ enum AiRunOutcome {
   ERROR
 }
 
+/// A tenant: one business that signed up to the support product. Every tenant-owned row carries
+/// its id. The default workspace ("bookleaf") is seeded from env and keeps today's behaviour.
+model Workspace {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members      WorkspaceMember[]
+  users        User[]
+  authors      Author[]
+  books        Book[]
+  tickets      Ticket[]
+  chatSessions ChatSession[]
+  voiceSessions VoiceSession[]
+  ticketDrafts TicketDraft[]
+  auditEvents  AuditEvent[]
+  connector    WorkspaceConnector?
+  settings     WorkspaceSettings?
+  fields       CustomerField[]
+  apiKeys      WorkspaceApiKey[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+/// How a workspace's customer data is fetched from its own product. Secrets are stored
+/// envelope-encrypted (platform/crypto) and never returned; only a last-4 hint is.
+model WorkspaceConnector {
+  id                String    @id @default(uuid()) @db.Uuid
+  workspaceId       String    @unique @map("workspace_id") @db.Uuid
+  baseUrl           String    @map("base_url")
+  signInUrl         String?   @map("sign_in_url")
+  apiKeyEnc         String    @map("api_key_enc")
+  apiKeyHint        String    @map("api_key_hint")
+  signingSecretEnc  String    @map("signing_secret_enc")
+  signingSecretHint String    @map("signing_secret_hint")
+  timeoutMs         Int       @default(3000) @map("timeout_ms")
+  cacheSeconds      Int       @default(60) @map("cache_seconds")
+  lastTestAt        DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk        Boolean?  @map("last_test_ok")
+  lastTestDetail    String?   @map("last_test_detail")
+  version           Int       @default(0)
+  updatedById       String?   @map("updated_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_connectors")
+}
+
+/// One field of the workspace's customer-data schema: the facts its product sends.
+/// `key` may contain `{id}` for per-item facts, e.g. `item.{id}.status`.
+model CustomerField {
+  id                String            @id @default(uuid()) @db.Uuid
+  workspaceId       String            @map("workspace_id") @db.Uuid
+  key               String
+  label             String
+  type              CustomerFieldType
+  /// Shown to the AI so it knows what the field means and when to use it.
+  description       String            @default("")
+  /// STATUS fields: the codes the product may send.
+  allowedValues     String[]          @default([]) @map("allowed_values")
+  visibleToCustomer Boolean           @default(true) @map("visible_to_customer")
+  position          Int               @default(0)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, key])
+  @@map("customer_fields")
+}
+
+/// Per-workspace switches, limits, models, tone and widget settings. A missing row means
+/// "platform defaults" (the singleton settings rows plus env limits).
+model WorkspaceSettings {
+  id                String   @id @default(uuid()) @db.Uuid
+  workspaceId       String   @unique @map("workspace_id") @db.Uuid
+  triageModel       String?  @map("triage_model")
+  draftModel        String?  @map("draft_model")
+  chatModel         String?  @map("chat_model")
+  toneGuide         String   @default("") @map("tone_guide")
+  chatEnabled       Boolean  @default(false) @map("chat_enabled")
+  messagesPerMinute Int      @default(20) @map("messages_per_minute")
+  messagesPerDay    Int      @default(100) @map("messages_per_day")
+  maxTurnsPerSession Int     @default(30) @map("max_turns_per_session")
+  voiceEnabled      Boolean  @default(false) @map("voice_enabled")
+  voiceName         String   @default("marin") @map("voice_name")
+  maxCallSeconds    Int      @default(300) @map("max_call_seconds")
+  callsPerHour      Int      @default(5) @map("calls_per_hour")
+  callsPerDay       Int      @default(10) @map("calls_per_day")
+  allowedOrigins    String[] @default([]) @map("allowed_origins")
+  brandName         String   @default("") @map("brand_name")
+  brandColor        String   @default("#2f6b4f") @map("brand_color")
+  customerNoun      String   @default("customer") @map("customer_noun")
+  itemNoun          String   @default("item") @map("item_noun")
+  version           Int      @default(0)
+  updatedById       String?  @map("updated_by_id") @db.Uuid
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("workspace_settings")
+}
+
+/// A server-to-server key for the workspace's product. Only the hash is stored; the plain
+/// key is shown once, at creation.
+model WorkspaceApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String
+  prefix      String
+  keyHash     String    @unique @map("key_hash")
+  scopes      String[]  @default([])
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdById String?   @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@map("workspace_api_keys")
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  email        String
   /// Null for authors: they sign in through the host product, never with a password here.
   passwordHash String?  @map("password_hash")
   name         String
   role         Role
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
+  memberships     WorkspaceMember[]
   author          Author?
-  assignedTickets Ticket[]        @relation("TicketAssignee")
+  assignedTickets Ticket[]          @relation("TicketAssignee")
   messages        TicketMessage[]
   auditEvents     AuditEvent[]
 
+  @@unique([workspaceId, email])
   @@map("users")
 }
 
 model Author {
-  id         String   @id @default(uuid()) @db.Uuid
-  externalId String   @unique @map("external_id")
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  externalId  String   @map("external_id")
   userId     String   @unique @map("user_id") @db.Uuid
   /// Host-owned details, no longer written (customer data is read from the host).
   phone      String?
   city       String?
   joinedDate DateTime? @map("joined_date") @db.Date
 
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   books         Book[]
   tickets       Ticket[]
@@ -176,12 +340,14 @@ model Author {
   voiceSessions VoiceSession[]
   ticketDrafts  TicketDraft[]
 
+  @@unique([workspaceId, externalId])
   @@map("authors")
 }
 
 model Book {
   id                  String    @id @default(uuid()) @db.Uuid
-  externalId          String    @unique @map("external_id")
+  workspaceId         String    @map("workspace_id") @db.Uuid
+  externalId          String    @map("external_id")
   authorId            String    @map("author_id") @db.Uuid
   title               String
   /// The columns below are host-owned and no longer written; facts are read from the host.
@@ -199,10 +365,12 @@ model Book {
   printPartner        String?   @map("print_partner")
   availableOn         String[]  @default([]) @map("available_on")
 
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
   author       Author        @relation(fields: [authorId], references: [id])
   tickets      Ticket[]
   ticketDrafts TicketDraft[]
 
+  @@unique([workspaceId, externalId])
   @@index([authorId])
   @@map("books")
 }
@@ -210,6 +378,7 @@ model Book {
 model Ticket {
   id              String          @id @default(uuid()) @db.Uuid
   number          Int             @unique @default(autoincrement())
+  workspaceId     String          @map("workspace_id") @db.Uuid
   authorId        String          @map("author_id") @db.Uuid
   bookId          String?         @map("book_id") @db.Uuid
   subject         String
@@ -236,6 +405,7 @@ model Ticket {
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id])
   author       Author          @relation(fields: [authorId], references: [id])
   chatSession  ChatSession?    @relation(fields: [chatSessionId], references: [id])
   voiceSession VoiceSession?   @relation(fields: [voiceSessionId], references: [id])
@@ -248,6 +418,7 @@ model Ticket {
   ticketDraft  TicketDraft?
 
   @@unique([authorId, clientRequestId])
+  @@index([workspaceId, status, priority, slaDueAt])
   @@index([status, priority, slaDueAt])
   @@index([authorId, createdAt])
   @@map("tickets")
@@ -349,8 +520,9 @@ model AiSettings {
 }
 
 model AuditEvent {
-  id         String   @id @default(uuid()) @db.Uuid
-  actorId    String?  @map("actor_id") @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String?  @map("workspace_id") @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id")
   action     String
@@ -359,9 +531,11 @@ model AuditEvent {
   reason     String?
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  actor User? @relation(fields: [actorId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  actor     User?      @relation(fields: [actorId], references: [id])
 
   @@index([entityType, entityId])
+  @@index([workspaceId, createdAt])
   @@map("audit_events")
 }
 
@@ -379,12 +553,14 @@ model AssistantSettings {
 }
 
 model ChatSession {
-  id        String   @id @default(uuid()) @db.Uuid
-  authorId  String   @map("author_id") @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
   turnCount Int      @default(0) @map("turn_count")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id])
   author      Author        @relation(fields: [authorId], references: [id])
   messages    ChatMessage[]
   ticket      Ticket?
@@ -419,6 +595,7 @@ model ChatMessage {
 /// One browser voice call. At most one PENDING/ACTIVE call per author (enforced under a row lock).
 model VoiceSession {
   id              String          @id @default(uuid()) @db.Uuid
+  workspaceId     String          @map("workspace_id") @db.Uuid
   authorId        String          @map("author_id") @db.Uuid
   status          VoiceCallStatus @default(PENDING)
   provider        String
@@ -440,8 +617,9 @@ model VoiceSession {
   threadId        String?         @map("thread_id") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  author Author  @relation(fields: [authorId], references: [id])
-  ticket Ticket?
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  author    Author    @relation(fields: [authorId], references: [id])
+  ticket    Ticket?
 
   @@index([authorId, createdAt])
   @@index([threadId])
@@ -452,6 +630,7 @@ model VoiceSession {
 /// Exactly one of chatSessionId / voiceThreadId is set (CHECK constraint in the migration).
 model TicketDraft {
   id            String            @id @default(uuid()) @db.Uuid
+  workspaceId   String            @map("workspace_id") @db.Uuid
   authorId      String            @map("author_id") @db.Uuid
   chatSessionId String?           @unique @map("chat_session_id") @db.Uuid
   voiceThreadId String?           @unique @map("voice_thread_id") @db.Uuid
@@ -466,6 +645,7 @@ model TicketDraft {
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id])
   author      Author       @relation(fields: [authorId], references: [id])
   chatSession ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
   book        Book?        @relation(fields: [bookId], references: [id])

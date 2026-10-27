@@ -8,6 +8,7 @@ export const SESSION_COOKIE = 'bl_session';
 
 const SessionClaimsSchema = z.object({
   sub: z.uuid(),
+  workspaceId: z.uuid(),
   role: z.enum(ROLES),
   authorId: z.uuid().nullable(),
   name: z.string(),
@@ -16,6 +17,8 @@ const SessionClaimsSchema = z.object({
 
 export interface Session {
   userId: string;
+  /** The tenant this session belongs to. Signed into the cookie; never taken from the client. */
+  workspaceId: string;
   role: (typeof ROLES)[number];
   authorId: string | null;
   name: string;
@@ -35,6 +38,18 @@ export interface SessionCodec {
   verify(token: string): Promise<Session>;
 }
 
+/** The cookie's claims as a Session (the subject is the user id). */
+const fromClaims = (c: z.infer<typeof SessionClaimsSchema>): Session => ({
+  userId: c.sub,
+  workspaceId: c.workspaceId,
+  role: c.role,
+  authorId: c.authorId,
+  name: c.name,
+  email: c.email,
+});
+
+const toClaims = ({ userId: _userId, ...rest }: Session) => rest;
+
 /** Signed (HS256) session token stored in an httpOnly cookie. Role and author id come only from here. */
 export function createSessionCodec(secret: string, ttlHours: number, clock: Clock): SessionCodec {
   const key = new TextEncoder().encode(secret);
@@ -43,7 +58,7 @@ export function createSessionCodec(secret: string, ttlHours: number, clock: Cloc
     ttlSeconds,
     async sign(s) {
       const iat = Math.floor(clock.now().getTime() / 1000);
-      return new SignJWT({ role: s.role, authorId: s.authorId, name: s.name, email: s.email })
+      return new SignJWT(toClaims(s))
         .setProtectedHeader({ alg: 'HS256' })
         .setSubject(s.userId)
         .setIssuedAt(iat)
@@ -56,8 +71,7 @@ export function createSessionCodec(secret: string, ttlHours: number, clock: Cloc
           algorithms: ['HS256'],
           currentDate: clock.now(),
         });
-        const c = SessionClaimsSchema.parse(payload);
-        return { userId: c.sub, role: c.role, authorId: c.authorId, name: c.name, email: c.email };
+        return fromClaims(SessionClaimsSchema.parse(payload));
       } catch {
         throw new UnauthorizedError('Your session has expired. Please sign in again.');
       }

@@ -18,6 +18,7 @@ class VoiceUnavailableError extends AppError {
 }
 
 interface NewCall {
+  workspaceId: string;
   authorId: string;
   provider: VoiceProvider;
   resume: boolean;
@@ -25,7 +26,7 @@ interface NewCall {
 }
 
 /** One call at a time per author: the lock makes the quota check and insert atomic. */
-function insertCall(deps: VoiceDeps, { authorId, provider, resume, now }: NewCall) {
+function insertCall(deps: VoiceDeps, { workspaceId, authorId, provider, resume, now }: NewCall) {
   const maxSeconds = deps.limits.voice.maxCallSeconds;
   return deps.db.$transaction(async (tx) => {
     await repo.lockAuthor(tx, authorId);
@@ -34,7 +35,15 @@ function insertCall(deps: VoiceDeps, { authorId, provider, resume, now }: NewCal
     const ids = await newCallIds(tx, authorId, resume, now);
     const { id: providerId, model } = provider;
     return tx.voiceSession.create({
-      data: { ...ids, authorId, provider: providerId, model, maxSeconds, createdAt: now },
+      data: {
+        ...ids,
+        workspaceId,
+        authorId,
+        provider: providerId,
+        model,
+        maxSeconds,
+        createdAt: now,
+      },
     });
   });
 }
@@ -52,7 +61,13 @@ export async function startCall(
   const now = deps.clock.now();
   const maxSeconds = deps.limits.voice.maxCallSeconds;
   await repo.expireStale(deps.db, authorId, now, maxSeconds);
-  const call = await insertCall(deps, { authorId, provider, resume: opts.resume, now });
+  const call = await insertCall(deps, {
+    workspaceId: session.workspaceId,
+    authorId,
+    provider,
+    resume: opts.resume,
+    now,
+  });
   return {
     id: call.id,
     socketPath: `/api/v1/voice/calls/${call.id}/stream`,

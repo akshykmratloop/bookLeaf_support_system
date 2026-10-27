@@ -1,6 +1,11 @@
 import type { Db } from '../platform/db.js';
 import { hashPassword } from '../modules/auth/password.js';
 import { DEFAULT_AI_SETTINGS } from '../ai/providers/catalog.js';
+import {
+  DEFAULT_WORKSPACE_ID,
+  DEFAULT_WORKSPACE_NAME,
+  DEFAULT_WORKSPACE_SLUG,
+} from '../modules/workspaces/constants.js';
 import { DEMO_ADMINS } from './demo-accounts.js';
 
 /**
@@ -10,11 +15,27 @@ import { DEMO_ADMINS } from './demo-accounts.js';
  */
 export async function seedCore(db: Db, adminPassword: string): Promise<{ admins: number }> {
   const passwordHash = await hashPassword(adminPassword);
+  const workspaceId = DEFAULT_WORKSPACE_ID;
+  await db.workspace.upsert({
+    where: { id: workspaceId },
+    update: {},
+    create: {
+      id: workspaceId,
+      slug: DEFAULT_WORKSPACE_SLUG,
+      name: DEFAULT_WORKSPACE_NAME,
+      isDefault: true,
+    },
+  });
   for (const admin of DEMO_ADMINS) {
-    await db.user.upsert({
-      where: { email: admin.email },
+    const user = await db.user.upsert({
+      where: { workspaceId_email: { workspaceId, email: admin.email } },
       update: { name: admin.name },
-      create: { ...admin, role: 'ADMIN', passwordHash },
+      create: { ...admin, workspaceId, role: 'ADMIN', passwordHash },
+    });
+    await db.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      update: {},
+      create: { workspaceId, userId: user.id, role: 'OWNER' },
     });
   }
   await db.aiSettings.upsert({

@@ -25,7 +25,7 @@ export async function startChat(deps: ChatDeps, session: Session): Promise<ChatS
   await deps.assistant.requireChatEnabled();
   const authorId = authorIdOf(session);
   const created = await deps.db.chatSession.create({
-    data: { authorId, createdAt: deps.clock.now() },
+    data: { workspaceId: session.workspaceId, authorId, createdAt: deps.clock.now() },
   });
   return loadChat(deps, session, created.id);
 }

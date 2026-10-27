@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AssistantSettings, TicketDraft } from '@bookleaf/shared';
 import type { DraftChange } from '../src/modules/ticket-drafts/live.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 
 let h: Harness;
 let priya: string;
@@ -24,7 +25,7 @@ async function enableChat() {
 /** A conversation made directly in the database, so the per-hour chat limit doesn't apply. */
 async function newDraft(): Promise<{ chat: { id: string }; draft: TicketDraft }> {
   const chat = await h.db.chatSession.create({
-    data: { authorId: await authorIdOf(EMAILS.priya) },
+    data: { workspaceId: DEFAULT_WORKSPACE_ID, authorId: await authorIdOf(EMAILS.priya) },
   });
   const res = await call(h, 'GET', `/ticket-drafts/chat/${chat.id}`, priya);
   expect(res.statusCode).toBe(200);
@@ -199,6 +200,7 @@ describe('assistant confirmation rules', () => {
     const authorId = await authorIdOf(EMAILS.priya);
     const session = {
       userId: 'test',
+      workspaceId: DEFAULT_WORKSPACE_ID,
       role: 'AUTHOR' as const,
       authorId,
       name: 'Priya',

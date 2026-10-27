@@ -54,6 +54,7 @@ export async function getAuthorTicket(
 }
 
 interface NewTicket {
+  workspaceId: string;
   authorId: string;
   input: CreateTicketInput;
   origin: TicketOrigin;
@@ -61,7 +62,7 @@ interface NewTicket {
   now: Date;
 }
 
-function ticketData({ authorId, input, origin, idempotencyKey, now }: NewTicket) {
+function ticketData({ workspaceId, authorId, input, origin, idempotencyKey, now }: NewTicket) {
   const category = origin.category ?? null;
   const floor = priorityFloor({
     text: `${input.subject}\n${input.description}`,
@@ -70,6 +71,7 @@ function ticketData({ authorId, input, origin, idempotencyKey, now }: NewTicket)
   });
   const priority = higherPriority('MEDIUM', floor.floor);
   return {
+    workspaceId,
     authorId,
     bookId: input.bookId,
     subject: input.subject,
@@ -144,7 +146,14 @@ export async function createTicket(
   const prior = idempotencyKey ? await existingByKey(deps, session, idempotencyKey) : null;
   if (prior) return { ticket: prior, created: false };
   await requireOwnBook(deps, authorId, input.bookId);
-  const data = ticketData({ authorId, input, origin, idempotencyKey, now: deps.clock.now() });
+  const data = ticketData({
+    workspaceId: session.workspaceId,
+    authorId,
+    input,
+    origin,
+    idempotencyKey,
+    now: deps.clock.now(),
+  });
   try {
     const id = await insertTicket(deps, data, origin);
     deps.events.publish({ type: 'ticket.created', ticketId: id, authorId, authorVisible: true });

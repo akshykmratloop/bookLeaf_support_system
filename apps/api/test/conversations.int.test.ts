@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ConversationDetail, ConversationPage } from '@bookleaf/shared';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 
 let h: Harness;
 let rohit: string;
@@ -20,7 +21,13 @@ const line = (role: 'AUTHOR' | 'ASSISTANT', text: string, m: number) => ({
 
 async function addChat(id: string, minutes: number, firstWords: string, turns = 1) {
   await h.db.chatSession.create({
-    data: { id, authorId, turnCount: turns, createdAt: at(minutes) },
+    data: {
+      id,
+      workspaceId: DEFAULT_WORKSPACE_ID,
+      authorId,
+      turnCount: turns,
+      createdAt: at(minutes),
+    },
   });
   if (turns === 0) return;
   await h.db.chatMessage.createMany({
@@ -45,6 +52,7 @@ async function addCall(
   await h.db.voiceSession.create({
     data: {
       id,
+      workspaceId: DEFAULT_WORKSPACE_ID,
       authorId,
       provider: 'fake',
       model: 'fake',
@@ -89,7 +97,12 @@ beforeAll(async () => {
   await addCall(ID(3), 25, { threadId: ID(2) }); // the same call, continued
   await addChat(ID(4), 10, 'Where is my book?');
   await h.db.ticketDraft.create({
-    data: { authorId, chatSessionId: ID(4), subject: 'Book not on Amazon' },
+    data: {
+      workspaceId: DEFAULT_WORKSPACE_ID,
+      authorId,
+      chatSessionId: ID(4),
+      subject: 'Book not on Amazon',
+    },
   });
   await addChat(ID(5), 0, 'tie with a call');
   await addCall(ID(6), 0, { threadId: null }); // older form; same time as chat 5: larger id first

@@ -5,6 +5,7 @@ import { AUTHOR_CHANGED_TEXT, CONFIRM_FIRST_TEXT } from '../src/modules/chat/dra
 import type { StructuredRequest } from '../src/ai/providers/types.js';
 import { sampleCustomer } from './fixtures/host.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 
 let h: Harness;
 let priya: string;
@@ -83,6 +84,7 @@ describe('admin control', () => {
   it('never changes a switch without its audit record (save and audit are one transaction)', async () => {
     const ghost = await h.container.sessions.sign({
       userId: '00000000-0000-4000-8000-000000000000',
+      workspaceId: DEFAULT_WORKSPACE_ID,
       role: 'ADMIN',
       authorId: null,
       name: 'Ghost admin',

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { syncCustomer } from '../src/host/sync.js';
 import { sampleCustomer } from './fixtures/host.js';
 import { call, createHarness, EMAILS, HOST, type Harness } from './helpers/app.js';
+import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 
 let h: Harness;
 
@@ -54,7 +55,7 @@ describe('POST /auth/host', () => {
       name: 'Priya Sharma',
     });
     expect(res.cookies.find((c) => c.name === 'bl_session')?.httpOnly).toBe(true);
-    const author = await h.db.author.findUniqueOrThrow({
+    const author = await h.db.author.findFirstOrThrow({
       where: { externalId: 'AUTH001' },
       include: { books: true, user: true },
     });
@@ -99,8 +100,10 @@ describe('accounts', () => {
     await signIn();
     const other = { ...sampleCustomer('AUTH002'), id: 'AUTH-NEW', email: 'new.author@example.com' };
     const stolen = { ...other, items: sampleCustomer('AUTH001').items };
-    await expect(syncCustomer(h.db, stolen)).rejects.toMatchObject({ status: 409 });
-    const book = await h.db.book.findUniqueOrThrow({
+    await expect(syncCustomer(h.db, DEFAULT_WORKSPACE_ID, stolen)).rejects.toMatchObject({
+      status: 409,
+    });
+    const book = await h.db.book.findFirstOrThrow({
       where: { externalId: 'BK001' },
       include: { author: true },
     });
@@ -118,7 +121,9 @@ describe('accounts', () => {
 
   it("refuses a host customer whose email is a support admin's (409)", async () => {
     const intruder = { ...sampleCustomer('AUTH001'), id: 'AUTH-X', email: EMAILS.admin, items: [] };
-    await expect(syncCustomer(h.db, intruder)).rejects.toMatchObject({ code: 'EMAIL_IN_USE' });
+    await expect(syncCustomer(h.db, DEFAULT_WORKSPACE_ID, intruder)).rejects.toMatchObject({
+      code: 'EMAIL_IN_USE',
+    });
   });
 
   it('tells the login page where authors sign in (not configured here)', async () => {

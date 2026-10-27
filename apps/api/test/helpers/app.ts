@@ -202,7 +202,8 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
       handler = h;
     },
     async login(email, password) {
-      const isAdmin = email.endsWith('@bookleaf.demo');
+      // A password means a staff account (any workspace); demo admins keep their default.
+      const isAdmin = password !== undefined || email.endsWith('@bookleaf.demo');
       const res = isAdmin ? await passwordLogin(app, email, password) : await hostLogin(app, email);
       if (res.statusCode !== 200) throw new Error(`login failed for ${email}: ${res.statusCode}`);
       const cookie = res.cookies.find((c) => c.name === 'bl_session');
@@ -241,7 +242,7 @@ export function call(
 }
 
 export async function bookId(h: Harness, externalId: string): Promise<string> {
-  const b = await h.db.book.findUniqueOrThrow({ where: { externalId } });
+  const b = await h.db.book.findFirstOrThrow({ where: { externalId } });
   return b.id;
 }
 
