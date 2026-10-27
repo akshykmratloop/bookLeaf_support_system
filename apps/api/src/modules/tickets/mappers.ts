@@ -116,5 +116,6 @@ export function toAdminTicket(
     aiJobs: latestJobs(jobs),
     source: t.source,
     chatSessionId: t.chatSessionId,
+    voiceSessionId: t.voiceSessionId,
   };
 }

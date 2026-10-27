@@ -93,6 +93,7 @@ export const AdminTicketSchema = AdminTicketListItemSchema.extend({
   aiJobs: z.array(AiJobSummarySchema),
   source: z.enum(TICKET_SOURCES),
   chatSessionId: z.uuid().nullable(),
+  voiceSessionId: z.uuid().nullable(),
 });
 export type AdminTicket = z.infer<typeof AdminTicketSchema>;
 

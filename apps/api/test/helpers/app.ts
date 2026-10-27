@@ -3,6 +3,10 @@ import { inject } from 'vitest';
 import { createWorker, type Worker } from '../../src/ai/jobs/worker.js';
 import { fakeProvider, type FakeHandler } from '../../src/ai/providers/fake/provider.js';
 import type { StructuredRequest } from '../../src/ai/providers/types.js';
+import {
+  fakeVoiceProvider,
+  type FakeVoiceProvider,
+} from '../../src/voice/providers/fake/provider.js';
 import { buildApp } from '../../src/app.js';
 import { createContainer, type Container } from '../../src/container.js';
 import type { Clock } from '../../src/platform/clock.js';
@@ -74,12 +78,14 @@ export interface Harness {
   worker: Worker;
   setAi(handler: FakeHandler): void;
   aiCalls: StructuredRequest<unknown>[];
+  /** Simulated speech-to-speech provider (null when created with { voice: false }). */
+  voice: FakeVoiceProvider | null;
   login(email: string, password?: string): Promise<string>;
   drain(max?: number): Promise<number>;
   close(): Promise<void>;
 }
 
-export async function createHarness(): Promise<Harness> {
+export async function createHarness(opts: { voice?: boolean } = {}): Promise<Harness> {
   const env = loadEnv({
     NODE_ENV: 'test',
     APP_ORIGIN: ORIGIN,
@@ -93,10 +99,12 @@ export async function createHarness(): Promise<Harness> {
   const clock = testClock(env.DATA_AS_OF);
   let handler: FakeHandler = defaultHandler;
   const provider = fakeProvider((req) => handler(req));
+  const voice = opts.voice === false ? null : fakeVoiceProvider();
   const container = createContainer(env, {
     db,
     clock,
     providers: new Map([['anthropic', provider]]),
+    voiceProvider: voice,
   });
   const app = await buildApp(container);
   await app.ready();
@@ -112,6 +120,7 @@ export async function createHarness(): Promise<Harness> {
     clock,
     worker,
     aiCalls: provider.calls,
+    voice,
     setAi: (h) => {
       handler = h;
     },

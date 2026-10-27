@@ -11,3 +11,4 @@ export * from './schemas/drafts.js';
 export * from './schemas/ai.js';
 export * from './schemas/assistant.js';
 export * from './schemas/chat.js';
+export * from './schemas/voice.js';

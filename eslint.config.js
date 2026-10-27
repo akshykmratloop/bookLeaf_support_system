@@ -48,6 +48,13 @@ export default tseslint.config(
               message: 'Vendor SDKs live only in ai/providers/<vendor>/.',
             },
           ],
+          patterns: [
+            {
+              group: ['**/providers/openai/*'],
+              message:
+                'Voice vendors are reached only through voice/providers/registry.ts and types.ts.',
+            },
+          ],
         },
       ],
     },

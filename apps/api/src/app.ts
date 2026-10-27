@@ -1,5 +1,6 @@
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
+import websocket from '@fastify/websocket';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -19,6 +20,8 @@ import { chatRoutes } from './modules/chat/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
+import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
+import { voiceRoutes } from './modules/voice/routes.js';
 import { authGuard } from './platform/http/auth-guard.js';
 import { csrfGuard } from './platform/http/csrf.js';
 import { registerErrorHandler } from './platform/http/error-handler.js';
@@ -62,6 +65,7 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
   await app.register(helmet, { contentSecurityPolicy: { directives: CSP } });
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
+  await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
   await app.register(authGuard, { sessions: c.sessions });
   await app.register(swagger, {
@@ -90,6 +94,12 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
       await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
       await api.register(assistantRoutes, { assistant: c.assistant });
       await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
+      await api.register(voiceRoutes, {
+        voice: c.voice,
+        provider: c.voiceProvider,
+        appOrigin: c.env.APP_ORIGIN,
+        now: () => c.clock.now(),
+      });
       await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
     },
     { prefix: '/api/v1' },

@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { createWorker } from './ai/jobs/worker.js';
 import { createContainer } from './container.js';
+import { failInterruptedCalls } from './modules/voice/repository.js';
 import { loadEnv } from './platform/env.js';
 
 async function main(): Promise<void> {
@@ -31,10 +32,18 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
+  // Single-instance deployment: calls live in this process, so any left PENDING/ACTIVE died with it.
+  const interrupted = await failInterruptedCalls(container.db, container.clock.now());
+  if (interrupted.count)
+    app.log.warn({ count: interrupted.count }, 'marked interrupted voice calls');
   await app.listen({ port: env.PORT, host: env.HOST });
   if (env.WORKER_ENABLED) worker.start();
   app.log.info(
-    { ai: container.ai.configuredProviders(), worker: env.WORKER_ENABLED },
+    {
+      ai: container.ai.configuredProviders(),
+      voice: container.voiceProvider?.id ?? 'not configured',
+      worker: env.WORKER_ENABLED,
+    },
     'BookLeaf API ready',
   );
 }

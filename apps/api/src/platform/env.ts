@@ -29,6 +29,14 @@ const EnvSchema = z.object({
   VOICE_MAX_CALL_SECONDS: z.coerce.number().int().min(30).max(300).default(300),
   VOICE_CALLS_PER_HOUR: z.coerce.number().int().min(1).max(60).default(3),
   VOICE_CALLS_PER_DAY: z.coerce.number().int().min(1).max(200).default(10),
+  // Speech-to-speech provider for voice calls (raw WebSocket, no SDK). Missing key = voice unavailable.
+  VOICE_PROVIDER: z.enum(['openai']).default('openai'),
+  VOICE_MODEL: z.string().min(1).max(80).default('gpt-realtime-2.1'),
+  VOICE_NAME: z.string().min(1).max(40).default('marin'),
+  OPENAI_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : undefined)),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

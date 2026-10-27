@@ -79,6 +79,25 @@ enum ChatAnswerSource {
   UNAVAILABLE
 }
 
+enum VoiceCallStatus {
+  PENDING
+  ACTIVE
+  ENDED
+  FAILED
+  EXPIRED
+}
+
+enum VoiceEndReason {
+  USER_HANGUP
+  TIME_LIMIT
+  ASSISTANT_ENDED
+  IDLE
+  DISCONNECTED
+  DISABLED_BY_ADMIN
+  PROVIDER_ERROR
+  SERVER_RESTART
+}
+
 enum MessageKind {
   AUTHOR
   REPLY
@@ -132,10 +151,11 @@ model Author {
   city       String
   joinedDate DateTime @map("joined_date") @db.Date
 
-  user         User          @relation(fields: [userId], references: [id])
-  books        Book[]
-  tickets      Ticket[]
-  chatSessions ChatSession[]
+  user          User           @relation(fields: [userId], references: [id])
+  books         Book[]
+  tickets       Ticket[]
+  chatSessions  ChatSession[]
+  voiceSessions VoiceSession[]
 
   @@map("authors")
 }
@@ -190,18 +210,20 @@ model Ticket {
   clientRequestId String?         @map("client_request_id")
   source          TicketSource    @default(PORTAL)
   chatSessionId   String?         @unique @map("chat_session_id") @db.Uuid
+  voiceSessionId  String?         @unique @map("voice_session_id") @db.Uuid
   version         Int             @default(0)
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  author      Author          @relation(fields: [authorId], references: [id])
-  chatSession ChatSession?    @relation(fields: [chatSessionId], references: [id])
-  book        Book?           @relation(fields: [bookId], references: [id])
-  assignee    User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
-  messages    TicketMessage[]
-  aiJobs      AiJob[]
-  drafts      AiDraft[]
-  aiRuns      AiRun[]
+  author       Author          @relation(fields: [authorId], references: [id])
+  chatSession  ChatSession?    @relation(fields: [chatSessionId], references: [id])
+  voiceSession VoiceSession?   @relation(fields: [voiceSessionId], references: [id])
+  book         Book?           @relation(fields: [bookId], references: [id])
+  assignee     User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages     TicketMessage[]
+  aiJobs       AiJob[]
+  drafts       AiDraft[]
+  aiRuns       AiRun[]
 
   @@unique([authorId, clientRequestId])
   @@index([status, priority, slaDueAt])
@@ -369,4 +391,33 @@ model ChatMessage {
 
   @@index([sessionId, createdAt])
   @@map("chat_messages")
+}
+
+/// One browser voice call. At most one PENDING/ACTIVE call per author (enforced under a row lock).
+model VoiceSession {
+  id              String          @id @default(uuid()) @db.Uuid
+  authorId        String          @map("author_id") @db.Uuid
+  status          VoiceCallStatus @default(PENDING)
+  provider        String
+  model           String
+  maxSeconds      Int             @map("max_seconds")
+  startedAt       DateTime?       @map("started_at") @db.Timestamptz(3)
+  endedAt         DateTime?       @map("ended_at") @db.Timestamptz(3)
+  endReason       VoiceEndReason? @map("end_reason")
+  durationSeconds Int?            @map("duration_seconds")
+  /// [{role: "AUTHOR" | "ASSISTANT", text, at}] in spoken order.
+  transcript      Json            @default("[]")
+  /// Ticket the assistant suggested during the call: {subject, description, bookId}.
+  proposal        Json?
+  /// Checker result for every figure the assistant spoke, against the call's facts snapshot.
+  spokenCheck     Json?           @map("spoken_check")
+  inputTokens     Int             @default(0) @map("input_tokens")
+  outputTokens    Int             @default(0) @map("output_tokens")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  author Author  @relation(fields: [authorId], references: [id])
+  ticket Ticket?
+
+  @@index([authorId, createdAt])
+  @@map("voice_sessions")
 }

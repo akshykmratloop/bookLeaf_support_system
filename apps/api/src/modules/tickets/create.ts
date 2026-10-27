@@ -20,6 +20,7 @@ export type CreateTicketInput = z.output<typeof CreateTicketRequestSchema>;
 export interface TicketOrigin {
   source: TicketSource;
   chatSessionId?: string | null;
+  voiceSessionId?: string | null;
 }
 
 const ACK =
@@ -91,6 +92,7 @@ export async function createTicket(
           clientRequestId: idempotencyKey,
           source: origin.source,
           chatSessionId: origin.chatSessionId ?? null,
+          voiceSessionId: origin.voiceSessionId ?? null,
           createdAt: now,
         },
       });
