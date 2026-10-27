@@ -71,6 +71,37 @@ A live voice call still needs `OPENAI_API_KEY` in the worktree `.env`.
 
 ---
 
+### 3. Pluggable support module + conversation history — `feature/pluggable-support`
+
+| Field           | Value                                  |
+| --------------- | -------------------------------------- |
+| **Session No.** | S213                                   |
+| **Session ID**  | `d6c4131c-0851-4186-b4ce-5a0f25b3552c` |
+| **Branch**      | `feature/pluggable-support` (from `feature/voice`) |
+| **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf-pluggable` |
+| **Base commit** | `9489277`                              |
+| **Started**     | 2026-10-27                             |
+| **Status**      | 🔄 In Progress                          |
+
+**Goal:** read-only conversation history for authors; turn the support system into a module any
+product can attach (embed widget + Fastify plugin), with customer data read only over HTTP from the
+host; move BookLeaf author/book data into `apps/host-demo`. Never merged into `main` or `feature/voice`.
+
+**CLAIMED PATHS (on this branch only):**
+
+```
+apps/**
+packages/**
+docs/**
+eslint.config.js
+.env.example
+```
+
+**Things another session should know:** `platform/env.ts` becomes `config/*.ts`; author sign-in moves
+to a host token (`POST /api/v1/auth/host`); BookLeaf facts engine moves to `apps/host-demo`.
+
+---
+
 # Path Ownership Map
 
 | Path | Owner | Free to claim? |
