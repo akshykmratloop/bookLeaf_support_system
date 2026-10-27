@@ -9,6 +9,7 @@ import { connectorRoutes } from './modules/connectors/routes.js';
 import { conversationRoutes } from './modules/conversations/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
+import { settingsRoutes } from './modules/settings/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
 import { voiceRoutes } from './modules/voice/routes.js';
@@ -40,6 +41,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   });
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
   await api.register(connectorRoutes, { connectors: c.connectors });
+  await api.register(settingsRoutes, { settings: c.settings });
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,

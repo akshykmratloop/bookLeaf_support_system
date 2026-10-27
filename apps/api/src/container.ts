@@ -18,6 +18,7 @@ import { createConversationService } from './modules/conversations/service.js';
 import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
 import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
+import { createSettingsService } from './modules/settings/service.js';
 import { createHostSignIn } from './modules/workspaces/host-sign-in.js';
 import { createWorkspaceService } from './modules/workspaces/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
@@ -99,6 +100,11 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       secretFor: core.connectors.secretFor,
     }),
     workspaces: createWorkspaceService(core),
+    settings: createSettingsService({
+      db: core.db,
+      ai: core.ai,
+      voiceConfigured: core.voiceProvider !== null,
+    }),
     books: createBooksService(core),
     conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),

@@ -127,11 +127,14 @@ describe("customers signing in from Acme's product", () => {
     const cookie = `bl_session=${res.cookies.find((c) => c.name === 'bl_session')?.value}`;
     const books = await call(h, 'GET', '/books', cookie);
     expect(books.json<{ items: unknown[] }>().items).toHaveLength(2);
-    const rows = await h.db.author.findMany({
-      where: { externalId: 'AUTH001' },
+    const me = await call(h, 'GET', '/auth/me', cookie);
+    const authorId = me.json<{ user: { authorId: string } }>().user.authorId;
+    const row = await h.db.author.findUniqueOrThrow({
+      where: { id: authorId },
       include: { workspace: true },
     });
-    expect(rows.map((r) => r.workspace.slug).sort()).toEqual(['acme']);
+    expect(row.workspace.slug).toBe('acme');
+    expect(row.externalId).toBe('AUTH001');
   });
 
   it("the same person signing in from BookLeaf gets BookLeaf's row, not Acme's", async () => {

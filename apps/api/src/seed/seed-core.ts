@@ -1,3 +1,4 @@
+import { CustomerFieldInputSchema } from '@bookleaf/shared';
 import type { Db } from '../platform/db.js';
 import { hashPassword } from '../modules/auth/password.js';
 import { DEFAULT_AI_SETTINGS } from '../ai/providers/catalog.js';
@@ -6,7 +7,20 @@ import {
   DEFAULT_WORKSPACE_NAME,
   DEFAULT_WORKSPACE_SLUG,
 } from '../modules/workspaces/constants.js';
+import { BOOKLEAF_FIELDS } from '../modules/settings/bookleaf-fields.js';
 import { DEMO_ADMINS } from './demo-accounts.js';
+
+/** BookLeaf's customer-data schema, as the default workspace's editable field rows. */
+async function seedFields(db: Db, workspaceId: string): Promise<void> {
+  for (const f of BOOKLEAF_FIELDS) {
+    const parsed = CustomerFieldInputSchema.parse(f);
+    await db.customerField.upsert({
+      where: { workspaceId_key: { workspaceId, key: parsed.key } },
+      update: {},
+      create: { ...parsed, workspaceId },
+    });
+  }
+}
 
 /**
  * The support module's own starting data: the support team's admin accounts and the default
@@ -38,6 +52,7 @@ export async function seedCore(db: Db, adminPassword: string): Promise<{ admins:
       create: { workspaceId, userId: user.id, role: 'OWNER' },
     });
   }
+  await seedFields(db, workspaceId);
   await db.aiSettings.upsert({
     where: { id: 1 },
     update: {},
