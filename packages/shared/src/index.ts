@@ -12,3 +12,4 @@ export * from './schemas/ai.js';
 export * from './schemas/assistant.js';
 export * from './schemas/chat.js';
 export * from './schemas/voice.js';
+export * from './schemas/ticket-drafts.js';

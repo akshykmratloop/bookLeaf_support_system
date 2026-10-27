@@ -11,6 +11,7 @@ export interface AssistantLimits {
     sessionsPerHour: number;
   };
   voice: { maxCallSeconds: number; callsPerHour: number; callsPerDay: number };
+  drafts: { editsPerMinute: number };
 }
 
 export function limitsFromEnv(env: Env): AssistantLimits {
@@ -27,6 +28,7 @@ export function limitsFromEnv(env: Env): AssistantLimits {
       callsPerHour: env.VOICE_CALLS_PER_HOUR,
       callsPerDay: env.VOICE_CALLS_PER_DAY,
     },
+    drafts: { editsPerMinute: env.TICKET_DRAFT_EDITS_PER_MINUTE },
   };
 }
 

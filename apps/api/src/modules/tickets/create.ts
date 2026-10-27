@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
   type AuthorTicket,
   type CreateTicketRequestSchema,
+  type TicketCategory,
   type TicketSource,
 } from '@bookleaf/shared';
 import type { z } from 'zod';
@@ -21,6 +22,10 @@ export interface TicketOrigin {
   source: TicketSource;
   chatSessionId?: string | null;
   voiceSessionId?: string | null;
+  /** Issue type the author picked; triage keeps it (categorySource AUTHOR). */
+  category?: TicketCategory | null;
+  /** Runs inside the creating transaction, e.g. to mark a ticket draft as sent. */
+  afterCreate?: (tx: Prisma.TransactionClient, ticketId: string) => Promise<void>;
 }
 
 const ACK =
@@ -47,6 +52,56 @@ export async function getAuthorTicket(
   return toAuthorTicket(t, await findMessages(deps.db, t.id, false));
 }
 
+function ticketData(
+  authorId: string,
+  input: CreateTicketInput,
+  origin: TicketOrigin,
+  idempotencyKey: string | null,
+  now: Date,
+): Prisma.TicketUncheckedCreateInput {
+  const category = origin.category ?? null;
+  const floor = priorityFloor({
+    text: `${input.subject}\n${input.description}`,
+    category: category ?? 'GENERAL_INQUIRY',
+    royaltyStatus: null,
+  });
+  const priority = higherPriority('MEDIUM', floor.floor);
+  return {
+    authorId,
+    bookId: input.bookId,
+    subject: input.subject,
+    description: input.description,
+    ...(category ? { category, categorySource: 'AUTHOR' as const } : {}),
+    priority,
+    prioritySource: 'RULES',
+    priorityReasons: floor.reasons,
+    slaDueAt: slaDueAt(now, priority),
+    clientRequestId: idempotencyKey,
+    source: origin.source,
+    chatSessionId: origin.chatSessionId ?? null,
+    voiceSessionId: origin.voiceSessionId ?? null,
+    createdAt: now,
+  };
+}
+
+/** Ticket, acknowledgement, TRIAGE job and the caller's afterCreate step: all or nothing. */
+async function insertTicket(
+  deps: TicketDeps,
+  data: Prisma.TicketUncheckedCreateInput,
+  origin: TicketOrigin,
+) {
+  const now = data.createdAt as Date;
+  return deps.db.$transaction(async (tx) => {
+    const t = await tx.ticket.create({ data });
+    await tx.ticketMessage.create({
+      data: { ticketId: t.id, kind: 'SYSTEM', body: ACK, createdAt: now },
+    });
+    await enqueueJob(tx, t.id, 'TRIAGE', now);
+    await origin.afterCreate?.(tx, t.id);
+    return t.id;
+  });
+}
+
 /**
  * Ticket, acknowledgement and the TRIAGE job are written in one transaction: either all exist
  * or none do, so a ticket can never be left without AI processing queued.
@@ -70,38 +125,9 @@ export async function createTicket(
     const owns = await deps.db.book.count({ where: { id: input.bookId, authorId } });
     if (!owns) throw new NotFoundError('Book');
   }
-  const now = deps.clock.now();
-  const floor = priorityFloor({
-    text: `${input.subject}\n${input.description}`,
-    category: 'GENERAL_INQUIRY',
-    royaltyStatus: null,
-  });
-  const priority = higherPriority('MEDIUM', floor.floor);
+  const data = ticketData(authorId, input, origin, idempotencyKey, deps.clock.now());
   try {
-    const id = await deps.db.$transaction(async (tx) => {
-      const t = await tx.ticket.create({
-        data: {
-          authorId,
-          bookId: input.bookId,
-          subject: input.subject,
-          description: input.description,
-          priority,
-          prioritySource: 'RULES',
-          priorityReasons: floor.reasons,
-          slaDueAt: slaDueAt(now, priority),
-          clientRequestId: idempotencyKey,
-          source: origin.source,
-          chatSessionId: origin.chatSessionId ?? null,
-          voiceSessionId: origin.voiceSessionId ?? null,
-          createdAt: now,
-        },
-      });
-      await tx.ticketMessage.create({
-        data: { ticketId: t.id, kind: 'SYSTEM', body: ACK, createdAt: now },
-      });
-      await enqueueJob(tx, t.id, 'TRIAGE', now);
-      return t.id;
-    });
+    const id = await insertTicket(deps, data, origin);
     deps.events.publish({ type: 'ticket.created', ticketId: id, authorId, authorVisible: true });
     return { ticket: await getAuthorTicket(deps, session, id), created: true };
   } catch (err) {

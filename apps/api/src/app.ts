@@ -19,6 +19,7 @@ import { booksRoutes } from './modules/books/routes.js';
 import { chatRoutes } from './modules/chat/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
+import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
 import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
 import { voiceRoutes } from './modules/voice/routes.js';
@@ -94,6 +95,7 @@ export async function buildApp(c: Container): Promise<FastifyInstance> {
       await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
       await api.register(assistantRoutes, { assistant: c.assistant });
       await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
+      await api.register(ticketDraftRoutes, { drafts: c.ticketDrafts, limits: c.limits });
       await api.register(voiceRoutes, {
         voice: c.voice,
         provider: c.voiceProvider,

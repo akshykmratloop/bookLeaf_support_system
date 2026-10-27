@@ -37,6 +37,7 @@ const SOURCE_TEXT: Record<FieldSource, string> = {
   AI: 'Set by AI',
   RULES: 'Set by rules (AI unavailable)',
   ADMIN: 'Set by an admin',
+  AUTHOR: 'Chosen by the author',
 };
 
 export function CategoryLabel({

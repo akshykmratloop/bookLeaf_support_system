@@ -46,7 +46,7 @@ async function applyDecision(
     aiState: d.source === 'AI' ? 'DONE' : 'FALLBACK',
     version: { increment: 1 },
   };
-  if (t.categorySource !== 'ADMIN')
+  if (t.categorySource !== 'ADMIN' && t.categorySource !== 'AUTHOR')
     Object.assign(data, { category: d.category, categorySource: d.source });
   if (t.prioritySource !== 'ADMIN') {
     Object.assign(data, { priority: d.priority, prioritySource: d.source });

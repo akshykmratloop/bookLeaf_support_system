@@ -22,6 +22,7 @@ const SOURCE: Record<FieldSource, string> = {
   AI: 'AI suggestion',
   RULES: 'Rules (AI unavailable)',
   ADMIN: 'Set by admin',
+  AUTHOR: 'Chosen by author',
 };
 const JOB_TEXT: Record<string, string> = {
   QUEUED: 'Queued',

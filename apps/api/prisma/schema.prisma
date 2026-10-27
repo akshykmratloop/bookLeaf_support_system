@@ -54,6 +54,20 @@ enum FieldSource {
   AI
   RULES
   ADMIN
+  /// Chosen by the author (issue type picked in the ticket draft); triage keeps it.
+  AUTHOR
+}
+
+enum TicketDraftStatus {
+  OPEN
+  /// The assistant read the draft back and asked the author to confirm sending it.
+  AWAITING_CONFIRMATION
+  SUBMITTED
+}
+
+enum DraftEditor {
+  AUTHOR
+  ASSISTANT
 }
 
 enum AiState {
@@ -158,6 +172,7 @@ model Author {
   tickets       Ticket[]
   chatSessions  ChatSession[]
   voiceSessions VoiceSession[]
+  ticketDrafts  TicketDraft[]
 
   @@map("authors")
 }
@@ -181,8 +196,9 @@ model Book {
   printPartner        String?   @map("print_partner")
   availableOn         String[]  @map("available_on")
 
-  author  Author   @relation(fields: [authorId], references: [id])
-  tickets Ticket[]
+  author       Author        @relation(fields: [authorId], references: [id])
+  tickets      Ticket[]
+  ticketDrafts TicketDraft[]
 
   @@index([authorId])
   @@map("books")
@@ -226,6 +242,7 @@ model Ticket {
   aiJobs       AiJob[]
   drafts       AiDraft[]
   aiRuns       AiRun[]
+  ticketDraft  TicketDraft?
 
   @@unique([authorId, clientRequestId])
   @@index([status, priority, slaDueAt])
@@ -365,9 +382,10 @@ model ChatSession {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  author   Author        @relation(fields: [authorId], references: [id])
-  messages ChatMessage[]
-  ticket   Ticket?
+  author      Author        @relation(fields: [authorId], references: [id])
+  messages    ChatMessage[]
+  ticket      Ticket?
+  ticketDraft TicketDraft?
 
   @@index([authorId, createdAt])
   @@map("chat_sessions")
@@ -415,11 +433,41 @@ model VoiceSession {
   spokenCheck     Json?           @map("spoken_check")
   inputTokens     Int             @default(0) @map("input_tokens")
   outputTokens    Int             @default(0) @map("output_tokens")
+  /// Calls continued with "Continue last call" share the first call's id here (null = own id).
+  threadId        String?         @map("thread_id") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
   author Author  @relation(fields: [authorId], references: [id])
   ticket Ticket?
 
   @@index([authorId, createdAt])
+  @@index([threadId])
   @@map("voice_sessions")
+}
+
+/// The ticket an author and the assistant prepare together in a chat conversation or call thread.
+/// Exactly one of chatSessionId / voiceThreadId is set (CHECK constraint in the migration).
+model TicketDraft {
+  id            String            @id @default(uuid()) @db.Uuid
+  authorId      String            @map("author_id") @db.Uuid
+  chatSessionId String?           @unique @map("chat_session_id") @db.Uuid
+  voiceThreadId String?           @unique @map("voice_thread_id") @db.Uuid
+  category      TicketCategory?
+  bookId        String?           @map("book_id") @db.Uuid
+  subject       String            @default("")
+  description   String            @default("")
+  status        TicketDraftStatus @default(OPEN)
+  version       Int               @default(0)
+  lastEditedBy  DraftEditor       @default(ASSISTANT) @map("last_edited_by")
+  ticketId      String?           @unique @map("ticket_id") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  author      Author       @relation(fields: [authorId], references: [id])
+  chatSession ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  book        Book?        @relation(fields: [bookId], references: [id])
+  ticket      Ticket?      @relation(fields: [ticketId], references: [id])
+
+  @@index([authorId])
+  @@map("ticket_drafts")
 }

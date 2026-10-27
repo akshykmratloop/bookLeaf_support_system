@@ -26,6 +26,8 @@ const EnvSchema = z.object({
   CHAT_MESSAGES_PER_DAY: z.coerce.number().int().min(1).max(2000).default(100),
   CHAT_MAX_TURNS_PER_SESSION: z.coerce.number().int().min(1).max(200).default(30),
   CHAT_SESSIONS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(10),
+  // Ticket draft panel autosaves while the author types (one save per pause).
+  TICKET_DRAFT_EDITS_PER_MINUTE: z.coerce.number().int().min(10).max(600).default(120),
   VOICE_MAX_CALL_SECONDS: z.coerce.number().int().min(30).max(300).default(300),
   VOICE_CALLS_PER_HOUR: z.coerce.number().int().min(1).max(60).default(5),
   VOICE_CALLS_PER_DAY: z.coerce.number().int().min(1).max(200).default(10),

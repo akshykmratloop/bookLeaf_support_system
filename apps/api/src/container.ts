@@ -10,6 +10,8 @@ import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
 import { createBooksRepository } from './modules/books/repository.js';
 import { createChatService } from './modules/chat/service.js';
+import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
+import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
@@ -35,6 +37,8 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
   const ticketDeps = { db, clock, events };
   const limits = limitsFromEnv(env);
+  const draftLive = draftLiveUpdates();
+  const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const voiceProvider =
     overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
   const assistant = createAssistantService({
@@ -56,6 +60,8 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     ticketDeps,
     limits,
     assistant,
+    draftLive,
+    ticketDrafts,
     chat: createChatService({ ...ticketDeps, assistant, limits }),
     voiceProvider,
     voice: createVoiceService({ ...ticketDeps, assistant, limits, provider: voiceProvider }),

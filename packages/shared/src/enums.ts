@@ -36,7 +36,7 @@ export const MESSAGE_KINDS = ['AUTHOR', 'REPLY', 'INTERNAL_NOTE', 'SYSTEM'] as c
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
 
 /** Who set a ticket's category or priority. ADMIN values are never overwritten by AI. */
-export const FIELD_SOURCES = ['AI', 'RULES', 'ADMIN'] as const;
+export const FIELD_SOURCES = ['AI', 'RULES', 'ADMIN', 'AUTHOR'] as const;
 export type FieldSource = (typeof FIELD_SOURCES)[number];
 
 /** Overall AI processing state of a ticket, shown as a badge in the queue. */
