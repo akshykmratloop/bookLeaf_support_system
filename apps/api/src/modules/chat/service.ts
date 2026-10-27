@@ -72,7 +72,8 @@ export function createChatService(deps: Deps) {
       .map((m) => ({ role: m.role, body: m.body }));
     const draft = chat.ticketDraft ? toTicketDraft(chat.ticketDraft) : null;
     const a = await produceAnswer(deps, { authorId, message: body, history, draft });
-    const applied = await applyDraftAction(deps.drafts, session, chat.id, a.draft);
+    const seen = draft?.version ?? 0;
+    const applied = await applyDraftAction(deps.drafts, session, chat.id, a.draft, seen);
     const reply = await db.chatMessage.create({
       data: {
         sessionId: chat.id,

@@ -275,12 +275,18 @@ describe('voice: live ticket draft', () => {
     expect(fake.context.at(-1)).toContain('Payout not received');
     tool('d2', 'submit_ticket');
     await waitUntil(() => Boolean(toolResult('d2')), 'early submit result');
-    expect(toolResult('d2')).toMatchObject({ code: 'DRAFT_NOT_CONFIRMED' });
+    expect(toolResult('d2')).toMatchObject({ code: 'NO_ANSWER_YET' });
     tool('d3', 'confirm_ticket');
     await waitUntil(() => Boolean(toolResult('d3')), 'confirm result');
+    // Confirm then submit in one breath, with no answer from the author, is refused.
     tool('d4', 'submit_ticket');
-    await waitUntil(() => Boolean(toolResult('d4')), 'submit result');
-    expect(toolResult('d4')).toMatchObject({ status: 'sent' });
+    await waitUntil(() => Boolean(toolResult('d4')), 'same-turn submit result');
+    expect(toolResult('d4')).toMatchObject({ code: 'NO_ANSWER_YET' });
+    expect(await h.db.ticket.count({ where: { voiceSessionId: started.id } })).toBe(0);
+    fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'Yes, send it' });
+    tool('d5', 'submit_ticket');
+    await waitUntil(() => Boolean(toolResult('d5')), 'submit result');
+    expect(toolResult('d5')).toMatchObject({ status: 'sent' });
     const ticket = await h.db.ticket.findUniqueOrThrow({ where: { voiceSessionId: started.id } });
     expect(ticket).toMatchObject({ source: 'VOICE', subject: 'Payout not received' });
     c.ws.send(JSON.stringify({ type: 'hangup' }));

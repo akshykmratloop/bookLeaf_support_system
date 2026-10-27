@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AssistantSettings, ChatReply, ChatSession } from '@bookleaf/shared';
 import { defaultHandler, NO_DRAFT } from './helpers/app.js';
-import { CONFIRM_FIRST_TEXT } from '../src/modules/chat/draft-turn.js';
+import { AUTHOR_CHANGED_TEXT, CONFIRM_FIRST_TEXT } from '../src/modules/chat/draft-turn.js';
 import type { StructuredRequest } from '../src/ai/providers/types.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
 
@@ -321,6 +321,28 @@ describe('ticket draft from chat', () => {
     expect(res.reply.body).toBe(CONFIRM_FIRST_TEXT);
     expect(res.session.draft?.status).toBe('AWAITING_CONFIRMATION');
     expect(await h.db.ticket.count({ where: { chatSessionId: chat.id } })).toBe(0);
+    h.setAi(defaultHandler);
+  });
+
+  it("keeps the author's edit made while the model was answering", async () => {
+    h.setAi(draftModel);
+    const chat = await startChat(kavita);
+    await send(kavita, chat.id, 'My royalty statement looks wrong');
+    const draftId = (
+      await h.db.ticketDraft.findUniqueOrThrow({ where: { chatSessionId: chat.id } })
+    ).id;
+    h.setAi(async (req) => {
+      if (req.task !== 'CHAT') return defaultHandler(req);
+      await call(h, 'PATCH', `/ticket-drafts/${draftId}`, kavita, { subject: 'My own subject' });
+      return {
+        answer: 'I updated the subject.',
+        claims: [],
+        draft: { ...NO_DRAFT, action: 'update', subject: 'Model subject' },
+      };
+    });
+    const res = (await send(kavita, chat.id, 'change the subject')).json<ChatReply>();
+    expect(res.reply.body).toBe(AUTHOR_CHANGED_TEXT);
+    expect(res.session.draft?.subject).toBe('My own subject');
     h.setAi(defaultHandler);
   });
 

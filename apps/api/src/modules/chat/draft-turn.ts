@@ -8,11 +8,20 @@ export const NEEDS_MORE_TEXT =
   'Before I can send it, the ticket needs a subject (at least 5 characters) and a description (at least 20). You can add them on the right, or tell me a bit more.';
 export const CONFIRM_FIRST_TEXT =
   'Before I send it, please check the ticket on the right. Shall I send it?';
+export const AUTHOR_CHANGED_TEXT =
+  "You changed the ticket while I was answering, so I've left your version as it is. Check it on the right and tell me when you'd like me to send it.";
+export const ALREADY_SENT_TEXT =
+  'A ticket has already been sent from this conversation. The support team will reply on the ticket page.';
 export const sentText = (number: string) =>
   `Done. I've sent ticket ${number}. The support team will reply on the ticket page, and you'll see updates there.`;
 
-/** Draft races the author can cause (sent or edited it meanwhile) leave the draft as it is. */
-const RACES = new Set(['DRAFT_SENT', 'DRAFT_CHANGED', 'DRAFT_NOT_CONFIRMED']);
+/** What the reply says when the author's own action (edit or send) got there first. */
+const RACE_TEXT: Record<string, string> = {
+  DRAFT_CHANGED: AUTHOR_CHANGED_TEXT,
+  DRAFT_NOT_CONFIRMED: CONFIRM_FIRST_TEXT,
+  DRAFT_SENT: ALREADY_SENT_TEXT,
+  CHAT_TICKET_EXISTS: ALREADY_SENT_TEXT,
+};
 
 interface Applied {
   /** Replaces the model's text when the server decided differently (or confirms sending). */
@@ -37,10 +46,14 @@ async function apply(
   session: Session,
   chatSessionId: string,
   action: DraftAction,
+  seenVersion: number,
 ): Promise<Applied> {
   const authorId = session.authorId ?? '';
   let draft = await drafts.forChat(authorId, chatSessionId);
-  if (draft.status === 'SUBMITTED') return { bodyOverride: null };
+  if (draft.status === 'SUBMITTED') return { bodyOverride: ALREADY_SENT_TEXT };
+  // The author edited the draft while the model was answering: their version wins.
+  if (draft.version !== seenVersion && draft.lastEditedBy === 'AUTHOR')
+    return { bodyOverride: AUTHOR_CHANGED_TEXT };
   if (hasFields(action)) draft = await drafts.edit(authorId, draft.id, action.patch, 'ASSISTANT');
   if (action.kind === 'confirm') return confirmOrExplain(drafts, authorId, draft, null);
   if (action.kind !== 'submit') return { bodyOverride: null };
@@ -60,12 +73,15 @@ export async function applyDraftAction(
   session: Session,
   chatSessionId: string,
   action: DraftAction | null,
+  /** Draft version the model was shown (0 when there was no draft yet). */
+  seenVersion: number,
 ): Promise<Applied> {
   if (!action || (action.kind === 'none' && !hasFields(action))) return { bodyOverride: null };
   try {
-    return await apply(drafts, session, chatSessionId, action);
+    return await apply(drafts, session, chatSessionId, action, seenVersion);
   } catch (err) {
-    if (err instanceof ConflictError && RACES.has(err.code)) return { bodyOverride: null };
-    throw err;
+    const text = err instanceof ConflictError ? RACE_TEXT[err.code] : undefined;
+    if (text === undefined) throw err;
+    return { bodyOverride: text };
   }
 }

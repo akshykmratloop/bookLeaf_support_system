@@ -105,7 +105,12 @@ export function createTicketDraftService(deps: Deps) {
       if (current.status === 'SUBMITTED') throw SENT();
       if (!isDraftComplete(current))
         throw new ValidationError('The draft needs a subject and a description first.');
-      await db.ticketDraft.update({ where: { id }, data: { status: 'AWAITING_CONFIRMATION' } });
+      // Only the version the assistant read back: an edit made meanwhile cancels the request.
+      const res = await db.ticketDraft.updateMany({
+        where: { id, version: current.version, status: { not: 'SUBMITTED' } },
+        data: { status: 'AWAITING_CONFIRMATION' },
+      });
+      if (res.count !== 1) throw CHANGED();
       const draft = toTicketDraft(await findOwnDraft(db, id, authorId));
       live.publish({ draft, by: 'ASSISTANT', changed: ['status'] });
       return draft;

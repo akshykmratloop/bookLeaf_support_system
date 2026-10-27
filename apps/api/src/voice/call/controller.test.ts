@@ -198,6 +198,21 @@ describe('voice call controller', () => {
     expect(provider.toolResults).toEqual([{ callId: 't1', result: { status: 'updated' } }]);
   });
 
+  it('sends only after confirm_ticket and an answer from the author in this call', async () => {
+    await call();
+    const submit = (id: string) =>
+      provider.emit({ type: 'tool_call', callId: id, name: 'submit_ticket', argumentsJson: '{}' });
+    submit('s1');
+    provider.emit({ type: 'tool_call', callId: 'c1', name: 'confirm_ticket', argumentsJson: '{}' });
+    submit('s2');
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'Yes please' });
+    submit('s3');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(draftRuns.map((r) => r.name)).toEqual(['confirm_ticket', 'submit_ticket']);
+    const refused = provider.toolResults.filter((r) => r.result.code === 'NO_ANSWER_YET');
+    expect(refused.map((r) => r.callId)).toEqual(['s1', 's2']);
+  });
+
   it("puts every draft change on screen and tells the model about the author's own edits", async () => {
     await call();
     const confirmed = {

@@ -78,6 +78,12 @@ export interface CallState {
   session: VoiceSession | null;
   /** Draft status last shown, to tell the model when an edit cancelled its confirmation. */
   draftStatus: TicketDraft['status'];
+  /**
+   * Sending needs the author's answer: confirm_ticket was called in this call and the author
+   * spoke after it. The database status alone could be left over or set in the same turn.
+   */
+  confirmAsked: boolean;
+  answeredSinceConfirm: boolean;
   /** Stops watching the draft (set once the call is live). */
   unwatch: (() => void) | null;
   /**

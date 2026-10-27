@@ -39,7 +39,7 @@ export const ticketDraftRoutes: FastifyPluginAsyncZod<{
   app.get(
     '/ticket-drafts/chat/:sessionId',
     {
-      config: AUTHOR,
+      config: { ...AUTHOR, rateLimit: perUser(limits.drafts.editsPerMinute) },
       schema: {
         tags: ['ticket-drafts'],
         summary: 'The ticket draft of one of my chat conversations (created on first use)',

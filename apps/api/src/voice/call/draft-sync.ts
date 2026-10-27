@@ -1,5 +1,12 @@
 import { CATEGORY_LABELS, type TicketDraft } from '@bookleaf/shared';
+import { CONFIRM_TICKET, SUBMIT_TICKET } from './tool-defs.js';
 import type { CallState, DraftUpdate } from './types.js';
+
+const NOT_ANSWERED = {
+  error:
+    'Not sent. Read back the issue type and subject, ask "Shall I send it?", call confirm_ticket, and wait for the author to say yes.',
+  code: 'NO_ANSWER_YET',
+};
 
 /** Longest field text quoted back to the model in one note. */
 const NOTE_FIELD_CHARS = 600;
@@ -40,18 +47,25 @@ export function onDraftUpdate(st: CallState, update: DraftUpdate): void {
   if (note) st.session?.addContext(note);
 }
 
+function reply(st: CallState, callId: string, result: Record<string, unknown>) {
+  if (!st.ended) st.session?.sendToolResult(callId, result);
+}
+
 /** Draft tools touch the database, so they run in the background and answer when done. */
 export function runDraftTool(st: CallState, callId: string, name: string, args: string): void {
-  st.deps.draft.run(name, args).then(
-    (result) => {
-      if (!st.ended) st.session?.sendToolResult(callId, result);
-    },
-    (err: unknown) => {
+  if (name === SUBMIT_TICKET && !(st.confirmAsked && st.answeredSinceConfirm))
+    return reply(st, callId, NOT_ANSWERED);
+  if (name === CONFIRM_TICKET) {
+    st.confirmAsked = true;
+    st.answeredSinceConfirm = false;
+  }
+  st.deps.draft
+    .run(name, args)
+    .then((result) => reply(st, callId, result))
+    .catch((err: unknown) => {
       st.deps.warn('ticket draft tool failed', err);
-      if (!st.ended)
-        st.session?.sendToolResult(callId, {
-          error: 'The ticket could not be updated just now. Tell the author and carry on.',
-        });
-    },
-  );
+      reply(st, callId, {
+        error: 'The ticket could not be updated just now. Tell the author and carry on.',
+      });
+    });
 }

@@ -37,10 +37,12 @@ function onProviderEvent(st: CallState, e: VoiceEvent): void {
     caller.sendAudio(e.pcm16);
   } else if (e.type === 'transcript') {
     markActivity(st);
+    if (e.role === 'AUTHOR') st.answeredSinceConfirm = true;
     st.transcript.push({ role: e.role, text: e.text, at: st.deps.now().toISOString() });
     caller.send({ type: 'transcript', role: e.role, text: e.text });
   } else if (e.type === 'barge_in') {
     markActivity(st);
+    st.answeredSinceConfirm = true;
     caller.send({ type: 'interrupt' });
   } else if (e.type === 'tool_call') runTool(st, e.callId, e.name, e.argumentsJson);
   else if (e.type === 'reply_done') {
@@ -61,6 +63,8 @@ function newState(deps: CallDeps): CallState {
     usage: { inputTokens: 0, outputTokens: 0 },
     session: null,
     draftStatus: deps.draft.initial.status,
+    confirmAsked: false,
+    answeredSinceConfirm: false,
     unwatch: null,
     lastActivityAt: performance.now(),
     endRequested: false,
@@ -91,7 +95,13 @@ export async function startCall(deps: CallDeps): Promise<CallHandle> {
   }
   deps.caller.send({ type: 'ready', maxSeconds: secondsLeft(st) });
   deps.caller.send({ type: 'draft', draft: deps.draft.initial });
-  st.unwatch = deps.draft.watch((update) => onDraftUpdate(st, update));
+  st.unwatch = deps.draft.watch((update) => {
+    try {
+      onDraftUpdate(st, update);
+    } catch (err) {
+      deps.warn('could not pass on a ticket draft change', err);
+    }
+  });
   st.session.greet();
   markActivity(st);
   return {
