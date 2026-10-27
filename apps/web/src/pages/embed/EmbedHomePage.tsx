@@ -50,11 +50,13 @@ function ConversationsSection() {
   return (
     <section aria-label="Recent conversations">
       <SectionHeader title="Recent conversations" to={authorPaths.history} />
-      <div className="divide-y divide-line overflow-hidden rounded-card border border-line bg-panel shadow-soft">
+      <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-panel shadow-soft">
         {items.map((c) => (
-          <ConversationRow key={`${c.kind}-${c.id}`} conversation={c} />
+          <li key={`${c.kind}-${c.id}`}>
+            <ConversationRow conversation={c} />
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

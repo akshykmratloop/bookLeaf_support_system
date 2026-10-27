@@ -1,71 +1,19 @@
-import { MESSAGE_LIMITS, type AuthorTicket } from '@bookleaf/shared';
-import { ArrowLeft, Send } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
-import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/atoms/Card';
-import { Textarea } from '../../components/atoms/Input';
-import { StatusPill } from '../../components/molecules/DomainPills';
+import { Chip } from '../../components/atoms/Chip';
+import { Pill } from '../../components/atoms/Pill';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
-import { useToast } from '../../components/molecules/Toast';
-import { MessageThread } from '../../components/organisms/MessageThread';
-import { api, errorMessage } from '../../lib/api';
-import { dateTime } from '../../lib/format';
-import { newRequestKey } from '../../lib/ids';
-import { keys, useApiMutation, useAuthorTicket } from '../../lib/queries';
+import { StatusStepper } from '../../components/molecules/StatusStepper';
+import { SolveTicketCard } from '../../components/organisms/SolveTicketCard';
+import { TicketConversation } from '../../components/organisms/TicketConversation';
+import { TicketInfoCard } from '../../components/organisms/TicketInfoCard';
+import { TicketReplyBox } from '../../components/organisms/TicketReplyBox';
+import { errorMessage } from '../../lib/api';
+import { categoryStyle } from '../../lib/categoryStyle';
 import { authorPaths } from '../../lib/paths';
-
-function FollowUp({ ticketId, closed }: { ticketId: string; closed: boolean }) {
-  const toast = useToast();
-  const [body, setBody] = useState('');
-  const [requestKey, setRequestKey] = useState(newRequestKey);
-  const send = useApiMutation(
-    (text: string) =>
-      api<AuthorTicket>(`/tickets/${ticketId}/messages`, {
-        method: 'POST',
-        body: { body: text },
-        idempotencyKey: requestKey,
-      }),
-    [keys.ticket(ticketId), keys.tickets()],
-  );
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!body.trim()) return;
-    send.mutate(body, {
-      onSuccess: () => {
-        setBody('');
-        setRequestKey(newRequestKey());
-        toast('success', 'Message sent');
-      },
-      onError: (err) => toast('error', errorMessage(err)),
-    });
-  };
-  return (
-    <form onSubmit={submit} className="mt-4 flex flex-col gap-2">
-      <label htmlFor="followup" className="text-[12.5px] font-semibold text-ink-2">
-        {closed ? 'Need more help? Sending a message reopens this ticket.' : 'Add a message'}
-      </label>
-      <Textarea
-        id="followup"
-        rows={3}
-        value={body}
-        maxLength={MESSAGE_LIMITS.max}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          size="sm"
-          isLoading={send.isPending}
-          disabled={!body.trim()}
-          icon={<Send size={14} aria-hidden />}
-        >
-          Send
-        </Button>
-      </div>
-    </form>
-  );
-}
+import { useAuthorTicket } from '../../lib/queries';
+import { requesterStatus } from '../../lib/ticketStatus';
 
 export function TicketDetailPage() {
   const { id = '' } = useParams();
@@ -76,29 +24,49 @@ export function TicketDetailPage() {
       <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
     );
   const t = ticket.data;
-  const closed = t.status === 'RESOLVED' || t.status === 'CLOSED';
+  const status = requesterStatus(t);
+  const cat = categoryStyle(t.category);
   return (
-    <div className="max-w-[820px]">
+    <div className="flex flex-col gap-4">
       <Link
         to={authorPaths.tickets}
-        className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink"
+        className="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-1 text-[12.5px] font-semibold text-ink-2 hover:bg-panel-2 hover:text-ink"
       >
         <ArrowLeft size={14} aria-hidden /> All tickets
       </Link>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-mono text-[12px] text-ink-3">{t.number}</p>
-          <h1 className="text-[22px] font-semibold break-words">{t.subject}</h1>
-          <p className="mt-1 text-[12.5px] text-ink-3">
-            {t.book?.title ?? 'General / Account level'} · opened {dateTime(t.createdAt)}
-          </p>
+      <Card className="flex flex-col gap-4 p-4 lg:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-mono text-[12px] text-ink-3">{t.number}</p>
+            <h1 className="text-[19px] leading-snug font-extrabold break-words lg:text-[22px]">
+              {t.subject}
+            </h1>
+            <div className="mt-2">
+              <Chip colors={cat.colors} icon={<cat.Icon size={12} aria-hidden />}>
+                {cat.label}
+              </Chip>
+            </div>
+          </div>
+          <Pill tone={status.tone} dot>
+            {status.label}
+          </Pill>
         </div>
-        <StatusPill status={t.status} />
-      </div>
-      <Card className="p-4 md:p-5">
-        <MessageThread description={t.description} messages={t.messages} audience="AUTHOR" />
-        <FollowUp ticketId={t.id} closed={closed} />
+        <StatusStepper status={status} />
       </Card>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="flex min-w-0 flex-col gap-5" aria-label="Messages">
+          <TicketConversation
+            description={t.description}
+            createdAt={t.createdAt}
+            messages={t.messages}
+          />
+          <TicketReplyBox ticketId={t.id} closed={!t.canSolve} />
+        </section>
+        <aside className="flex flex-col gap-4">
+          {t.canSolve ? <SolveTicketCard ticketId={t.id} /> : null}
+          <TicketInfoCard ticket={t} />
+        </aside>
+      </div>
     </div>
   );
 }

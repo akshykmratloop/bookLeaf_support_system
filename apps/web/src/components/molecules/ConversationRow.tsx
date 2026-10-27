@@ -1,14 +1,16 @@
 import type { ConversationSummary } from '@bookleaf/shared';
-import { MessagesSquare, Phone } from 'lucide-react';
+import { ChevronRight, MessagesSquare, Phone } from 'lucide-react';
 import { Link } from 'react-router';
 import { conversationPath, outcomeOf } from '../../lib/conversations';
-import { dateTime, relative } from '../../lib/format';
+import { relative } from '../../lib/format';
 import { Pill } from '../atoms/Pill';
 
 const KIND = {
-  CHAT: { label: 'Chat', icon: <MessagesSquare size={16} aria-hidden /> },
-  CALL: { label: 'Call', icon: <Phone size={16} aria-hidden /> },
+  CHAT: { label: 'Chat', Icon: MessagesSquare, colors: 'bg-brand-soft text-brand' },
+  CALL: { label: 'Call', Icon: Phone, colors: 'bg-info-bg text-info' },
 };
+
+const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /** One past chat or call: what it was about, when, and what came out of it. */
 export function ConversationRow({ conversation: c }: { conversation: ConversationSummary }) {
@@ -17,19 +19,22 @@ export function ConversationRow({ conversation: c }: { conversation: Conversatio
   return (
     <Link
       to={conversationPath(c)}
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-panel-2"
+      className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-panel-2"
     >
-      <span className="text-ink-3" title={kind.label}>
-        {kind.icon}
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-control ${kind.colors}`}>
+        <kind.Icon size={18} aria-label={kind.label} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{c.title}</span>
-        <span className="block text-[12px] text-ink-3">
-          {kind.label} · {dateTime(c.startedAt)} ({relative(c.startedAt)}) · {c.messageCount}{' '}
+        <span className="block truncate text-[14px] font-semibold group-hover:text-brand">
+          {c.title}
+        </span>
+        <span className="block text-[12px] text-ink-3" title={relative(c.startedAt)}>
+          {kind.label} · {TIME.format(new Date(c.startedAt))} · {c.messageCount}{' '}
           {c.messageCount === 1 ? 'message' : 'messages'}
         </span>
       </span>
       {outcome ? <Pill tone={outcome.tone}>{outcome.label}</Pill> : null}
+      <ChevronRight size={16} aria-hidden className="shrink-0 text-ink-3" />
     </Link>
   );
 }
