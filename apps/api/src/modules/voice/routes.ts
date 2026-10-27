@@ -38,6 +38,8 @@ interface Opts {
 
 export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
   const { voice } = opts;
+  // Same normalisation as the CSRF guard, so a trailing slash in APP_ORIGIN cannot break calls.
+  const allowedOrigin = new URL(opts.appOrigin).origin;
 
   app.post(
     '/voice/calls',
@@ -120,7 +122,7 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
       schema: { hide: true, params: Params },
       // Browsers send cookies on cross-site WebSocket upgrades, so the Origin must be ours.
       preValidation: async (req) => {
-        if (req.headers.origin !== opts.appOrigin)
+        if (req.headers.origin !== allowedOrigin)
           throw new ForbiddenError('Calls must start from the BookLeaf portal');
       },
     },

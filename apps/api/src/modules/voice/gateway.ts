@@ -1,9 +1,13 @@
 import { VoiceClientMessageSchema, type VoiceServerMessage } from '@bookleaf/shared';
 import type { FastifyBaseLogger } from 'fastify';
-import type { WebSocket } from 'ws';
+import type { RawData, WebSocket } from 'ws';
 import { startCall, type CallHandle, type CallerChannel } from '../../voice/call/controller.js';
+import type { CallOutcome } from '../../voice/call/types.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
+import { AppError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import { audioBudget } from './audio-budget.js';
+import type { CallContext } from './context.js';
 import type { VoiceService } from './service.js';
 
 /** Largest audio frame accepted from the browser (~0.7 s of 24 kHz PCM16). */
@@ -32,6 +36,50 @@ interface GatewayDeps {
   now: () => Date;
 }
 
+/** The caller's socket before and after the call is live. */
+interface Line {
+  handle: CallHandle | null;
+  hungUpEarly: boolean;
+}
+
+function isHangup(data: RawData): boolean {
+  try {
+    const msg = VoiceClientMessageSchema.safeParse(JSON.parse(data.toString()));
+    return msg.success && msg.data.type === 'hangup';
+  } catch {
+    return false; // not JSON: ignore the frame, the call goes on
+  }
+}
+
+/** Audio frames are size-checked and rate-limited; anything else may only be "hangup". */
+function listen(socket: WebSocket, line: Line): void {
+  const accept = audioBudget();
+  socket.on('message', (data, isBinary) => {
+    if (isBinary) {
+      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+      if (frame.length === 0 || frame.length % 2 !== 0 || frame.length > MAX_FRAME_BYTES) return;
+      if (accept(frame.length)) line.handle?.onCallerAudio(frame);
+      return;
+    }
+    if (!isHangup(data)) return;
+    if (line.handle) line.handle.onCallerHangup();
+    else line.hungUpEarly = true;
+  });
+  socket.on('close', () => line.handle?.onCallerGone());
+}
+
+/** Saves the outcome; if that fails, the call is at least released so the author can retry. */
+function saver(callId: string, ctx: CallContext, deps: GatewayDeps) {
+  return async (outcome: CallOutcome) => {
+    try {
+      await deps.voice.finish(callId, outcome, ctx);
+    } catch (err) {
+      deps.log.error({ err, callId }, 'failed to save voice call');
+      await deps.voice.markFailed(callId);
+    }
+  };
+}
+
 /**
  * Bridges one browser socket to one call. Audio is relayed as binary frames; control messages
  * are JSON. Frames that arrive before the provider is ready are dropped (the browser waits for
@@ -43,37 +91,17 @@ export async function bridgeCall(
   callId: string,
   deps: GatewayDeps,
 ) {
-  let handle: CallHandle | null = null;
-  let hungUpEarly = false;
-  socket.on('message', (data, isBinary) => {
-    if (isBinary) {
-      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
-      if (frame.length === 0 || frame.length % 2 !== 0 || frame.length > MAX_FRAME_BYTES) return;
-      handle?.onCallerAudio(frame);
-      return;
-    }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(data.toString());
-    } catch {
-      return;
-    }
-    const msg = VoiceClientMessageSchema.safeParse(parsed);
-    if (msg.success && msg.data.type === 'hangup') {
-      if (handle) handle.onCallerHangup();
-      else hungUpEarly = true;
-    }
-  });
-  socket.on('close', () => handle?.onCallerGone());
-
-  let ctx: Awaited<ReturnType<VoiceService['claim']>>;
+  const line: Line = { handle: null, hungUpEarly: false };
+  listen(socket, line);
+  let ctx: CallContext;
   try {
     ctx = await deps.voice.claim(session, callId);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof AppError)) deps.log.error({ err, callId }, 'voice call setup failed');
     socket.close(4409, 'call not connectable');
     return;
   }
-  handle = await startCall({
+  line.handle = await startCall({
     provider: deps.provider,
     config: ctx.config,
     books: ctx.books,
@@ -81,11 +109,9 @@ export async function bridgeCall(
     caller: channelFor(socket),
     now: deps.now,
     isStillAllowed: () => deps.voice.isVoiceStillOn(),
-    onEnd: (outcome) =>
-      deps.voice
-        .finish(callId, outcome, { facts: ctx.facts, ignorePhrases: ctx.ignorePhrases })
-        .catch((err: unknown) => deps.log.error({ err, callId }, 'failed to save voice call')),
+    onEnd: saver(callId, ctx, deps),
+    warn: (message, err) => deps.log.warn({ err, callId }, message),
   });
-  if (hungUpEarly) handle.onCallerHangup();
-  else if (socket.readyState !== OPEN) handle.onCallerGone();
+  if (line.hungUpEarly) line.handle.onCallerHangup();
+  else if (socket.readyState !== OPEN) line.handle.onCallerGone();
 }

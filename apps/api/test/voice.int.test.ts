@@ -128,6 +128,9 @@ describe('voice: the call socket', () => {
     const foreign = connect(mine.socketPath, priya, 'https://evil.example');
     expect(await foreign.closed).not.toBe(1000);
     expect(fake.config).toBeNull();
+    const anonymous = connect(mine.socketPath, '');
+    expect(await anonymous.closed).not.toBe(1000);
+    expect(fake.config).toBeNull();
     const stolen = connect(mine.socketPath, kavita);
     expect(await stolen.closed).toBe(4409);
     await h.db.voiceSession.update({ where: { id: mine.id }, data: { status: 'EXPIRED' } });
@@ -159,7 +162,7 @@ describe('voice: the call socket', () => {
     expect(c.messages).toContainEqual({ type: 'ended', reason: 'USER_HANGUP' });
     expect(fake.audioIn[0]?.length).toBe(960);
     expect(c.audio[0]).toEqual(Buffer.from([7, 7]));
-    await settle();
+    // No waiting: the record is saved before "ended" is sent, so the after-call view finds it.
     const saved = (await call(h, 'GET', `/voice/calls/${started.id}`, priya)).json<VoiceCall>();
     expect(saved).toMatchObject({ status: 'ENDED', endReason: 'USER_HANGUP' });
     expect(saved.transcript.map((l) => l.role)).toEqual(['AUTHOR', 'ASSISTANT']);

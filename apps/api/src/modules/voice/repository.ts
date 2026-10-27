@@ -62,3 +62,11 @@ export function failInterruptedCalls(db: Db, now: Date) {
     data: { status: 'FAILED', endReason: 'SERVER_RESTART', endedAt: now },
   });
 }
+
+/** A call that broke during setup or saving: release it now so the author can call again. */
+export function markCallFailed(db: Db, id: string, now: Date) {
+  return db.voiceSession.updateMany({
+    where: { id, status: { in: ['PENDING', 'ACTIVE'] } },
+    data: { status: 'FAILED', endReason: 'PROVIDER_ERROR', endedAt: now },
+  });
+}

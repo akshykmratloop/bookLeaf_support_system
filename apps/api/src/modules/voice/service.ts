@@ -8,26 +8,25 @@ import type {
   VoiceCall,
 } from '@bookleaf/shared';
 import type { z } from 'zod';
-import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
-import { AppError, ConflictError, ForbiddenError, UsageLimitError } from '../../platform/errors.js';
+import { AppError, ConflictError, ForbiddenError } from '../../platform/errors.js';
 import type { CallLimits, CallOutcome } from '../../voice/call/controller.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
-import { VOICE_TOOLS, voiceInstructions } from '../../voice/call/instructions.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import type { AssistantService } from '../assistant/service.js';
 import type { Session } from '../auth/session.js';
-import { loadAuthorRecord } from '../chat/repository.js';
 import { createTicket, getAuthorTicket } from '../tickets/create.js';
 import type { TicketDeps } from '../tickets/deps.js';
+import { buildCallContext, type CallContext } from './context.js';
 import { finishCall } from './finish.js';
 import { toAdminVoiceCall, toVoiceCall } from './mappers.js';
+import { checkQuota } from './quota.js';
 import {
   CONNECT_WITHIN_SECONDS,
-  countCallsSince,
   expireStale,
   findCall,
   findOwnCall,
   lockAuthor,
+  markCallFailed,
 } from './repository.js';
 
 interface Deps extends TicketDeps {
@@ -35,8 +34,6 @@ interface Deps extends TicketDeps {
   limits: AssistantLimits;
   provider: VoiceProvider | null;
 }
-
-const HOUR_MS = 3_600_000;
 
 class VoiceUnavailableError extends AppError {
   constructor() {
@@ -58,30 +55,6 @@ export function createVoiceService(deps: Deps) {
   const { db, clock, assistant, limits } = deps;
   const maxSeconds = limits.voice.maxCallSeconds;
 
-  async function checkQuota(tx: Prisma.TransactionClient, authorId: string, now: Date) {
-    const active = await tx.voiceSession.count({
-      where: { authorId, status: { in: ['PENDING', 'ACTIVE'] } },
-    });
-    if (active > 0)
-      throw new ConflictError('VOICE_CALL_ACTIVE', 'You already have a call in progress.');
-    if (
-      (await countCallsSince(tx, authorId, new Date(now.getTime() - HOUR_MS))) >=
-      limits.voice.callsPerHour
-    )
-      throw new UsageLimitError(
-        'VOICE_HOURLY_LIMIT',
-        `You can make ${limits.voice.callsPerHour} calls per hour. Please try again later or use chat.`,
-      );
-    if (
-      (await countCallsSince(tx, authorId, new Date(now.getTime() - 24 * HOUR_MS))) >=
-      limits.voice.callsPerDay
-    )
-      throw new UsageLimitError(
-        'VOICE_DAILY_LIMIT',
-        `You've reached today's limit of ${limits.voice.callsPerDay} calls. You can still use chat or raise a ticket.`,
-      );
-  }
-
   return {
     /** Creates a PENDING call after the switch, provider and per-author limits all pass. */
     async start(session: Session): Promise<StartVoiceCall> {
@@ -93,7 +66,7 @@ export function createVoiceService(deps: Deps) {
       await expireStale(db, authorId, now, maxSeconds);
       const call = await db.$transaction(async (tx) => {
         await lockAuthor(tx, authorId);
-        await checkQuota(tx, authorId, now);
+        await checkQuota(tx, limits.voice, authorId, now);
         return tx.voiceSession.create({
           data: {
             authorId,
@@ -113,7 +86,7 @@ export function createVoiceService(deps: Deps) {
     },
 
     /** Socket connected: the call moves PENDING → ACTIVE exactly once, within the connect window. */
-    async claim(session: Session, id: string) {
+    async claim(session: Session, id: string): Promise<CallContext> {
       const authorId = authorIdOf(session);
       const now = clock.now();
       const res = await db.voiceSession.updateMany({
@@ -130,21 +103,13 @@ export function createVoiceService(deps: Deps) {
           'VOICE_CALL_NOT_CONNECTABLE',
           'This call has expired or is already connected.',
         );
-      const author = await loadAuthorRecord(db, authorId);
-      const facts = buildAuthorFacts(author, '', clock.dataAsOf());
-      const books = author.books.map((b) => ({ id: b.id, title: b.title }));
-      const instructions = voiceInstructions({
-        authorFirstName: author.name.split(' ')[0] ?? author.name,
-        books,
-        facts,
-        maxMinutes: Math.round(maxSeconds / 60),
-      });
-      return {
-        facts,
-        books,
-        ignorePhrases: books.map((b) => b.title),
-        config: { instructions, tools: VOICE_TOOLS, language: 'en' },
-      };
+      try {
+        return await buildCallContext(db, authorId, clock.dataAsOf(), maxSeconds);
+      } catch (err) {
+        // The row is already ACTIVE: release it so the author is not blocked until it expires.
+        await markCallFailed(db, id, clock.now());
+        throw err;
+      }
     },
 
     /** Rules the live call enforces; the hard cap comes from env (at most 300 s). */
@@ -171,6 +136,11 @@ export function createVoiceService(deps: Deps) {
         outcome,
         ...ctx,
       });
+    },
+
+    /** Last resort when saving the outcome failed: at least free the author's call slot. */
+    async markFailed(callId: string): Promise<void> {
+      await markCallFailed(db, callId, clock.now());
     },
 
     async isVoiceStillOn(): Promise<boolean> {
