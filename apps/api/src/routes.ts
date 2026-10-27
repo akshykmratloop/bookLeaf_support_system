@@ -5,6 +5,7 @@ import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { booksRoutes } from './modules/books/routes.js';
 import { chatRoutes } from './modules/chat/routes.js';
+import { connectorRoutes } from './modules/connectors/routes.js';
 import { conversationRoutes } from './modules/conversations/routes.js';
 import { draftRoutes } from './modules/drafts/routes.js';
 import { eventRoutes } from './modules/events/routes.js';
@@ -38,6 +39,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     now: () => c.clock.now(),
   });
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
+  await api.register(connectorRoutes, { connectors: c.connectors });
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,

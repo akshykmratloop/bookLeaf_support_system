@@ -1,11 +1,12 @@
 import { createAiRuntime, type AiRuntime } from './ai/jobs/runtime.js';
 import { buildProviderRegistry } from './ai/providers/registry.js';
 import type { LlmProvider } from './ai/providers/types.js';
-import { buildHostRecords } from './host/registry.js';
 import type { HostRecords } from './host/types.js';
 import { buildVoiceProvider } from './voice/providers/registry.js';
 import type { VoiceProvider } from './voice/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
+import { createConnectorService } from './modules/connectors/service.js';
+import { connectorDepsFromEnv } from './modules/connectors/from-env.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
 import { createAssistantService } from './modules/assistant/service.js';
 import { usedTokenIds } from './modules/auth/used-tokens.js';
@@ -45,7 +46,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
   const voiceProvider =
     overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
-  const records = overrides.records ?? buildHostRecords(env, () => clock.now().getTime());
+  const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
+  const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };
   return {
     env,
@@ -55,6 +57,7 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     ai,
     sessions,
     records,
+    connectors,
     ticketDeps,
     limits: limitsFromEnv(env),
     voiceProvider,
@@ -93,7 +96,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     signInFromHost: createHostSignIn(hostSignIn, {
       db: core.db,
       defaultSecret: env.HOST_SIGNING_SECRET,
-      secretFor: async () => null,
+      secretFor: core.connectors.secretFor,
     }),
     workspaces: createWorkspaceService(core),
     books: createBooksService(core),

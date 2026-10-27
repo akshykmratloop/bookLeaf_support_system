@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { bookId, call, createHarness, createTicket, EMAILS, type Harness } from './helpers/app.js';
+import {
+  bookId,
+  call,
+  createHarness,
+  createTicket,
+  deleteWorkspace,
+  EMAILS,
+  type Harness,
+} from './helpers/app.js';
 
 let h: Harness;
 let kavita: string;
@@ -26,7 +34,11 @@ beforeAll(async () => {
   });
   ticketId = res.json<{ id: string }>().id;
 });
-afterAll(() => h.close());
+afterAll(async () => {
+  await deleteWorkspace(h.db, 'acme');
+  await deleteWorkspace(h.db, 'weak-co');
+  await h.close();
+});
 
 describe('self-serve signup', () => {
   it('creates a workspace with its owner, who can sign in and see their workspace', async () => {

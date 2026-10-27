@@ -23,6 +23,8 @@ export const HOST = {
 const HOST_AUTHORS = loadAuthors();
 export const ADMIN_PASSWORD = 'Admin@Test1';
 export const SENTINEL_KEY = 'sk-ant-SENTINEL-123';
+/** 32 zero bytes, base64: fine for tests, never for a real deployment. */
+export const TEST_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
 export const EMAILS = {
   priya: 'priya.sharma@email.com',
   rohit: 'rohit.kapoor@email.com',
@@ -161,6 +163,9 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     HOST_API_URL: hostUrl,
     HOST_API_KEY: HOST.apiKey,
     HOST_SIGNING_SECRET: HOST.signingSecret,
+    // Workspace secrets are encrypted with a throwaway master key; the demo host is local.
+    SECRETS_MASTER_KEY: TEST_MASTER_KEY,
+    CONNECTOR_ALLOW_PRIVATE_HOSTS: 'true',
     ...opts.env,
   });
   const db = createDb(env.DATABASE_URL);
@@ -261,4 +266,33 @@ export async function createTicket(
     key ? { 'idempotency-key': key } : {},
   );
   return res;
+}
+
+/** Removes a workspace created by a test and every row in it (files share one database). */
+export async function deleteWorkspace(db: Db, slug: string): Promise<void> {
+  const ws = await db.workspace.findUnique({ where: { slug } });
+  if (!ws) return;
+  const workspaceId = ws.id;
+  const tickets = await db.ticket.findMany({ where: { workspaceId }, select: { id: true } });
+  const ticketIds = tickets.map((t) => t.id);
+  await db.$transaction([
+    db.ticketMessage.deleteMany({ where: { ticketId: { in: ticketIds } } }),
+    db.aiJob.deleteMany({ where: { ticketId: { in: ticketIds } } }),
+    db.aiDraft.deleteMany({ where: { ticketId: { in: ticketIds } } }),
+    db.aiRun.deleteMany({ where: { ticketId: { in: ticketIds } } }),
+    db.ticketDraft.deleteMany({ where: { workspaceId } }),
+    db.ticket.deleteMany({ where: { workspaceId } }),
+    db.chatSession.deleteMany({ where: { workspaceId } }),
+    db.voiceSession.deleteMany({ where: { workspaceId } }),
+    db.book.deleteMany({ where: { workspaceId } }),
+    db.author.deleteMany({ where: { workspaceId } }),
+    db.auditEvent.deleteMany({ where: { workspaceId } }),
+    db.workspaceMember.deleteMany({ where: { workspaceId } }),
+    db.workspaceConnector.deleteMany({ where: { workspaceId } }),
+    db.customerField.deleteMany({ where: { workspaceId } }),
+    db.workspaceSettings.deleteMany({ where: { workspaceId } }),
+    db.workspaceApiKey.deleteMany({ where: { workspaceId } }),
+    db.user.deleteMany({ where: { workspaceId } }),
+    db.workspace.delete({ where: { id: workspaceId } }),
+  ]);
 }
