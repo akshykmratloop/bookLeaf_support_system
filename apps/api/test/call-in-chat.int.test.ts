@@ -4,6 +4,7 @@ import WebSocket from 'ws';
 import type {
   AssistantSettings,
   ChatSession,
+  ConversationDetail,
   ConversationPage,
   StartVoiceCall,
   TicketDraft,
@@ -150,6 +151,11 @@ describe('a call started from a chat is part of that conversation', () => {
     ]);
     expect(after.messages[2]).toMatchObject({ body: 'Also, my ISBN looks wrong', callId });
     expect(after.turnCount).toBe(2);
+
+    const detail = (
+      await call(h, 'GET', `/conversations/chats/${chat.id}`, kavita)
+    ).json<ConversationDetail>();
+    expect(detail.lines.map((l) => l.callId ?? null)).toEqual([null, null, callId, callId]);
 
     const list = (await call(h, 'GET', '/conversations', kavita)).json<ConversationPage>();
     expect(list.items.filter((i) => i.id === chat.id)).toHaveLength(1);

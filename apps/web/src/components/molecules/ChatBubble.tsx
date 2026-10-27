@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@bookleaf/shared';
-import { ShieldCheck } from 'lucide-react';
+import { Phone, ShieldCheck } from 'lucide-react';
 import { Pill } from '../atoms/Pill';
 import { AssistantAvatar } from './AssistantAvatar';
 
@@ -8,7 +8,19 @@ const NOTE: Partial<Record<NonNullable<ChatMessage['source']>, string>> = {
   UNAVAILABLE: 'Assistant unavailable',
 };
 
-type Message = Pick<ChatMessage, 'role' | 'body' | 'source' | 'factsUsed'>;
+type Message = Pick<ChatMessage, 'role' | 'body' | 'source' | 'factsUsed'> &
+  Partial<Pick<ChatMessage, 'channel'>>;
+
+/** A small phone before a line that was spoken on a call rather than typed. */
+function SpokenMark({ channel }: { channel: Message['channel'] }) {
+  if (channel !== 'VOICE') return null;
+  return (
+    <span className="mr-1.5 inline-flex translate-y-[1px] opacity-70" title="Said on the call">
+      <Phone size={12} aria-hidden />
+      <span className="sr-only">Said on the call: </span>
+    </span>
+  );
+}
 
 /** The verified figures an answer used, as small chips under it. */
 function Facts({ facts }: { facts: Message['factsUsed'] }) {
@@ -40,6 +52,7 @@ export function ChatBubble({ message, pending = false }: { message: Message; pen
         <p
           className={`max-w-[82%] rounded-[20px] rounded-br-md bg-brand px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap text-white shadow-soft ${pending ? 'opacity-70' : ''}`}
         >
+          <SpokenMark channel={message.channel} />
           {message.body}
         </p>
       </li>
@@ -48,7 +61,10 @@ export function ChatBubble({ message, pending = false }: { message: Message; pen
     <li className="flex animate-fade-up items-end gap-2">
       <AssistantAvatar size={28} />
       <div className="max-w-[86%] rounded-[20px] rounded-bl-md border border-line bg-panel px-4 py-3 shadow-soft">
-        <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{message.body}</p>
+        <p className="text-[14px] leading-relaxed whitespace-pre-wrap">
+          <SpokenMark channel={message.channel} />
+          {message.body}
+        </p>
         {note ? (
           <div className="mt-2">
             <Pill tone="warning">{note}</Pill>

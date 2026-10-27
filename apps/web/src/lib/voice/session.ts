@@ -10,6 +10,13 @@ import { canStart, closeMessage, INITIAL_VIEW, micMessage, type CallView } from 
 
 export type { CallPhase, CallView } from './view';
 
+export interface StartCallOptions {
+  /** Continue the last dropped call (same conversation and draft). */
+  resume?: boolean;
+  /** The chat this call joins: it hears the chat so far and its lines are saved into it. */
+  chatSessionId?: string;
+}
+
 const HANGUP_GRACE_MS = 3000;
 /** Longest the goodbye may keep playing after the server ends the call. */
 const DRAIN_LIMIT_MS = 8000;
@@ -41,9 +48,10 @@ export class VoiceCallSession {
 
   /**
    * Mic first (so a denied mic never creates a call), then the call, then the socket. With
-   * `resume`, the server continues the last dropped call (same conversation and draft).
+   * `resume`, the server continues the last dropped call; with `chatSessionId`, the call joins
+   * that chat.
    */
-  async start(opts: { resume?: boolean } = {}): Promise<void> {
+  async start(opts: StartCallOptions = {}): Promise<void> {
     if (!canStart(this.view.phase)) return;
     this.releaseNow();
     const gen = this.generation;
@@ -54,7 +62,10 @@ export class VoiceCallSession {
       if (gen !== this.generation) return this.cleanup();
       call = await api<StartVoiceCall>('/voice/calls', {
         method: 'POST',
-        body: { resume: opts.resume ?? false },
+        body: {
+          resume: opts.resume ?? false,
+          ...(opts.chatSessionId ? { chatSessionId: opts.chatSessionId } : {}),
+        },
       });
     } catch (err) {
       if (gen === this.generation) this.fail(micMessage(err, errorMessage(err)));

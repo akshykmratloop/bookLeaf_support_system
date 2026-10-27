@@ -149,6 +149,15 @@ describe('VoiceCallSession', () => {
     });
   });
 
+  it('joins the chat it was started from, so the call and the chat are one conversation', async () => {
+    const chatSessionId = '44444444-4444-4444-8444-444444444444';
+    await new VoiceCallSession().start({ chatSessionId });
+    expect(mocks.api).toHaveBeenLastCalledWith('/voice/calls', {
+      method: 'POST',
+      body: { resume: false, chatSessionId },
+    });
+  });
+
   it('records why the server ended the call and releases the microphone', async () => {
     const { session, ws } = await startedCall();
     ws.server({ type: 'ready', maxSeconds: 300 });

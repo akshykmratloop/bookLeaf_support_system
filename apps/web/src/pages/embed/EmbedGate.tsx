@@ -28,13 +28,16 @@ function Ready({ user }: { user: AuthUser }) {
   return user.role === 'AUTHOR' ? <EmbedShell user={user} /> : <StaffNote />;
 }
 
+/** Server messages may lack a full stop; the next sentence follows on the same line. */
+const asSentence = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
+
 /** Arrived with a hand-over token from the host (widget open, or a fresh sign-in). */
 function TokenGate() {
   const { user, error } = useHostSignIn();
   if (error)
     return (
       <p role="alert" className="p-6 text-[13.5px]">
-        {error} Please close help and open it again.
+        {asSentence(error)} Please close help and open it again.
       </p>
     );
   return user ? <Ready user={user} /> : <LoadingState label="Opening help…" />;

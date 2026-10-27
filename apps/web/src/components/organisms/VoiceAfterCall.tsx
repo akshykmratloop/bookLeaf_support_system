@@ -1,20 +1,9 @@
 import type { VoiceEndReason } from '@bookleaf/shared';
+import { ENDED_TEXT } from '../../lib/voice/endText';
 import { useVoiceCallRecord } from '../../lib/assistant';
 import { LoadingState } from '../molecules/States';
 import { TicketSentNote } from '../molecules/TicketSentNote';
 import { TranscriptList } from '../molecules/TranscriptList';
-
-const ENDED_TEXT: Record<VoiceEndReason, string> = {
-  USER_HANGUP: 'You ended the call.',
-  TIME_LIMIT: 'The call reached its time limit.',
-  ASSISTANT_ENDED: 'The call has ended.',
-  IDLE: 'The call ended because no audio was heard for a while.',
-  DISCONNECTED: 'The connection was lost.',
-  DISABLED_BY_ADMIN: 'Voice calls were switched off by the BookLeaf team.',
-  PROVIDER_ERROR: 'The voice service had a problem, so the call ended.',
-  SERVER_RESTART: 'The call was interrupted.',
-  TURN_LIMIT: 'This conversation reached its message limit, so the call ended.',
-};
 
 type CallRecord = NonNullable<ReturnType<typeof useVoiceCallRecord>['data']>;
 

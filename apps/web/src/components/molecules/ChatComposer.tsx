@@ -1,4 +1,4 @@
-import { ArrowUp, MessageSquarePlus } from 'lucide-react';
+import { ArrowUp, AudioLines, MessageSquarePlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Spinner } from '../atoms/Spinner';
 
@@ -12,6 +12,52 @@ interface Props {
   canRestart: boolean;
   onSend: (text: string) => void;
   onRestart: () => void;
+  /** Voice in the chat box: talk instead of typing, in the same conversation. */
+  voice?: ComposerVoice;
+}
+
+export interface ComposerVoice {
+  onStart: () => void;
+  isStarting: boolean;
+  /** Why talking is not possible right now, or null when it is. */
+  disabledReason: string | null;
+}
+
+const ROUND =
+  'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-white shadow-soft transition-all hover:bg-brand-strong disabled:opacity-35';
+
+/**
+ * Send while there is text; otherwise the voice button, as in voice-mode chat apps. Without
+ * voice, Send stays (disabled until something is typed).
+ */
+function SendOrTalk({
+  hasText,
+  locked,
+  voice,
+}: {
+  hasText: boolean;
+  locked: boolean;
+  voice?: ComposerVoice;
+}) {
+  if (hasText || !voice)
+    return (
+      <button type="submit" aria-label="Send" disabled={!hasText || locked} className={ROUND}>
+        <ArrowUp size={18} aria-hidden />
+      </button>
+    );
+  const blocked = voice.disabledReason !== null || voice.isStarting || locked;
+  return (
+    <button
+      type="button"
+      onClick={voice.onStart}
+      disabled={blocked}
+      aria-label="Talk to BookLeaf"
+      title={voice.disabledReason ?? 'Talk instead of typing, in this conversation'}
+      className={`${ROUND} bg-gradient-to-br from-brand-bright to-brand`}
+    >
+      {voice.isStarting ? <Spinner size={16} /> : <AudioLines size={18} aria-hidden />}
+    </button>
+  );
 }
 
 /**
@@ -22,10 +68,11 @@ export function ChatComposer(props: Props) {
   const { maxChars, usedTurns, maxTurns, isRestarting, canRestart, onSend, onRestart } = props;
   const [text, setText] = useState('');
   const isFull = usedTurns !== null && maxTurns !== null && usedTurns >= maxTurns;
+  const locked = isFull;
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const clean = text.trim();
-    if (!clean || isFull) return;
+    if (!clean || locked) return;
     onSend(clean);
     setText('');
   };
@@ -43,7 +90,7 @@ export function ChatComposer(props: Props) {
           rows={1}
           value={text}
           maxLength={maxChars}
-          disabled={isFull}
+          disabled={locked}
           placeholder={
             isFull
               ? 'This conversation is full. Start a new one.'
@@ -55,14 +102,7 @@ export function ChatComposer(props: Props) {
           }}
           className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-[14px] leading-snug text-ink [field-sizing:content] placeholder:text-ink-3 focus:outline-none disabled:opacity-60"
         />
-        <button
-          type="submit"
-          aria-label="Send"
-          disabled={!text.trim() || isFull}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-white shadow-soft transition-all hover:bg-brand-strong disabled:opacity-35"
-        >
-          <ArrowUp size={18} aria-hidden />
-        </button>
+        <SendOrTalk hasText={text.trim().length > 0} locked={locked} voice={props.voice} />
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2 px-2 text-[11.5px] text-ink-3">
         <button

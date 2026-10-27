@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { assistantKeys } from '../assistant';
 import { conversationKeys } from '../conversations';
-import { VoiceCallSession } from './session';
+import { VoiceCallSession, type StartCallOptions } from './session';
 
 /** React view of one voice call. The call is hung up if the page unmounts. */
 export function useVoiceCall() {
@@ -12,13 +13,15 @@ export function useVoiceCall() {
     return () => session.dispose();
   }, [session]);
   const ended = view.phase === 'ended';
-  // A finished call is a new History entry.
+  // A finished call is a new History entry, and a call inside a chat is now saved into it.
   useEffect(() => {
-    if (ended) void qc.invalidateQueries({ queryKey: conversationKeys.list });
+    if (!ended) return;
+    void qc.invalidateQueries({ queryKey: conversationKeys.list });
+    void qc.invalidateQueries({ queryKey: assistantKeys.currentChat });
   }, [ended, qc]);
   return {
     view,
-    start: (opts: { resume?: boolean } = {}) => void session.start(opts),
+    start: (opts: StartCallOptions = {}) => void session.start(opts),
     hangup: () => session.hangup(),
     toggleMute: () => session.toggleMute(),
     reset: () => session.reset(),

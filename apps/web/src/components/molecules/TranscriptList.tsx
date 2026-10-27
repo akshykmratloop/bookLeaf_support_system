@@ -1,24 +1,41 @@
-import type { TranscriptLine } from '@bookleaf/shared';
+import type { ConversationLine } from '@bookleaf/shared';
+import { threadItems } from '../../lib/callGroups';
+import { CallDivider, savedCallLabel } from './CallDivider';
 import { ChatBubble } from './ChatBubble';
 
-/** The lines of a voice call, shown as chat bubbles. */
+const lineOf = (l: ConversationLine) => ({ callId: l.callId ?? null, at: l.at });
+
+/**
+ * Saved lines shown as chat bubbles: a call's transcript, or a past chat in which any spoken
+ * lines sit under a "Call" divider with a phone mark.
+ */
 export function TranscriptList({
   lines,
   className,
   label,
 }: {
-  lines: readonly TranscriptLine[];
+  lines: readonly ConversationLine[];
   className: string;
   label?: string;
 }) {
   return (
     <ol className={className} aria-label={label}>
-      {lines.map((l, i) => (
-        <ChatBubble
-          key={`${l.at}-${i}`}
-          message={{ role: l.role, body: l.text, source: null, factsUsed: [] }}
-        />
-      ))}
+      {threadItems(lines, lineOf).map((item, i) =>
+        item.kind === 'call' ? (
+          <CallDivider key={`call-${item.callId}`} label={savedCallLabel(item.minutes, item.at)} />
+        ) : (
+          <ChatBubble
+            key={`${item.message.at}-${i}`}
+            message={{
+              role: item.message.role,
+              body: item.message.text,
+              source: null,
+              factsUsed: [],
+              channel: item.message.callId ? 'VOICE' : 'CHAT',
+            }}
+          />
+        ),
+      )}
     </ol>
   );
 }

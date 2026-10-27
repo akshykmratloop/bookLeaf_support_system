@@ -4,13 +4,14 @@ import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { AskHeader } from '../../components/organisms/AskHeader';
-import { ChatPanel } from '../../components/organisms/ChatPanel';
+import { ChatPanel, type CallInChat } from '../../components/organisms/ChatPanel';
 import { DraftSheet } from '../../components/organisms/DraftSheet';
 import { TicketDraftPanel } from '../../components/organisms/TicketDraftPanel';
 import { VoiceCallPanel } from '../../components/organisms/VoiceCallPanel';
 import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { authorPaths } from '../../lib/paths';
+import { useCallInChat } from '../../lib/useCallInChat';
 import { useChatDraft } from '../../lib/useChatDraft';
 import { draftHasContent, shouldShowTicket } from '../../lib/ticketVisibility';
 import { useMediaQuery, WIDE } from '../../lib/useMediaQuery';
@@ -96,9 +97,30 @@ function TicketSlot(props: {
   return sheet.isOpen ? <DraftSheet onClose={sheet.close}>{children}</DraftSheet> : null;
 }
 
-function ChatArea({ chat, onRestarted }: { chat: Availability['chat']; onRestarted: () => void }) {
+/** Calls from the chat box, inside the conversation; none when voice is switched off. */
+function useChatCall(voice: Availability['voice'], call: VoiceCallControls): CallInChat {
+  const inChat = useCallInChat(call);
+  if (voice.state === 'DISABLED') return { controls: call, startError: inChat.error };
+  const voiceOn = voice.state === 'AVAILABLE';
+  return {
+    controls: call,
+    startError: inChat.error,
+    voice: {
+      onStart: inChat.start,
+      isStarting: inChat.isPreparing || call.view.phase === 'starting',
+      disabledReason: voiceOn ? null : 'Calls are unavailable right now',
+    },
+  };
+}
+
+function ChatArea(props: {
+  chat: Availability['chat'];
+  call: CallInChat;
+  onRestarted: () => void;
+}) {
+  const { chat, call, onRestarted } = props;
   if (chat.state === 'AVAILABLE')
-    return <ChatPanel maxChars={chat.maxMessageChars} onRestarted={onRestarted} />;
+    return <ChatPanel maxChars={chat.maxMessageChars} onRestarted={onRestarted} call={call} />;
   if (chat.state === 'DISABLED')
     return (
       <EmptyState
@@ -119,9 +141,12 @@ function Assistant({
   const { chat, voice } = availability;
   const wide = useMediaQuery(WIDE);
   const [callOpen, setCallOpen] = useState(false);
-  const ticket = useTicket(chat.state === 'AVAILABLE', call);
+  const chatOn = chat.state === 'AVAILABLE';
+  const ticket = useTicket(chatOn, call);
   const sheet = useTicketSheet(ticket.draft);
-  const callShown = callOpen || call.view.phase !== 'idle';
+  const chatCall = useChatCall(voice, call);
+  // With chat on, calls start from the chat box; the separate call card is only for voice alone.
+  const callShown = chatOn || callOpen || call.view.phase !== 'idle';
   const closeTicket = ticket.close;
   const reset = useCallback(() => {
     call.reset();
@@ -138,14 +163,14 @@ function Assistant({
           onTicket={wide ? ticket.open : sheet.show}
           ticketHasContent={draftHasContent(ticket.draft) && ticket.draft?.status !== 'SUBMITTED'}
         />
-        {callShown && voice.state === 'AVAILABLE' ? (
+        {!chatOn && callShown && voice.state === 'AVAILABLE' ? (
           <VoiceCallPanel
             call={call}
             maxSeconds={voice.maxCallSeconds}
             callsPerHour={voice.callsPerHour}
           />
         ) : null}
-        <ChatArea chat={chat} onRestarted={reset} />
+        <ChatArea chat={chat} call={chatCall} onRestarted={reset} />
       </section>
       <TicketSlot wide={wide} visible={ticket.visible} sheet={sheet}>
         {ticket.panel}

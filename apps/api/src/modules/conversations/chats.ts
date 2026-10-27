@@ -54,6 +54,7 @@ export async function getChat(db: Db, authorId: string, id: string): Promise<Con
       role: m.role,
       text: m.body,
       at: m.createdAt.toISOString(),
+      callId: m.voiceSessionId,
     })),
     draft: chat.ticketDraft ? toTicketDraft(chat.ticketDraft) : null,
     ticket: ticketRef(chat.ticket),

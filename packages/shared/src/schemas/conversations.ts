@@ -31,12 +31,18 @@ export type ConversationListQuery = z.input<typeof ConversationListQuerySchema>;
 export const ConversationPageSchema = pageOf(ConversationSummarySchema);
 export type ConversationPage = z.infer<typeof ConversationPageSchema>;
 
+/** A line of a past conversation; `callId` marks a line spoken on a call inside a chat. */
+export const ConversationLineSchema = TranscriptLineSchema.extend({
+  callId: z.uuid().nullable().optional(),
+});
+export type ConversationLine = z.infer<typeof ConversationLineSchema>;
+
 /** One past conversation, opened: every line in order plus the ticket draft it produced. */
 export const ConversationDetailSchema = z.object({
   kind: z.enum(CONVERSATION_KINDS),
   id: z.uuid(),
   startedAt: z.iso.datetime(),
-  lines: z.array(TranscriptLineSchema),
+  lines: z.array(ConversationLineSchema),
   draft: TicketDraftSchema.nullable(),
   ticket: TicketRefSchema.nullable(),
 });

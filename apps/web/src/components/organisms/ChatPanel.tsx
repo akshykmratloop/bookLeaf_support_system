@@ -1,36 +1,33 @@
-import type { ChatSession } from '@bookleaf/shared';
-import { Fragment, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useInitialQuestion } from '../../lib/useInitialQuestion';
 import { errorMessage } from '../../lib/api';
-import type { MessageQueue, QueuedMessage } from '../../lib/chatQueue';
 import { useChat } from '../../lib/useChat';
-import { ChatBubble } from '../molecules/ChatBubble';
-import { ChatComposer } from '../molecules/ChatComposer';
+import type { CallView } from '../../lib/voice/view';
 import { ChatWelcome } from '../molecules/ChatWelcome';
-import { QueuedBubble } from '../molecules/QueuedBubble';
 import { ErrorState, LoadingState } from '../molecules/States';
 import { TicketSentNote } from '../molecules/TicketSentNote';
-import { TypingBubble } from '../molecules/TypingBubble';
+import { ChatFooter, type CallInChat } from './ChatFooter';
+import { LiveCallThread, QueuedList, SavedThread } from './ChatThread';
 
-/** Messages typed while an answer is on its way, sent one at a time. */
-function QueuedList({ queue, queued }: { queue: MessageQueue; queued: readonly QueuedMessage[] }) {
-  return queued.map((item) => (
-    <Fragment key={item.localId}>
-      <QueuedBubble
-        item={item}
-        onRetry={() => queue.retry(item.localId)}
-        onRemove={() => queue.remove(item.localId)}
-      />
-      {item.status === 'sending' ? <TypingBubble /> : null}
-    </Fragment>
-  ));
-}
-
-/** Turns used so far, counting queued messages; null before the first message. */
-const usedTurns = (session: ChatSession | null, queuedCount: number) =>
-  session ? session.turnCount + queuedCount : queuedCount || null;
+export type { CallInChat } from './ChatFooter';
 
 type Chat = ReturnType<typeof useChat>;
+
+/**
+ * Keeps the newest line in view as messages, queued questions and call lines arrive. An empty
+ * chat is left alone so the header and the welcome stay in view.
+ */
+function useFollowEnd(count: number, queued: Chat['queued'], callView?: CallView) {
+  const endRef = useRef<HTMLDivElement>(null);
+  const live = callView ? callView.lines.length : 0;
+  const empty = count === 0 && queued.length === 0 && live === 0;
+  // Block body on purpose: an effect must not return scrollIntoView's result (newer browsers
+  // return a Promise, which React would then try to call as a cleanup function).
+  useEffect(() => {
+    if (!empty) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [empty, count, queued, live, callView?.phase]);
+  return { endRef, empty };
+}
 
 function RestartError({ error }: { error: Error | null }) {
   if (!error) return null;
@@ -41,26 +38,26 @@ function RestartError({ error }: { error: Error | null }) {
   );
 }
 
-function Conversation({ chat, maxChars }: { chat: Chat; maxChars: number }) {
+function Conversation({
+  chat,
+  maxChars,
+  call,
+}: {
+  chat: Chat;
+  maxChars: number;
+  call?: CallInChat;
+}) {
   const { session, queue, queued, restart } = chat;
-  const endRef = useRef<HTMLDivElement>(null);
   const messages = session?.messages ?? [];
-  const count = messages.length;
-  // Block body on purpose: an effect must not return scrollIntoView's result (newer browsers
-  // return a Promise, which React would then try to call as a cleanup function).
-  const empty = count === 0 && queued.length === 0;
-  useEffect(() => {
-    // Nothing to follow in an empty chat: keep the header and the welcome in view.
-    if (!empty) endRef.current?.scrollIntoView({ block: 'end' });
-  }, [empty, count, queued]);
+  const callView = call?.controls.view;
+  const { endRef, empty } = useFollowEnd(messages.length, queued, callView);
   const ask = (question: string) => queue.add(question);
   return (
     <div className="flex flex-1 flex-col gap-4">
       <ol className="flex flex-col gap-4" aria-live="polite" aria-label="Conversation">
         {empty ? <ChatWelcome onAsk={ask} /> : null}
-        {messages.map((m) => (
-          <ChatBubble key={m.id} message={m} />
-        ))}
+        <SavedThread messages={messages} />
+        {callView ? <LiveCallThread view={callView} messages={messages} /> : null}
         <QueuedList queue={queue} queued={queued} />
       </ol>
       {session?.ticket ? (
@@ -68,15 +65,7 @@ function Conversation({ chat, maxChars }: { chat: Chat; maxChars: number }) {
           was raised from this conversation. The team will reply there.
         </TicketSentNote>
       ) : null}
-      <ChatComposer
-        maxChars={maxChars}
-        usedTurns={usedTurns(session, queued.length)}
-        maxTurns={session?.maxTurns ?? null}
-        isRestarting={restart.isPending}
-        canRestart={count > 0 || queued.length > 0}
-        onSend={ask}
-        onRestart={() => restart.mutate()}
-      />
+      <ChatFooter chat={chat} maxChars={maxChars} call={call} onAsk={ask} />
       <RestartError error={restart.error} />
       {/* After the pinned composer, so scrolling here never leaves content hidden under it. */}
       <div ref={endRef} />
@@ -88,9 +77,11 @@ interface Props {
   maxChars: number;
   /** Called once a new conversation has started, so the page can reset what belongs to the old one. */
   onRestarted?: () => void;
+  /** Calls inside this conversation: the chat box's voice button and the live call. */
+  call?: CallInChat;
 }
 
-export function ChatPanel({ maxChars, onRestarted }: Props) {
+export function ChatPanel({ maxChars, onRestarted, call }: Props) {
   const chat = useChat(true, onRestarted);
   const { current } = chat;
   useInitialQuestion(current.isSuccess, chat.queue);
@@ -99,5 +90,5 @@ export function ChatPanel({ maxChars, onRestarted }: Props) {
     return (
       <ErrorState message={errorMessage(current.error)} onRetry={() => void current.refetch()} />
     );
-  return <Conversation chat={chat} maxChars={maxChars} />;
+  return <Conversation chat={chat} maxChars={maxChars} call={call} />;
 }
