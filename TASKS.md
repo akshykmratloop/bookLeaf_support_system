@@ -1,7 +1,7 @@
 # TASKS.md — BookLeaf Author Support Portal
 
 > Ledger: status + commit SHA. Design: `PLAN.md` (requirement IDs R1–R30 in §2). Diagrams:
-> `docs/architecture.md`. **Nothing here is implemented or tested yet.**
+> `docs/architecture.md`. Statuses below were updated on 2026-10-27 07:30 IST from real test runs; see `IMPLEMENTATION_STATUS.md`.
 > Status: ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 > Working deadline: 2026-10-27 23:59 IST (PLAN §0). Order = priority. Cut lines: PLAN §14.
 > **Core (M0–M5) comes first and is complete on its own.** Phase 2 and Phase 3 tasks stay ⛔ BLOCKED
@@ -13,71 +13,71 @@
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M0.1 | ~25 labelled eval cases (PLAN §7.7 groups) + prompt v1 outlines | R9–R11, R18 | ⬜ | |
-| M0.2 | Private GitHub repo; `.gitignore` excludes the brief PDF, `intruction.txt`, `old context` | R25, R30 | ⬜ | |
+| M0.1 | ~25 labelled eval cases (PLAN §7.7 groups) + prompt v1 outlines | R9–R11, R18 | ✅ | `f10602f` (26 cases, built after the code, not before) |
+| M0.2 | Private GitHub repo; `.gitignore` excludes the brief PDF, `intruction.txt`, `old context` | R25, R30 | ⛔ (you) | —: no remote yet; you create the private repo |
 | M0.3 | Anthropic key + Railway account ready | R19, R26 | ⬜ (you) | — |
 
 ## M1 — Walking skeleton, author → admin → author, no AI (H0.5–H5) · Gate G1
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M1.1 | Monorepo scaffold: pnpm, TS strict, ESLint (boundary + no-`Date` rules), Prettier, Vitest, husky, CI | — | ⬜ | |
-| M1.2 | Env config (Zod, fail fast; key presence only) + `platform/` (db, clock, event-bus, errors, logger with redaction, security) | R19 | ⬜ | |
-| M1.3 | `packages/shared` enums + schemas; Prisma schema + migration; seed (exact JSON, nulls kept, paise, invariants, 2 admins, default `ai_settings`, idempotent) | R23 | ⬜ | |
-| M1.4 | Auth (login/logout/me, argon2id, cookie, rate limit), default-deny hook, role guard, Origin check, JSON-only | R1, R2, R14, R15 | ⬜ | |
-| M1.5 | RFC 7807 errors + Swagger; consistent `/api/v1` naming | R13, R16, R17 | ⬜ | |
-| M1.6 | Books endpoints (role-scoped, author/admin views) | R2, R3 | ⬜ | |
-| M1.7 | Tickets + messages: create (one transaction incl. `ai_jobs` row, Idempotency-Key), list, get (author/admin views), status machine, SLA | R4, R5, R12 | ⬜ | |
-| M1.8 | Admin: PATCH status/category/priority/assignee (self) with `version`, internal notes, audit events | R9, R10, R12 | ⬜ | |
-| M1.9 | Minimal UI: login (+ demo buttons), author new ticket + my tickets, admin queue + ticket + reply/note/status/assign, 15 s polling | R1, R4, R5, R7, R12 | ⬜ | |
-| M1.10 | Integration tests for G1 (see AC-R1, R2, R12, R14–R16, R23) | — | ⬜ | |
+| M1.1 | Monorepo scaffold: pnpm, TS strict, ESLint (boundary + no-`Date` rules), Prettier, Vitest, husky, CI | — | 🔄 | `d8e6b8e`, `1e74880`: pnpm/TS/ESLint boundaries/Prettier/Vitest done; husky and CI not added |
+| M1.2 | Env config (Zod, fail fast; key presence only) + `platform/` (db, clock, event-bus, errors, logger with redaction, security) | R19 | ✅ | `d8e6b8e`, `b4eb6c3` |
+| M1.3 | `packages/shared` enums + schemas; Prisma schema + migration; seed (exact JSON, nulls kept, paise, invariants, 2 admins, default `ai_settings`, idempotent) | R23 | ✅ | `d8e6b8e`, `b4eb6c3` |
+| M1.4 | Auth (login/logout/me, argon2id, cookie, rate limit), default-deny hook, role guard, Origin check, JSON-only | R1, R2, R14, R15 | ✅ | `b4eb6c3` |
+| M1.5 | RFC 7807 errors + Swagger; consistent `/api/v1` naming | R13, R16, R17 | ✅ | `b4eb6c3`, `1fe4e2c` |
+| M1.6 | Books endpoints (role-scoped, author/admin views) | R2, R3 | ✅ | `b4eb6c3` |
+| M1.7 | Tickets + messages: create (one transaction incl. `ai_jobs` row, Idempotency-Key), list, get (author/admin views), status machine, SLA | R4, R5, R12 | ✅ | `b4eb6c3` |
+| M1.8 | Admin: PATCH status/category/priority/assignee (self) with `version`, internal notes, audit events | R9, R10, R12 | ✅ | `b4eb6c3` |
+| M1.9 | Minimal UI: login (+ demo buttons), author new ticket + my tickets, admin queue + ticket + reply/note/status/assign, 15 s polling | R1, R4, R5, R7, R12 | ✅ | `59ef6cf` (full UI, SSE instead of polling) |
+| M1.10 | Integration tests for G1 (see AC-R1, R2, R12, R14–R16, R23) | — | ✅ | `1fe4e2c` (48 integration tests) |
 
 ## MD — Early deploy (H5–H5.75) · Gate G5a
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| MD.1 | Railway service + Postgres; migrate + seed; skeleton flow works on the live URL | R26 | ⬜ | |
+| MD.1 | Railway service + Postgres; migrate + seed; skeleton flow works on the live URL | R26 | ⛔ (you) | —: needs a Railway (or other) account; Docker image verified locally `5bfde21` |
 
 ## M2 — AI workflow (H5.75–H10) · Gate G2
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M2.1 | Clock (`now`, `dataAsOf`) wiring + tests | R24 | ⬜ | |
-| M2.2 | Facts engine with evidence (book vs author royalty, cycle deadline, possibly overdue, production, distribution record, unknowns) + unit tests | R11, R24 | ⬜ | |
-| M2.3 | Provider seam (types, registry, errors) + Anthropic adapter + fake; `ai_runs` logging | R19, R21 | ⬜ | |
-| M2.4 | Job worker: claim with SKIP LOCKED + lease, retries/backoff, stale-lease reclaim, generation guard, no overwrite of ADMIN fields + tests | R20 | ⬜ | |
-| M2.5 | Triage handler: prompt v1, Zod output, rules floor, keyword fallback, outage switch | R9, R10, R20 | ⬜ | |
-| M2.6 | Draft handler: per-category KB slices, examples, claims output, templates fallback | R11, R18, R21 | ⬜ | |
-| M2.7 | Checker (claims ↔ evidence, independent scan, normalisation, exclusions, placeholders) + unit tests; send-time gate with override reason | R11 | ⬜ | |
-| M2.8 | `ai_settings` API (model allowlist, outage switch), `/admin/ai/status`, `/admin/ai/test` | R19, R20 | ⬜ | |
-| M2.9 | Run `pnpm eval`; tune once; write `docs/eval-results.md` with measured numbers | R9, R10, R18 | ⬜ | |
+| M2.1 | Clock (`now`, `dataAsOf`) wiring + tests | R24 | ✅ | `d8e6b8e` |
+| M2.2 | Facts engine with evidence (book vs author royalty, cycle deadline, possibly overdue, production, distribution record, unknowns) + unit tests | R11, R24 | ✅ | `d8e6b8e` |
+| M2.3 | Provider seam (types, registry, errors) + Anthropic adapter + fake; `ai_runs` logging | R19, R21 | ✅ | `d8e6b8e`, `b4eb6c3` |
+| M2.4 | Job worker: claim with SKIP LOCKED + lease, retries/backoff, stale-lease reclaim, generation guard, no overwrite of ADMIN fields + tests | R20 | ✅ | `b4eb6c3`, tests `1fe4e2c` |
+| M2.5 | Triage handler: prompt v1, Zod output, rules floor, keyword fallback, outage switch | R9, R10, R20 | ✅ | `5f41c38`, `a049338` |
+| M2.6 | Draft handler: per-category KB slices, examples, claims output, templates fallback | R11, R18, R21 | ✅ | `5f41c38` |
+| M2.7 | Checker (claims ↔ evidence, independent scan, normalisation, exclusions, placeholders) + unit tests; send-time gate with override reason | R11 | ✅ | `5f41c38`, gate `b4eb6c3` |
+| M2.8 | `ai_settings` API (model allowlist, outage switch), `/admin/ai/status`, `/admin/ai/test` | R19, R20 | ✅ | `b4eb6c3` |
+| M2.9 | Run `pnpm eval`; tune once; write `docs/eval-results.md` with measured numbers | R9, R10, R18 | ✅ | `f10602f` |
 
 ## M3 — Complete portals (H10–H14) · Gates G3, G4
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M3.1 | My Books: all 10 fields, "Not set" / "Not published yet" for nulls, empty state | R3, R24 | ⬜ | |
-| M3.2 | Ticket form polish: book dropdown + General, field errors, attachment UI ("not uploaded in this demo"); My Tickets thread | R4, R5 | ⬜ | |
-| M3.3 | Queue: filters (status, category, priority, date range), urgency sort, SLA due/overdue + "auto-fallback" + "review suggested" badges, empty state | R7, R8 | ⬜ | |
-| M3.4 | Ticket workspace: AI status, category/priority override, draft editor with evidence + checks, send gate, notes, assign to me, status | R9–R12 | ⬜ | |
-| M3.5 | SSE (hints, audience filter, heartbeat, refetch on reconnect, polling fallback, session-expired) | R6 | ⬜ | |
-| M3.6 | AI Settings page (configured yes/no, test, model selects, outage switch) | R19, R20 | ⬜ | |
+| M3.1 | My Books: all 10 fields, "Not set" / "Not published yet" for nulls, empty state | R3, R24 | ✅ | `59ef6cf` |
+| M3.2 | Ticket form polish: book dropdown + General, field errors, attachment UI ("not uploaded in this demo"); My Tickets thread | R4, R5 | ✅ | `59ef6cf` |
+| M3.3 | Queue: filters (status, category, priority, date range), urgency sort, SLA due/overdue + "auto-fallback" + "review suggested" badges, empty state | R7, R8 | ✅ | `59ef6cf` |
+| M3.4 | Ticket workspace: AI status, category/priority override, draft editor with evidence + checks, send gate, notes, assign to me, status | R9–R12 | ✅ | `59ef6cf`, `1e74880` |
+| M3.5 | SSE (hints, audience filter, heartbeat, refetch on reconnect, polling fallback, session-expired) | R6 | ✅ | `b4eb6c3`, `59ef6cf` (SSE leak checked by hand only) |
+| M3.6 | AI Settings page (configured yes/no, test, model selects, outage switch) | R19, R20 | ✅ | `59ef6cf` |
 
 ## M4 — Hardening (H14–H15.5)
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M4.1 | Leak tests: cross-author 404 on every route, no notes/AI fields in author views or SSE, sentinel key never in responses/SSE/bundle; CSRF Origin + 415 tests | R2, R15, R19 | ⬜ | |
-| M4.2 | Fix findings; full suite: typecheck, lint, format check, build, tests | — | ⬜ | |
+| M4.1 | Leak tests: cross-author 404 on every route, no notes/AI fields in author views or SSE, sentinel key never in responses/SSE/bundle; CSRF Origin + 415 tests | R2, R15, R19 | ✅ | `1fe4e2c` (SSE audience filter verified manually, not by an automated test) |
+| M4.2 | Fix findings; full suite: typecheck, lint, format check, build, tests | — | ✅ | `1e74880`, `5bfde21` |
 
 ## M5 — Ship (H15.5–H18.5) · Gates G5, G6 → tag `core-v1`
 
 | # | Task | Req | Status | SHA |
 | --- | --- | --- | --- | --- |
-| M5.1 | Final deploy; re-seed; run every PLAN §11 scenario on the live URL (buffer for deploy fixes) | R26 | ⬜ | |
-| M5.2 | Record results of the live checks (pass/fail per scenario) | — | ⬜ | |
-| M5.3 | README (setup, test logins, architecture, AI: prompts / errors / cost / model choice, API docs link, assumptions, limitations) + 1-page write-up | R17, R22, R27–R29 | ⬜ | |
-| M5.4 | Add collaborator or prepare ZIP; submit | R25 | ⬜ | |
+| M5.1 | Final deploy; re-seed; run every PLAN §11 scenario on the live URL (buffer for deploy fixes) | R26 | ⛔ | — blocked on MD.1 (no live URL yet) |
+| M5.2 | Record results of the live checks (pass/fail per scenario) | — | ⛔ | — blocked on MD.1 |
+| M5.3 | README (setup, test logins, architecture, AI: prompts / errors / cost / model choice, API docs link, assumptions, limitations) + 1-page write-up | R17, R22, R27–R29 | ✅ | `8a75906` (live URL to be added after deploy) |
+| M5.4 | Add collaborator or prepare ZIP; submit | R25 | ⛔ (you) | — |
 
 ---
 

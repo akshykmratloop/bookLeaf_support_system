@@ -18,9 +18,10 @@
 | **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf` |
 | **Base commit** | (initial commit)                       |
 | **Started**     | 2026-10-27                             |
-| **Status**      | 🔄 In Progress                          |
+| **Status**      | ✅ Core built and verified locally (07:30 IST); 🔄 Phase QA next (same session) |
 
-**Goal:** implement the core BookLeaf Author Support Portal (PLAN.md M0–M5).
+**Goal:** implement the core BookLeaf Author Support Portal (PLAN.md M0–M5), then run Phase QA (TASKS.md).
+Claims stay held for Phase QA; release them when QA finishes.
 
 **CLAIMED PATHS:**
 
