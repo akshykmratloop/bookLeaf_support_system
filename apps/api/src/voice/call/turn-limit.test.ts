@@ -22,8 +22,9 @@ let provider: FakeVoiceProvider;
 let sent: VoiceServerMessage[];
 let outcomes: CallOutcome[];
 
-function call(turnsLeft: number | null) {
+function call(turnsLeft: number | null, lines?: { timeWarning: string; turnLimitGoodbye: string }) {
   return startCall({
+    lines,
     provider,
     config: { instructions: 'x', tools: [], language: 'en', greeting: 'Hi' },
     draft: { initial: DRAFT, run: async () => ({}), watch: () => () => undefined },
@@ -92,5 +93,12 @@ describe('the conversation limit on a call', () => {
     provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'Hello?' });
     await vi.advanceTimersByTimeAsync(TURN_LIMIT_GRACE_SECONDS * 1000);
     expect(ended()).toEqual({ type: 'ended', reason: 'TURN_LIMIT' });
+  });
+
+  it("says the goodbye in the call's voice style", async () => {
+    const goodbye = 'Is conversation ki limit poori ho gayi hai.';
+    await call(1, { timeWarning: 'x', turnLimitGoodbye: goodbye });
+    exchange('Hello?');
+    expect(provider.said).toEqual([goodbye]);
   });
 });

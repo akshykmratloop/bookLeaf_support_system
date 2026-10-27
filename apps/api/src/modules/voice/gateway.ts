@@ -110,6 +110,7 @@ export async function bridgeCall(
     now: deps.now,
     isStillAllowed: () => deps.voice.isVoiceStillOn(),
     onEnd: saver(callId, ctx, deps),
+    lines: ctx.lines,
     warn: (message, err) => deps.log.warn({ err, callId }, message),
   });
   if (line.hungUpEarly) line.handle.onCallerHangup();

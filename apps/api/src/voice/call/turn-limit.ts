@@ -29,6 +29,6 @@ export function sayLimitGoodbye(st: CallState): boolean {
   st.endRequested = true;
   st.goodbyeStarted = false;
   st.endReason = 'TURN_LIMIT';
-  st.session?.say(TURN_LIMIT_GOODBYE);
+  st.session?.say(st.deps.lines?.turnLimitGoodbye ?? TURN_LIMIT_GOODBYE);
   return true;
 }

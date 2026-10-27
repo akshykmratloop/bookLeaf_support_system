@@ -15,8 +15,8 @@ export interface VoiceTool {
 export interface VoiceSessionConfig {
   instructions: string;
   tools: VoiceTool[];
-  /** Spoken language for transcription (ISO 639-1), e.g. "en". */
-  language: string;
+  /** Spoken language for transcription (ISO 639-1, e.g. "en"), or null to detect it automatically. */
+  language: string | null;
   /** The assistant's first words, spoken exactly as written. */
   greeting: string;
 }

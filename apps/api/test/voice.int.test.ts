@@ -189,7 +189,10 @@ describe('voice: the call socket', () => {
     const c = connect(started.socketPath, priya);
     expect(await c.waitFor('ready')).toEqual({ type: 'ready', maxSeconds: 300 });
     expect(fake.config?.instructions).toContain('VERIFIED FACTS');
-    expect(fake.config?.greeting).toMatch(/^Hi Priya, this is BookLeaf support/);
+    // Default VOICE_STYLE: warm Hinglish, with the language left to automatic detection.
+    expect(fake.config?.greeting).toMatch(/^Namaste Priya ji, main BookLeaf support se/);
+    expect(fake.config?.instructions).toContain('Speak natural Hinglish by default');
+    expect(fake.config?.language).toBeNull();
     expect(fake.config?.tools.map((t) => t.name)).toEqual([
       'update_ticket_draft',
       'confirm_ticket',

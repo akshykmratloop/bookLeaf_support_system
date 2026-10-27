@@ -63,7 +63,7 @@ function createCore(env: Env, overrides: ContainerOverrides) {
 type Core = ReturnType<typeof createCore>;
 
 /** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
-function createAssistants({ db, ai, limits, ticketDeps, voiceProvider }: Core) {
+function createAssistants({ env, db, ai, limits, ticketDeps, voiceProvider }: Core) {
   const draftLive = draftLiveUpdates();
   const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const assistant = createAssistantService({
@@ -78,7 +78,12 @@ function createAssistants({ db, ai, limits, ticketDeps, voiceProvider }: Core) {
     draftLive,
     ticketDrafts,
     chat: createChatService(shared),
-    voice: createVoiceService({ ...shared, provider: voiceProvider, live: draftLive }),
+    voice: createVoiceService({
+      ...shared,
+      provider: voiceProvider,
+      live: draftLive,
+      voiceStyle: env.VOICE_STYLE,
+    }),
   };
 }
 

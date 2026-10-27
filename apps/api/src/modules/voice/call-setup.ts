@@ -6,6 +6,7 @@ import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
+import type { VoiceStyle } from '../../voice/call/persona.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import { chatLines, turnsLeft } from './chat-link.js';
 import { buildCallContext, type CallContext, type ThreadContext } from './context.js';
@@ -33,6 +34,7 @@ export async function threadDraft(db: Db, threadId: string): Promise<TicketDraft
 }
 
 interface SetupDeps {
+  voiceStyle: VoiceStyle;
   db: Db;
   clock: Clock;
   records: HostRecords;
@@ -73,5 +75,6 @@ export async function contextFor(
   const thread = await threadContext(deps, authorId, call);
   const left = await turnsLeft(deps.db, call.chatSessionId, limits.chat.maxTurnsPerSession);
   const maxSeconds = limits.voice.maxCallSeconds;
-  return buildCallContext(deps, { authorId, maxSeconds, thread, turnsLeft: left });
+  const style = deps.voiceStyle;
+  return buildCallContext(deps, { authorId, maxSeconds, thread, turnsLeft: left, style });
 }

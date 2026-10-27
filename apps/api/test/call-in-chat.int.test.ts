@@ -11,7 +11,7 @@ import type {
   VoiceServerMessage,
 } from '@bookleaf/shared';
 import type { FakeVoiceProvider } from '../src/voice/providers/fake/provider.js';
-import { TURN_LIMIT_GOODBYE } from '../src/voice/call/turn-limit.js';
+import { spokenLines } from '../src/voice/call/persona.js';
 import { call, createHarness, EMAILS, ORIGIN, type Harness } from './helpers/app.js';
 
 /** A small conversation limit, and call quotas that other test files cannot use up. */
@@ -133,7 +133,7 @@ describe('a call started from a chat is part of that conversation', () => {
     await c.waitFor('ready');
     expect(fake.config?.instructions).toContain('When will I get paid?');
     expect(fake.config?.instructions).toContain('EARLIER IN THIS CONVERSATION');
-    expect(fake.config?.greeting).toMatch(/^Hi Kavita, I can see our chat/);
+    expect(fake.config?.greeting).toMatch(/^Hi Kavita ji, maine humari chat dekh li hai/);
     const draftMsg = await c.waitFor('draft');
     expect(draftMsg.type === 'draft' && draftMsg.draft.id).toBe(chatDraft.id);
 
@@ -171,7 +171,7 @@ describe('a call started from a chat is part of that conversation', () => {
     fake.emit({ type: 'audio', pcm16: Buffer.from([1, 1]) });
     fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'Your cover is approved.' });
     fake.emit({ type: 'reply_done' });
-    expect(fake.said).toContain(TURN_LIMIT_GOODBYE);
+    expect(fake.said).toContain(spokenLines('hinglish').turnLimitGoodbye);
     fake.emit({ type: 'audio', pcm16: Buffer.from([2, 2]) });
     fake.emit({ type: 'reply_done' });
     expect(await c.waitFor('ended')).toEqual({ type: 'ended', reason: 'TURN_LIMIT' });

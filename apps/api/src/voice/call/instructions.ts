@@ -2,9 +2,10 @@ import type { Fact, TicketDraft, TranscriptLine } from '@bookleaf/shared';
 import { ISSUE_TYPES, draftBlock } from '../../ai/chat/draft-prompt.js';
 import { factLine } from '../../ai/prompts/draft.v1.js';
 import { KB_SECTIONS } from '../../ai/prompts/kb.js';
+import { personaBlock, type VoiceStyle } from './persona.js';
 import { CONFIRM_TICKET, END_CALL, SUBMIT_TICKET, UPDATE_TICKET_DRAFT } from './tool-defs.js';
 
-export const VOICE_PROMPT_VERSION = 'voice.v2';
+export const VOICE_PROMPT_VERSION = 'voice.v3';
 
 export interface VoiceInstructionsInput {
   authorFirstName: string;
@@ -16,17 +17,8 @@ export interface VoiceInstructionsInput {
   /** The conversation so far, oldest first: the chat this call joins, or earlier calls of its thread. */
   earlier: readonly TranscriptLine[];
   earlierFrom: 'chat' | 'call';
+  style: VoiceStyle;
 }
-
-const GREETINGS = {
-  new: (n: string) => `Hi ${n}, this is BookLeaf support. How can I help with your books today?`,
-  resumed: (n: string) => `Welcome back ${n}, let's pick up where we left off.`,
-  chat: (n: string) => `Hi ${n}, I can see our chat so far. What would you like to talk through?`,
-} as const;
-
-/** Fixed first words with the author's name (a free-form greeting once said "Hi, Author"). */
-export const voiceGreeting = (firstName: string, kind: keyof typeof GREETINGS = 'new') =>
-  GREETINGS[kind](firstName);
 
 const TICKET_RULES = `TICKET DRAFT (shown live on the author's screen; they can edit it too):
 - When the author needs something done or checked, explain what the team will do, then fill in the draft with
@@ -37,6 +29,7 @@ const TICKET_RULES = `TICKET DRAFT (shown live on the author's screen; they can 
 - When it is ready: read back the issue type and subject, ask "Shall I send it?" and call ${CONFIRM_TICKET}.
 - Call ${SUBMIT_TICKET} only after a clear yes to that question. If they want changes, update and ask again.
 - Never say a ticket was sent until ${SUBMIT_TICKET} returns status "sent"; then say the ticket number.
+- Before a tool call, say one short line first (see FILLERS AND PREAMBLES) so the author is not left in silence.
 - If a tool returns an error, say briefly what is missing and carry on.`;
 
 const EARLIER_HEADINGS = {
@@ -56,7 +49,8 @@ function earlierBlock(lines: readonly TranscriptLine[], from: 'chat' | 'call'): 
 export function voiceInstructions(input: VoiceInstructionsInput): string {
   const books = input.books.map((b) => `- ${b.id} | ${b.title}`).join('\n') || '- (no books)';
   return `You are BookLeaf Publishing's voice support assistant, on a live call with the author ${input.authorFirstName}.
-Speak naturally, warmly and briefly: one to three short sentences per turn. Plain spoken English, no lists or markdown.
+
+${personaBlock(input.style)}
 
 RULES:
 1. Only state amounts, dates, counts, timelines and statuses that appear in the VERIFIED FACTS or KNOWLEDGE BASE below.

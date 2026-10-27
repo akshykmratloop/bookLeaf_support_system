@@ -1,3 +1,4 @@
+import type { VoiceStyle } from '../../voice/call/persona.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import type { AssistantService } from '../assistant/service.js';
@@ -13,4 +14,6 @@ export interface VoiceDeps extends TicketDeps {
   provider: VoiceProvider | null;
   drafts: TicketDraftService;
   live: DraftLiveUpdates;
+  /** How the assistant speaks on calls (VOICE_STYLE). */
+  voiceStyle: VoiceStyle;
 }

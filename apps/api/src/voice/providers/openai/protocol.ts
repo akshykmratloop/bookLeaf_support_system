@@ -63,7 +63,10 @@ export function sessionUpdate(config: VoiceSessionConfig, voice: string): Client
             interrupt_response: true,
           },
           noise_reduction: { type: 'near_field' },
-          transcription: { model: 'gpt-realtime-whisper', language: config.language },
+          transcription: {
+            model: 'gpt-realtime-whisper',
+            ...(config.language ? { language: config.language } : {}),
+          },
         },
         output: { voice, format: { type: 'audio/pcm', rate: 24_000 } },
       },

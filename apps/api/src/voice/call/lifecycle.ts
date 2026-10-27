@@ -62,7 +62,7 @@ export function armLimits(st: CallState): void {
   st.timers.push(
     setTimeout(
       () => {
-        st.session?.say(TIME_WARNING);
+        st.session?.say(st.deps.lines?.timeWarning ?? TIME_WARNING);
         caller.send({ type: 'time_warning', secondsLeft: limits.warnBeforeEndSeconds });
       },
       (limits.maxSeconds - limits.warnBeforeEndSeconds) * 1000,

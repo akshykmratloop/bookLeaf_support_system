@@ -56,6 +56,12 @@ export interface DraftPort {
   watch(fn: (update: DraftUpdate) => void): () => void;
 }
 
+/** Fixed lines the assistant speaks during a call, in the configured voice style. */
+export interface SpokenLines {
+  timeWarning: string;
+  turnLimitGoodbye: string;
+}
+
 export interface CallDeps {
   provider: VoiceProvider;
   config: VoiceSessionConfig;
@@ -65,6 +71,8 @@ export interface CallDeps {
   now: () => Date;
   isStillAllowed: () => Promise<boolean>;
   onEnd: (outcome: CallOutcome) => Promise<void>;
+  /** The time warning and limit goodbye in the call's voice style; English when absent. */
+  lines?: SpokenLines;
   /** Reports a problem that must not end the call or the process. */
   warn: (message: string, err: unknown) => void;
 }

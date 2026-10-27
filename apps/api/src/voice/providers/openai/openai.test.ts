@@ -32,6 +32,13 @@ describe('OpenAI Realtime protocol rules', () => {
     });
   });
 
+  it('leaves the transcription language out when it should be detected (Hinglish)', () => {
+    const auto = sessionUpdate({ ...CONFIG, language: null }, 'marin') as unknown as {
+      session: { audio: { input: { transcription: Record<string, unknown> } } };
+    };
+    expect(auto.session.audio.input.transcription).toEqual({ model: 'gpt-realtime-whisper' });
+  });
+
   it('sends session.update on session.created and is ready only after session.updated', () => {
     const s = initialState();
     expect(step(s, { type: 'session.created' }).send).toEqual([update]);
