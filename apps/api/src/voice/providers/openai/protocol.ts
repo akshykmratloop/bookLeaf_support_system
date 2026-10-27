@@ -33,6 +33,12 @@ const BYTES_PER_MS = (24_000 * 2) / 1000;
 export const SAY_LINE = (text: string) =>
   `Say exactly the following words, in your normal voice, and nothing else. Do not add a greeting, a question or any other words: ${text}`;
 
+/** A note for the model that is not part of the spoken conversation (no reply is requested). */
+export const contextItem = (text: string): ClientEvent => ({
+  type: 'conversation.item.create',
+  item: { type: 'message', role: 'system', content: [{ type: 'input_text', text }] },
+});
+
 export function initialState(): ProtocolState {
   return {
     ready: false,

@@ -39,8 +39,11 @@ export class VoiceCallSession {
     this.listeners.forEach((fn) => fn());
   }
 
-  /** Mic first (so a denied mic never creates a call), then the call, then the socket. */
-  async start(): Promise<void> {
+  /**
+   * Mic first (so a denied mic never creates a call), then the call, then the socket. With
+   * `resume`, the server continues the last dropped call (same conversation and draft).
+   */
+  async start(opts: { resume?: boolean } = {}): Promise<void> {
     if (!canStart(this.view.phase)) return;
     this.releaseNow();
     const gen = this.generation;
@@ -49,7 +52,10 @@ export class VoiceCallSession {
     try {
       this.mic = await openMicrophone((chunk) => this.sendAudio(chunk));
       if (gen !== this.generation) return this.cleanup();
-      call = await api<StartVoiceCall>('/voice/calls', { method: 'POST' });
+      call = await api<StartVoiceCall>('/voice/calls', {
+        method: 'POST',
+        body: { resume: opts.resume ?? false },
+      });
     } catch (err) {
       if (gen === this.generation) this.fail(micMessage(err, errorMessage(err)));
       else this.cleanup();
@@ -108,7 +114,7 @@ export class VoiceCallSession {
       this.set({ lines: [...this.view.lines, { role: m.role, text: m.text }] });
     else if (m.type === 'interrupt') this.player?.flush();
     else if (m.type === 'time_warning') this.set({ timeWarning: true });
-    else if (m.type === 'ticket_suggested') this.set({ ticketSuggested: true });
+    else if (m.type === 'draft') this.set({ draft: m.draft });
     else if (m.type === 'ended') {
       this.set({ phase: 'ended', endReason: m.reason });
       this.cleanup(true);

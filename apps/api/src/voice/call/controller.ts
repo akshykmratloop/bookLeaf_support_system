@@ -1,7 +1,7 @@
 import type { VoiceEvent } from '../providers/types.js';
-import { END_CALL, SUGGEST_TICKET } from './instructions.js';
+import { onDraftUpdate, runDraftTool } from './draft-sync.js';
 import { armLimits, endCall, endSoon, markActivity, secondsLeft } from './lifecycle.js';
-import { parseSuggestion } from './tools.js';
+import { DRAFT_TOOLS, END_CALL } from './tool-defs.js';
 import type { CallDeps, CallHandle, CallState } from './types.js';
 
 export { TIME_WARNING } from './lifecycle.js';
@@ -14,16 +14,9 @@ const NOOP_HANDLE: CallHandle = {
 };
 
 function runTool(st: CallState, callId: string, name: string, argumentsJson: string): void {
-  const { caller, books, limits } = st.deps;
-  if (name === SUGGEST_TICKET) {
-    const lastAuthorLine =
-      [...st.transcript].reverse().find((l) => l.role === 'AUTHOR')?.text ?? '';
-    st.proposal = parseSuggestion(argumentsJson, books, lastAuthorLine) ?? st.proposal;
-    if (st.proposal) caller.send({ type: 'ticket_suggested' });
-    st.session?.sendToolResult(callId, {
-      status: 'prepared',
-      note: 'The author can review and send it on screen after the call.',
-    });
+  const { limits } = st.deps;
+  if (DRAFT_TOOLS.has(name)) {
+    runDraftTool(st, callId, name, argumentsJson);
   } else if (name === END_CALL) {
     // The reply that carried this tool call finishes first; wait for the goodbye that follows.
     st.endRequested = true;
@@ -66,8 +59,9 @@ function newState(deps: CallDeps): CallState {
     armedAt: performance.now(),
     transcript: [],
     usage: { inputTokens: 0, outputTokens: 0 },
-    proposal: null,
     session: null,
+    draftStatus: deps.draft.initial.status,
+    unwatch: null,
     lastActivityAt: performance.now(),
     endRequested: false,
     goodbyeStarted: false,
@@ -96,6 +90,8 @@ export async function startCall(deps: CallDeps): Promise<CallHandle> {
     return NOOP_HANDLE;
   }
   deps.caller.send({ type: 'ready', maxSeconds: secondsLeft(st) });
+  deps.caller.send({ type: 'draft', draft: deps.draft.initial });
+  st.unwatch = deps.draft.watch((update) => onDraftUpdate(st, update));
   st.session.greet();
   markActivity(st);
   return {

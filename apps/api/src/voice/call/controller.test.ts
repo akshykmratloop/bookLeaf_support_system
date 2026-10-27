@@ -1,7 +1,8 @@
-import type { VoiceServerMessage } from '@bookleaf/shared';
+import type { TicketDraft, VoiceServerMessage } from '@bookleaf/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeVoiceProvider, type FakeVoiceProvider } from '../providers/fake/provider.js';
 import { startCall, TIME_WARNING, type CallOutcome } from './controller.js';
+import type { DraftPort, DraftUpdate } from './types.js';
 
 const LIMITS = {
   maxSeconds: 300,
@@ -10,7 +11,19 @@ const LIMITS = {
   recheckSeconds: 15,
   goodbyeSeconds: 8,
 };
-const BOOK = '11111111-1111-4111-8111-111111111111';
+const DRAFT: TicketDraft = {
+  id: '22222222-2222-4222-8222-222222222222',
+  category: null,
+  bookId: null,
+  subject: '',
+  description: '',
+  status: 'OPEN',
+  version: 0,
+  lastEditedBy: 'ASSISTANT',
+  isComplete: false,
+  ticket: null,
+  updatedAt: new Date(0).toISOString(),
+};
 
 let provider: FakeVoiceProvider;
 let sent: VoiceServerMessage[];
@@ -22,6 +35,24 @@ let warnings: string[];
 /** What happened, in order: lets tests check the outcome is saved before "ended" is sent. */
 let order: string[];
 let saveFails: boolean;
+let draftRuns: { name: string; args: string }[];
+let draftListener: ((u: DraftUpdate) => void) | null;
+let unwatched: boolean;
+
+const port: DraftPort = {
+  initial: DRAFT,
+  run: async (name, args) => {
+    draftRuns.push({ name, args });
+    return { status: 'updated' };
+  },
+  watch: (fn) => {
+    draftListener = fn;
+    return () => {
+      unwatched = true;
+      draftListener = null;
+    };
+  },
+};
 
 /** Speech detected by the provider: the only thing that counts as the caller being there. */
 const speak = () => provider.emit({ type: 'barge_in' });
@@ -30,7 +61,7 @@ async function call() {
   return startCall({
     provider,
     config: { instructions: 'x', tools: [], language: 'en', greeting: 'Hi' },
-    books: [{ id: BOOK }],
+    draft: port,
     limits: LIMITS,
     caller: {
       sendAudio: (b) => audioOut.push(b),
@@ -71,6 +102,9 @@ beforeEach(() => {
   warnings = [];
   order = [];
   saveFails = false;
+  draftRuns = [];
+  draftListener = null;
+  unwatched = false;
 });
 afterEach(() => vi.useRealTimers());
 
@@ -133,30 +167,10 @@ describe('voice call controller', () => {
     expect(endedWith()).toEqual({ type: 'ended', reason: 'DISABLED_BY_ADMIN' });
   });
 
-  it('keeps the transcript, stores a ticket suggestion for this author only, and tells the caller', async () => {
+  it('keeps the transcript and token use, and saves them when the assistant ends the call', async () => {
     await call();
-    provider.emit({
-      type: 'transcript',
-      role: 'AUTHOR',
-      text: 'My payout is missing for last quarter please',
-    });
-    provider.emit({
-      type: 'tool_call',
-      callId: 'c1',
-      name: 'suggest_ticket',
-      argumentsJson: JSON.stringify({
-        subject: 'Missing payout',
-        description: 'My payout for last quarter has not arrived. Please check it for me.',
-        book_id: 'not-my-book',
-      }),
-    });
-    expect(sent).toContainEqual({ type: 'ticket_suggested' });
-    expect(provider.toolResults[0]?.result).toMatchObject({ status: 'prepared' });
-    provider.emit({
-      type: 'transcript',
-      role: 'ASSISTANT',
-      text: 'Done, you can review it after the call.',
-    });
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'My payout is missing' });
+    provider.emit({ type: 'transcript', role: 'ASSISTANT', text: 'I have started a ticket.' });
     provider.emit({ type: 'usage', inputTokens: 100, outputTokens: 50 });
     provider.emit({ type: 'tool_call', callId: 'c2', name: 'end_call', argumentsJson: '{}' });
     provider.emit({ type: 'audio', pcm16: Buffer.from([1, 2]) });
@@ -164,13 +178,43 @@ describe('voice call controller', () => {
     await vi.advanceTimersByTimeAsync(0);
     const o = outcomes[0];
     expect(o?.reason).toBe('ASSISTANT_ENDED');
-    expect(o?.proposal).toEqual({
-      subject: 'Missing payout',
-      description: 'My payout for last quarter has not arrived. Please check it for me.',
-      bookId: null,
-    });
     expect(o?.transcript.map((l) => l.role)).toEqual(['AUTHOR', 'ASSISTANT']);
     expect(o).toMatchObject({ inputTokens: 100, outputTokens: 50 });
+    expect(unwatched).toBe(true);
+  });
+
+  it('shows the draft when the call is ready and runs draft tools on the server', async () => {
+    await call();
+    expect(sent[1]).toEqual({ type: 'draft', draft: DRAFT });
+    const args = JSON.stringify({ subject: 'Missing payout' });
+    provider.emit({
+      type: 'tool_call',
+      callId: 't1',
+      name: 'update_ticket_draft',
+      argumentsJson: args,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(draftRuns).toEqual([{ name: 'update_ticket_draft', args }]);
+    expect(provider.toolResults).toEqual([{ callId: 't1', result: { status: 'updated' } }]);
+  });
+
+  it("puts every draft change on screen and tells the model about the author's own edits", async () => {
+    await call();
+    const confirmed = {
+      ...DRAFT,
+      subject: 'Missing payout',
+      status: 'AWAITING_CONFIRMATION' as const,
+    };
+    draftListener?.({ draft: confirmed, by: 'ASSISTANT', changed: ['status'] });
+    expect(provider.context).toEqual([]);
+    const edited = { ...confirmed, subject: 'Payout not received', status: 'OPEN' as const };
+    draftListener?.({ draft: edited, by: 'AUTHOR', changed: ['subject'] });
+    expect(
+      sent.filter((m) => m.type === 'draft').map((m) => m.type === 'draft' && m.draft.subject),
+    ).toEqual(['', 'Missing payout', 'Payout not received']);
+    expect(provider.context).toHaveLength(1);
+    expect(provider.context[0]).toContain('subject: "Payout not received"');
+    expect(provider.context[0]).toContain('no longer counts');
   });
 
   it('lets the goodbye play: the reply carrying end_call does not hang up', async () => {

@@ -12,6 +12,8 @@ export interface FakeVoiceProvider extends VoiceProvider {
   audioIn: Buffer[];
   toolResults: { callId: string; result: Record<string, unknown> }[];
   said: string[];
+  /** Notes added with addContext, in order. */
+  context: string[];
   greeted: number;
   closed: boolean;
   /** Make the next connect fail with this code. */
@@ -30,6 +32,7 @@ export function fakeVoiceProvider(): FakeVoiceProvider {
     audioIn: [],
     toolResults: [],
     said: [],
+    context: [],
     greeted: 0,
     closed: false,
     failNextConnect: null,
@@ -47,6 +50,7 @@ export function fakeVoiceProvider(): FakeVoiceProvider {
         sendAudio: (pcm16) => fake.audioIn.push(pcm16),
         sendToolResult: (callId, result) => fake.toolResults.push({ callId, result }),
         say: (text) => fake.said.push(text),
+        addContext: (text) => fake.context.push(text),
         greet: () => {
           fake.greeted += 1;
         },

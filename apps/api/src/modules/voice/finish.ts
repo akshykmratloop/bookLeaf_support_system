@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import type { Fact } from '@bookleaf/shared';
 import { checkReply } from '../../ai/checker/index.js';
 import { recordRun } from '../../ai/jobs/runs.js';
@@ -32,7 +31,7 @@ export interface FinishInput {
   ignorePhrases: string[];
 }
 
-/** Saves the ended call (transcript, suggestion, check, tokens) and logs its cost. */
+/** Saves the ended call (transcript, spoken-figure check, tokens) and logs its cost. */
 export async function finishCall(db: Db, input: FinishInput): Promise<void> {
   const { outcome } = input;
   const failed = outcome.reason === 'PROVIDER_ERROR' && outcome.transcript.length === 0;
@@ -48,7 +47,6 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
       endReason: outcome.reason,
       durationSeconds: seconds,
       transcript: outcome.transcript,
-      proposal: outcome.proposal ?? Prisma.JsonNull,
       spokenCheck: checkSpokenFigures(outcome, input.facts, input.ignorePhrases),
       inputTokens: outcome.inputTokens,
       outputTokens: outcome.outputTokens,

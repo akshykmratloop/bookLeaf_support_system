@@ -181,6 +181,31 @@ describe('OpenAI Realtime over a raw WebSocket (local fake server)', () => {
     expect(reply?.response?.instructions).toMatch(/^Say exactly/);
   });
 
+  it('adds an on-screen change as a system note without asking for a spoken reply', async () => {
+    const sent: { type: string; item?: Record<string, unknown> }[] = [];
+    const url = await fakeServer((ws) => {
+      ws.send(JSON.stringify({ type: 'session.created' }));
+      ws.on('message', (raw) => {
+        const m = JSON.parse(raw.toString()) as (typeof sent)[number];
+        sent.push(m);
+        if (m.type === 'session.update') ws.send(JSON.stringify({ type: 'session.updated' }));
+      });
+    });
+    const provider = openAiVoiceProvider({ apiKey: 'k', model: 'm', voice: 'marin', url });
+    const session = await provider.connect(CONFIG, () => undefined);
+    session.addContext('The author changed the subject to "Pages are blurry".');
+    await new Promise((r) => setTimeout(r, 100));
+    session.close();
+    expect(sent.map((m) => m.type)).toEqual(['session.update', 'conversation.item.create']);
+    expect(sent[1]?.item).toEqual({
+      type: 'message',
+      role: 'system',
+      content: [
+        { type: 'input_text', text: 'The author changed the subject to "Pages are blurry".' },
+      ],
+    });
+  });
+
   it('reports a rejected key as VOICE_AUTH and a silent server as VOICE_UNAVAILABLE', async () => {
     server = new WebSocketServer({ port: 0, verifyClient: (_i, cb) => cb(false, 401) });
     await new Promise((r) => server?.on('listening', r));

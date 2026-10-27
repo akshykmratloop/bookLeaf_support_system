@@ -1,4 +1,4 @@
-import type { VoiceEndReason } from '@bookleaf/shared';
+import type { TicketDraft, VoiceEndReason } from '@bookleaf/shared';
 import { MicrophoneError } from './microphone';
 
 export type CallPhase = 'idle' | 'starting' | 'connecting' | 'live' | 'ending' | 'ended' | 'failed';
@@ -10,7 +10,8 @@ export interface CallView {
   lines: { role: 'AUTHOR' | 'ASSISTANT'; text: string }[];
   muted: boolean;
   timeWarning: boolean;
-  ticketSuggested: boolean;
+  /** The call's ticket draft, as last sent by the server (live edits from both sides). */
+  draft: TicketDraft | null;
   endReason: VoiceEndReason | null;
   error: string | null;
 }
@@ -22,7 +23,7 @@ export const INITIAL_VIEW: CallView = {
   lines: [],
   muted: false,
   timeWarning: false,
-  ticketSuggested: false,
+  draft: null,
   endReason: null,
   error: null,
 };

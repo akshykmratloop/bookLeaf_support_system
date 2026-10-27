@@ -116,6 +116,39 @@ describe('VoiceCallSession', () => {
     ]);
   });
 
+  it('shows the latest ticket draft the server sends during the call', async () => {
+    const { session, ws } = await startedCall();
+    ws.server({ type: 'ready', maxSeconds: 300 });
+    const draft = {
+      id: '00000000-0000-4000-8000-000000000001',
+      category: 'PRINTING_QUALITY',
+      bookId: null,
+      subject: 'Damaged copies',
+      description: '',
+      status: 'OPEN',
+      version: 2,
+      lastEditedBy: 'ASSISTANT',
+      isComplete: false,
+      ticket: null,
+      updatedAt: '2026-10-27T10:00:00.000Z',
+    };
+    ws.server({ type: 'draft', draft });
+    expect(session.snapshot().draft).toEqual(draft);
+  });
+
+  it('asks the server to continue the last call only when resuming', async () => {
+    await new VoiceCallSession().start({ resume: true });
+    expect(mocks.api).toHaveBeenLastCalledWith('/voice/calls', {
+      method: 'POST',
+      body: { resume: true },
+    });
+    await new VoiceCallSession().start();
+    expect(mocks.api).toHaveBeenLastCalledWith('/voice/calls', {
+      method: 'POST',
+      body: { resume: false },
+    });
+  });
+
   it('records why the server ended the call and releases the microphone', async () => {
     const { session, ws } = await startedCall();
     ws.server({ type: 'ready', maxSeconds: 300 });

@@ -64,7 +64,14 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     ticketDrafts,
     chat: createChatService({ ...ticketDeps, assistant, limits, drafts: ticketDrafts }),
     voiceProvider,
-    voice: createVoiceService({ ...ticketDeps, assistant, limits, provider: voiceProvider }),
+    voice: createVoiceService({
+      ...ticketDeps,
+      assistant,
+      limits,
+      provider: voiceProvider,
+      drafts: ticketDrafts,
+      live: draftLive,
+    }),
   };
 }
 

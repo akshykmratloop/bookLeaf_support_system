@@ -6,6 +6,7 @@ import {
   AuthorTicketSchema,
   ChatTicketRequestSchema,
   ProblemSchema,
+  StartVoiceCallRequestSchema,
   StartVoiceCallSchema,
   VoiceCallSchema,
 } from '@bookleaf/shared';
@@ -56,11 +57,28 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
       schema: {
         tags: ['voice'],
         summary:
-          'Start a voice call (switch, provider, one-at-a-time and hourly/daily limits checked)',
+          'Start a voice call, or continue the last one with {resume: true} (limits checked)',
+        body: StartVoiceCallRequestSchema.nullish(),
         response: { 201: StartVoiceCallSchema, ...errors },
       },
     },
-    async (req, reply) => reply.status(201).send(await voice.start(sessionOf(req))),
+    async (req, reply) =>
+      reply
+        .status(201)
+        .send(await voice.start(sessionOf(req), { resume: req.body?.resume ?? false })),
+  );
+
+  app.get(
+    '/voice/calls/resumable',
+    {
+      config: AUTHOR,
+      schema: {
+        tags: ['voice'],
+        summary: 'My last call if it can be continued (ended under an hour ago, ticket not sent)',
+        response: { 200: VoiceCallSchema.nullable(), ...errors },
+      },
+    },
+    async (req) => voice.resumable(sessionOf(req)),
   );
 
   app.get(
@@ -69,7 +87,7 @@ export const voiceRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
       config: AUTHOR,
       schema: {
         tags: ['voice'],
-        summary: 'One of my calls: status, transcript, ticket suggestion',
+        summary: 'One of my calls: status, transcript and its ticket draft',
         params: Params,
         response: { 200: VoiceCallSchema, ...errors },
       },

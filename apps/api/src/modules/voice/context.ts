@@ -1,7 +1,8 @@
-import type { Fact } from '@bookleaf/shared';
+import type { Fact, TicketDraft, TranscriptLine } from '@bookleaf/shared';
 import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
 import type { Db } from '../../platform/db.js';
-import { VOICE_TOOLS, voiceGreeting, voiceInstructions } from '../../voice/call/instructions.js';
+import { voiceGreeting, voiceInstructions } from '../../voice/call/instructions.js';
+import { VOICE_TOOLS } from '../../voice/call/tool-defs.js';
 import type { VoiceSessionConfig } from '../../voice/providers/types.js';
 import { loadAuthorRecord } from '../chat/repository.js';
 
@@ -10,6 +11,14 @@ export interface CallContext {
   books: { id: string; title: string }[];
   ignorePhrases: string[];
   config: VoiceSessionConfig;
+  draft: TicketDraft;
+}
+
+export interface ThreadContext {
+  draft: TicketDraft;
+  /** End of the earlier conversation when this call continues a dropped one. */
+  earlier: TranscriptLine[];
+  resumed: boolean;
 }
 
 /** What the assistant may say on this call: only this author's own verified records. */
@@ -18,6 +27,7 @@ export async function buildCallContext(
   authorId: string,
   dataAsOf: Date,
   maxSeconds: number,
+  thread: ThreadContext,
 ): Promise<CallContext> {
   const author = await loadAuthorRecord(db, authorId);
   const facts = buildAuthorFacts(author, '', dataAsOf);
@@ -28,16 +38,19 @@ export async function buildCallContext(
     books,
     facts,
     maxMinutes: Math.round(maxSeconds / 60),
+    draft: thread.draft,
+    earlier: thread.earlier,
   });
   return {
     facts,
     books,
     ignorePhrases: books.map((b) => b.title),
+    draft: thread.draft,
     config: {
       instructions,
       tools: VOICE_TOOLS,
       language: 'en',
-      greeting: voiceGreeting(firstName),
+      greeting: voiceGreeting(firstName, thread.resumed),
     },
   };
 }

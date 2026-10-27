@@ -8,6 +8,7 @@ import {
 } from '../types.js';
 import {
   SAY_LINE,
+  contextItem,
   handleServerEvent,
   initialState,
   requestReply,
@@ -66,6 +67,7 @@ function connect(
     },
     say: (text) => send(requestReply(state, SAY_LINE(text))),
     greet: () => send(requestReply(state, SAY_LINE(config.greeting))),
+    addContext: (text) => send([contextItem(text)]),
     close: () => ws.close(1000),
   };
 

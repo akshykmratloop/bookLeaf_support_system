@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TicketProposalSchema } from './chat.js';
+import { TicketDraftSchema } from './ticket-drafts.js';
 
 /** Audio on the call socket: PCM16 little-endian, mono, this rate, in both directions. */
 export const VOICE_SAMPLE_RATE = 24_000;
@@ -33,6 +34,13 @@ export const StartVoiceCallSchema = z.object({
 });
 export type StartVoiceCall = z.infer<typeof StartVoiceCallSchema>;
 
+/** A dropped call can be continued within this many minutes if its ticket wasn't sent. */
+export const RESUME_WITHIN_MINUTES = 60;
+
+/** Starting a call: `resume` continues the last call (same conversation and ticket draft). */
+export const StartVoiceCallRequestSchema = z.object({ resume: z.boolean().default(false) });
+export type StartVoiceCallRequest = z.input<typeof StartVoiceCallRequestSchema>;
+
 export const VoiceCallSchema = z.object({
   id: z.uuid(),
   status: z.enum(VOICE_CALL_STATUSES),
@@ -44,6 +52,9 @@ export const VoiceCallSchema = z.object({
   transcript: z.array(TranscriptLineSchema),
   proposal: TicketProposalSchema.nullable(),
   ticket: z.object({ id: z.uuid(), number: z.string() }).nullable(),
+  /** Calls continued after a drop share one thread (and one ticket draft). */
+  threadId: z.uuid(),
+  draft: TicketDraftSchema.nullable(),
 });
 export type VoiceCall = z.infer<typeof VoiceCallSchema>;
 
@@ -69,7 +80,8 @@ export const VoiceServerMessageSchema = z.discriminatedUnion('type', [
   /** The caller started speaking: stop playing queued assistant audio now. */
   z.object({ type: z.literal('interrupt') }),
   z.object({ type: z.literal('time_warning'), secondsLeft: z.int() }),
-  z.object({ type: z.literal('ticket_suggested') }),
+  /** The ticket draft changed (by the assistant or on screen); the panel shows this version. */
+  z.object({ type: z.literal('draft'), draft: TicketDraftSchema }),
   z.object({ type: z.literal('ended'), reason: z.enum(VOICE_END_REASONS) }),
 ]);
 export type VoiceServerMessage = z.infer<typeof VoiceServerMessageSchema>;

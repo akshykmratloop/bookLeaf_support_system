@@ -17,6 +17,7 @@ let base: string;
 let priya: string;
 let kavita: string;
 let rohit: string;
+let arjun: string;
 let admin: string;
 
 async function setVoice(voiceEnabled: boolean) {
@@ -66,16 +67,33 @@ function connect(path: string, cookie: string, origin = ORIGIN): Client {
 
 const settle = () => new Promise((r) => setTimeout(r, 150));
 
+/** Polls until the check passes (socket messages and tool results arrive asynchronously). */
+async function waitUntil(check: () => boolean, what: string): Promise<void> {
+  for (let i = 0; i < 100; i += 1) {
+    if (check()) return;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error(`timed out waiting for ${what}`);
+}
+
+const draftsSeen = (c: Client) => c.messages.flatMap((m) => (m.type === 'draft' ? [m.draft] : []));
+const toolResult = (callId: string) => fake.toolResults.find((r) => r.callId === callId)?.result;
+
+function tool(callId: string, name: string, args: Record<string, unknown> = {}) {
+  fake.emit({ type: 'tool_call', callId, name, argumentsJson: JSON.stringify(args) });
+}
+
 beforeAll(async () => {
   h = await createHarness();
   if (!h.voice) throw new Error('voice harness missing');
   fake = h.voice;
   await h.app.listen({ port: 0, host: '127.0.0.1' });
   base = `ws://127.0.0.1:${(h.app.server.address() as AddressInfo).port}`;
-  [priya, kavita, rohit, admin] = await Promise.all([
+  [priya, kavita, rohit, arjun, admin] = await Promise.all([
     h.login(EMAILS.priya),
     h.login(EMAILS.kavita),
     h.login(EMAILS.rohit),
+    h.login(EMAILS.arjun),
     h.login(EMAILS.admin),
   ]);
 });
@@ -166,28 +184,22 @@ describe('voice: the call socket', () => {
     await h.db.voiceSession.update({ where: { id: mine.id }, data: { status: 'EXPIRED' } });
   });
 
-  it('runs a full call: audio both ways, transcript, ticket suggestion, hang-up, saved record', async () => {
+  it('runs a full call: audio both ways, transcript, hang-up, saved record', async () => {
     const started = await startCall(priya);
     const c = connect(started.socketPath, priya);
     expect(await c.waitFor('ready')).toEqual({ type: 'ready', maxSeconds: 300 });
     expect(fake.config?.instructions).toContain('VERIFIED FACTS');
     expect(fake.config?.greeting).toMatch(/^Hi Priya, this is BookLeaf support/);
-    expect(fake.config?.tools.map((t) => t.name)).toEqual(['suggest_ticket', 'end_call']);
+    expect(fake.config?.tools.map((t) => t.name)).toEqual([
+      'update_ticket_draft',
+      'confirm_ticket',
+      'submit_ticket',
+      'end_call',
+    ]);
     c.ws.send(Buffer.alloc(960));
     fake.emit({ type: 'audio', pcm16: Buffer.from([7, 7]) });
     fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'My royalty statement looks wrong' });
     fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'You have ₹99,999 pending.' });
-    fake.emit({
-      type: 'tool_call',
-      callId: 't1',
-      name: 'suggest_ticket',
-      argumentsJson: JSON.stringify({
-        subject: 'Royalty statement looks wrong',
-        description: 'My royalty statement for last quarter looks wrong. Please check it.',
-        book_id: null,
-      }),
-    });
-    await c.waitFor('ticket_suggested');
     c.ws.send(JSON.stringify({ type: 'hangup' }));
     expect(await c.closed).toBe(1000);
     expect(c.messages).toContainEqual({ type: 'ended', reason: 'USER_HANGUP' });
@@ -197,7 +209,7 @@ describe('voice: the call socket', () => {
     const saved = (await call(h, 'GET', `/voice/calls/${started.id}`, priya)).json<VoiceCall>();
     expect(saved).toMatchObject({ status: 'ENDED', endReason: 'USER_HANGUP' });
     expect(saved.transcript.map((l) => l.role)).toEqual(['AUTHOR', 'ASSISTANT']);
-    expect(saved.proposal?.subject).toBe('Royalty statement looks wrong');
+    expect(saved.threadId).toBe(started.id);
     expect(await h.db.aiRun.count({ where: { task: 'VOICE' } })).toBeGreaterThan(0);
   });
 
@@ -241,6 +253,96 @@ describe('voice: the call socket', () => {
     await settle();
     const saved = (await call(h, 'GET', `/voice/calls/${started.id}`, priya)).json<VoiceCall>();
     expect(saved.status).toBe('FAILED');
+  });
+});
+
+describe('voice: live ticket draft', () => {
+  it("fills the draft live, hears the author's screen edits, and sends only after asking", async () => {
+    const started = await startCall(arjun);
+    const c = connect(started.socketPath, arjun);
+    await c.waitFor('ready');
+    await waitUntil(() => draftsSeen(c).length === 1, 'the initial draft');
+    const draftId = draftsSeen(c)[0]?.id ?? '';
+    tool('d1', 'update_ticket_draft', {
+      category: 'ROYALTY_PAYMENTS',
+      subject: 'Payout missing',
+      description: 'My payout for last quarter has not arrived yet.',
+    });
+    await waitUntil(() => draftsSeen(c).some((d) => d.subject === 'Payout missing'), 'tool edit');
+    expect(toolResult('d1')).toMatchObject({ status: 'updated' });
+    await call(h, 'PATCH', `/ticket-drafts/${draftId}`, arjun, { subject: 'Payout not received' });
+    await waitUntil(() => draftsSeen(c).at(-1)?.lastEditedBy === 'AUTHOR', 'screen edit shown');
+    expect(fake.context.at(-1)).toContain('Payout not received');
+    tool('d2', 'submit_ticket');
+    await waitUntil(() => Boolean(toolResult('d2')), 'early submit result');
+    expect(toolResult('d2')).toMatchObject({ code: 'DRAFT_NOT_CONFIRMED' });
+    tool('d3', 'confirm_ticket');
+    await waitUntil(() => Boolean(toolResult('d3')), 'confirm result');
+    tool('d4', 'submit_ticket');
+    await waitUntil(() => Boolean(toolResult('d4')), 'submit result');
+    expect(toolResult('d4')).toMatchObject({ status: 'sent' });
+    const ticket = await h.db.ticket.findUniqueOrThrow({ where: { voiceSessionId: started.id } });
+    expect(ticket).toMatchObject({ source: 'VOICE', subject: 'Payout not received' });
+    c.ws.send(JSON.stringify({ type: 'hangup' }));
+    await c.closed;
+    // The ticket was sent, so there is nothing to continue.
+    expect((await call(h, 'GET', '/voice/calls/resumable', arjun)).json()).toBeNull();
+  });
+
+  it('continues a dropped call with the same conversation and draft, within the hour', async () => {
+    const first = await startCall(arjun);
+    const a = connect(first.socketPath, arjun);
+    await a.waitFor('ready');
+    fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'My printed copies arrived damaged' });
+    fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'Sorry about that.' });
+    tool('r1', 'update_ticket_draft', { subject: 'Damaged printed copies' });
+    await waitUntil(() => Boolean(toolResult('r1')), 'draft edit');
+    a.ws.close();
+    await a.closed;
+    await settle();
+    const resumable = (await call(h, 'GET', '/voice/calls/resumable', arjun)).json<VoiceCall>();
+    expect(resumable).toMatchObject({ id: first.id, draft: { subject: 'Damaged printed copies' } });
+    const res = await call(h, 'POST', '/voice/calls', arjun, { resume: true });
+    expect(res.statusCode).toBe(201);
+    const second = res.json<StartVoiceCall>();
+    const b = connect(second.socketPath, arjun);
+    await b.waitFor('ready');
+    expect(fake.config?.greeting).toMatch(/^Welcome back Arjun/);
+    expect(fake.config?.instructions).toContain('EARLIER IN THIS CALL');
+    expect(fake.config?.instructions).toContain('My printed copies arrived damaged');
+    await waitUntil(() => draftsSeen(b).length > 0, 'the draft');
+    expect(draftsSeen(b)[0]).toMatchObject({
+      id: resumable.draft?.id,
+      subject: 'Damaged printed copies',
+    });
+    fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'Yes, three copies' });
+    b.ws.send(JSON.stringify({ type: 'hangup' }));
+    await b.closed;
+    const row = await h.db.voiceSession.findUniqueOrThrow({ where: { id: second.id } });
+    expect(row.threadId).toBe(first.id);
+    const adminView = (
+      await call(h, 'GET', `/admin/voice/calls/${second.id}`, admin)
+    ).json<AdminVoiceCall>();
+    expect(adminView.transcript.map((l) => l.text)).toEqual([
+      'My printed copies arrived damaged',
+      'Sorry about that.',
+      'Yes, three copies',
+    ]);
+  });
+
+  it('offers nothing to continue after an hour (and refuses resume: 409)', async () => {
+    const last = await h.db.voiceSession.findFirstOrThrow({
+      where: { author: { user: { email: EMAILS.arjun } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    await h.db.voiceSession.update({
+      where: { id: last.id },
+      data: { endedAt: new Date(Date.now() - 61 * 60_000) },
+    });
+    expect((await call(h, 'GET', '/voice/calls/resumable', arjun)).json()).toBeNull();
+    const res = await call(h, 'POST', '/voice/calls', arjun, { resume: true });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<{ code: string }>().code).toBe('VOICE_NOTHING_TO_RESUME');
   });
 });
 

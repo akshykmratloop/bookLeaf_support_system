@@ -60,9 +60,9 @@ export function VoiceCallPanel({ maxSeconds, callsPerHour }: Props) {
           ))}
         </ol>
       ) : null}
-      {live && view.ticketSuggested ? (
+      {live && view.draft?.subject ? (
         <p className="text-[12.5px] text-success">
-          A ticket has been prepared. You can review and send it when the call ends.
+          The assistant is preparing a ticket. You can see and edit it as you talk.
         </p>
       ) : null}
       {view.phase === 'ended' && view.callId ? (

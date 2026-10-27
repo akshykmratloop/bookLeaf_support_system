@@ -104,7 +104,7 @@ export async function bridgeCall(
   line.handle = await startCall({
     provider: deps.provider,
     config: ctx.config,
-    books: ctx.books,
+    draft: deps.voice.draftPort(session, ctx),
     limits: deps.voice.callLimits(),
     caller: channelFor(socket),
     now: deps.now,

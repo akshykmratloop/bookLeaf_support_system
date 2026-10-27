@@ -4,6 +4,8 @@ import {
   TranscriptLineSchema,
   ticketNumberLabel,
   type AdminVoiceCall,
+  type TicketDraft,
+  type TranscriptLine,
   type VoiceCall,
 } from '@bookleaf/shared';
 import { z } from 'zod';
@@ -13,7 +15,7 @@ const Lines = z.array(TranscriptLineSchema);
 const SpokenCheck = AdminVoiceCallSchema.shape.spokenCheck;
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-export function toVoiceCall(c: VoiceCallRow): VoiceCall {
+export function toVoiceCall(c: VoiceCallRow, draft: TicketDraft | null): VoiceCall {
   const lines = Lines.safeParse(c.transcript);
   const proposal = TicketProposalSchema.safeParse(c.proposal);
   return {
@@ -27,10 +29,21 @@ export function toVoiceCall(c: VoiceCallRow): VoiceCall {
     transcript: lines.success ? lines.data : [],
     proposal: proposal.success ? proposal.data : null,
     ticket: c.ticket ? { id: c.ticket.id, number: ticketNumberLabel(c.ticket.number) } : null,
+    threadId: c.threadId ?? c.id,
+    draft,
   };
 }
 
-export function toAdminVoiceCall(c: VoiceCallRow): AdminVoiceCall {
+/** Admins see the whole conversation: every call of the thread, in order. */
+export function toAdminVoiceCall(
+  c: VoiceCallRow,
+  draft: TicketDraft | null,
+  threadTranscript: TranscriptLine[],
+): AdminVoiceCall {
   const check = SpokenCheck.safeParse(c.spokenCheck);
-  return { ...toVoiceCall(c), spokenCheck: check.success ? check.data : null };
+  return {
+    ...toVoiceCall(c, draft),
+    transcript: threadTranscript,
+    spokenCheck: check.success ? check.data : null,
+  };
 }

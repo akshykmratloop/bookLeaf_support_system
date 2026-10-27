@@ -1,6 +1,8 @@
 import { CATEGORY_LABELS, TICKET_CATEGORIES, type TicketDraft } from '@bookleaf/shared';
 
-const ISSUE_TYPES = TICKET_CATEGORIES.map((c) => `- ${c} | ${CATEGORY_LABELS[c]}`).join('\n');
+export const ISSUE_TYPES = TICKET_CATEGORIES.map((c) => `- ${c} | ${CATEGORY_LABELS[c]}`).join(
+  '\n',
+);
 
 /** Static rules for the shared ticket draft (part of the cached system prompt). */
 export const DRAFT_RULES = `TICKET DRAFT (a panel beside the chat that you and the author edit together):

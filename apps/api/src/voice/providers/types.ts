@@ -46,6 +46,11 @@ export interface VoiceSession {
   say(text: string): void;
   /** Start the conversation with a short greeting. */
   greet(): void;
+  /**
+   * Tell the assistant something that happened outside the conversation (for example the author
+   * edited the ticket on screen). It is noted for the next reply; nothing is spoken now.
+   */
+  addContext(text: string): void;
   close(): void;
 }
 

@@ -1,5 +1,6 @@
 import type {
-  TicketProposal,
+  DraftEditor,
+  TicketDraft,
   TranscriptLine,
   VoiceEndReason,
   VoiceServerMessage,
@@ -16,7 +17,6 @@ export interface CallerChannel {
 export interface CallOutcome {
   reason: VoiceEndReason;
   transcript: TranscriptLine[];
-  proposal: TicketProposal | null;
   inputTokens: number;
   outputTokens: number;
   startedAt: Date;
@@ -33,10 +33,26 @@ export interface CallLimits {
   goodbyeSeconds: number;
 }
 
+/** A change to the call's ticket draft, from a tool or from the author's screen. */
+export interface DraftUpdate {
+  draft: TicketDraft;
+  by: DraftEditor;
+  changed: readonly string[];
+}
+
+/** The call's ticket draft, as the controller sees it. The server applies the draft rules. */
+export interface DraftPort {
+  initial: TicketDraft;
+  /** Runs one draft tool; the result goes back to the model as the tool output. */
+  run(toolName: string, argumentsJson: string): Promise<Record<string, unknown>>;
+  /** Calls `fn` on every change to this draft until the returned function is called. */
+  watch(fn: (update: DraftUpdate) => void): () => void;
+}
+
 export interface CallDeps {
   provider: VoiceProvider;
   config: VoiceSessionConfig;
-  books: readonly { id: string }[];
+  draft: DraftPort;
   limits: CallLimits;
   caller: CallerChannel;
   now: () => Date;
@@ -59,8 +75,11 @@ export interface CallState {
   armedAt: number;
   transcript: TranscriptLine[];
   usage: { inputTokens: number; outputTokens: number };
-  proposal: TicketProposal | null;
   session: VoiceSession | null;
+  /** Draft status last shown, to tell the model when an edit cancelled its confirmation. */
+  draftStatus: TicketDraft['status'];
+  /** Stops watching the draft (set once the call is live). */
+  unwatch: (() => void) | null;
   /**
    * Monotonic ms of the last sign of conversation: speech detected, a transcript, or assistant
    * audio. Raw caller frames do not count, because the browser streams silence continuously.

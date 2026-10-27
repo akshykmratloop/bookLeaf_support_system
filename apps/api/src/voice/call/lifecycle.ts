@@ -5,19 +5,19 @@ export const TIME_WARNING = 'Just so you know, we have about thirty seconds left
 
 /**
  * Ends the call once (idempotent): stops timers, closes the provider, saves the outcome, and only
- * then tells the browser, so its after-call view finds the saved transcript and suggestion.
+ * then tells the browser, so its after-call view finds the saved transcript.
  */
 export async function endCall(st: CallState, reason: VoiceEndReason): Promise<void> {
   if (st.ended) return;
   st.ended = true;
   st.timers.forEach((t) => clearTimeout(t));
+  st.unwatch?.();
   st.session?.close();
-  const { transcript, proposal, usage, startedAt } = st;
+  const { transcript, usage, startedAt } = st;
   try {
     await st.deps.onEnd({
       reason,
       transcript,
-      proposal,
       ...usage,
       startedAt,
       endedAt: st.deps.now(),
