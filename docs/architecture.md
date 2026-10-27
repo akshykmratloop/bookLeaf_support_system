@@ -64,7 +64,8 @@ flowchart TB
 All of this is `supportPlugin` (`apps/api/src/plugin.ts`). The standalone server (`server.ts`) adds a
 logger and API docs and listens on a port. A Fastify host can register the same plugin under its
 own prefix instead (§15). The worker starts and stops with the plugin (`background.ts`). More than
-one instance would move `EventBus` to Postgres `LISTEN/NOTIFY` (not built).
+one instance would move `EventBus` to Postgres `LISTEN/NOTIFY` (not built). See §21 for everything
+that is kept in one process's memory.
 
 ---
 
@@ -370,18 +371,48 @@ Unique: `ai_jobs (ticket_id, kind, generation)`, `tickets (author_id, client_req
 
 ## 10. Ticket status machine
 
+Source: `apps/api/src/modules/tickets/status-machine.ts`. The test is
+`apps/api/test/tickets.int.test.ts` ("refuses an invalid status transition").
+
 ```mermaid
 stateDiagram-v2
     [*] --> OPEN: author creates
-    OPEN --> IN_PROGRESS: admin replies or sets
-    IN_PROGRESS --> RESOLVED: admin resolves
-    RESOLVED --> IN_PROGRESS: author writes again
-    RESOLVED --> CLOSED: admin closes
+    OPEN --> IN_PROGRESS: admin sets it, or the first staff reply
+    OPEN --> RESOLVED: admin sets it, or the author marks it solved
     OPEN --> CLOSED: admin closes (duplicate / spam)
-    CLOSED --> [*]
+    IN_PROGRESS --> OPEN: admin sets it
+    IN_PROGRESS --> RESOLVED: admin sets it, or the author marks it solved
+    IN_PROGRESS --> CLOSED: admin closes
+    RESOLVED --> IN_PROGRESS: admin sets it
+    RESOLVED --> CLOSED: admin closes
+    RESOLVED --> OPEN: admin sets it, or the author writes again
+    CLOSED --> OPEN: admin sets it, or the author writes again
 ```
 
-Any other transition → `409 INVALID_STATUS_TRANSITION`.
+**CLOSED is not a final state.** The code allows `CLOSED → OPEN`. Nothing else leaves CLOSED.
+
+Allowed admin changes (`TRANSITIONS`). Any other change is refused with `409` and the code
+`INVALID_TRANSITION`. Setting a ticket to the status it already has is accepted and changes nothing.
+
+| From | Admin may move it to |
+| --- | --- |
+| OPEN | IN_PROGRESS, RESOLVED, CLOSED |
+| IN_PROGRESS | OPEN, RESOLVED, CLOSED |
+| RESOLVED | IN_PROGRESS, CLOSED, OPEN |
+| CLOSED | OPEN |
+
+Changes that do not come from the admin status field:
+
+- **First staff reply.** A reply sent on an `OPEN` ticket moves it to `IN_PROGRESS`. A reply on any
+  other status leaves the status as it is (`modules/messages/service.ts`, `recordReply`).
+- **Author writes again.** A new author message on a `RESOLVED` or `CLOSED` ticket sets it back to
+  `OPEN` (`statusAfterAuthorMessage`). It is not blocked for `CLOSED`, so an author can reopen a
+  ticket staff closed as a duplicate or spam. Only the `RESOLVED` case has a test
+  (`apps/api/test/worker.int.test.ts`, "a new author message queues a fresh draft and reopens a
+  resolved ticket"). The `CLOSED` case is behaviour in the code with no test of its own.
+- **Author marks it solved.** `POST /tickets/:id/solve` moves an `OPEN` or `IN_PROGRESS` ticket to
+  `RESOLVED` (`modules/tickets/solve.ts`). On a `RESOLVED` or `CLOSED` ticket it answers `409
+  ALREADY_SOLVED`. Test: `apps/api/test/author-tickets.int.test.ts`.
 
 ---
 
@@ -660,3 +691,32 @@ The widget follows the host page's light or dark theme. There are two parts.
 
 Colours in `embed.js` are kept equal to the support app's tokens (`apps/web/src/styles/tokens.css`).
 
+---
+
+## 21. Running more than one instance
+
+Today the module is built and tested to run as **one Node process**. The database (Postgres) is the
+only shared state. Some small pieces of state live in the memory of the process instead. With two
+or more copies behind a load balancer each copy has its own memory, so these pieces stop working as
+intended. Nothing here is a problem for a single instance.
+
+| In-memory state | File | What breaks with 2+ copies | Move to |
+| --- | --- | --- | --- |
+| Host sign-in token replay cache (`usedTokenIds`) | `apps/api/src/modules/auth/used-tokens.ts` | A host token is meant to work once. Each copy remembers its own used tokens, so the same token can be used once on every copy during its 5-minute life. | A Postgres table keyed by the token id with its expiry (insert-or-fail), or Redis `SET NX` with a TTL |
+| Per-key queue (`keyedQueue`), used to answer messages in one chat conversation in order | `apps/api/src/platform/keyed-queue.ts` | Two messages of the same conversation that reach different copies can run at the same time, so the "each answer sees the one before" order is no longer guaranteed. The waiting-line limit is also counted per copy. | A Postgres advisory lock per conversation, or route a conversation to one copy |
+| Workspace settings cache, 5 seconds (`createWorkspaceConfigs`) | `apps/api/src/modules/settings/configs.ts` | A saved setting is dropped from the cache only on the copy that handled the save. Other copies keep the old value for up to 5 seconds (chat and voice switches, limits, models). | Nothing urgent. It fixes itself after 5 seconds. Shorten the time if that is too slow. |
+| Rate-limit counters (`@fastify/rate-limit`, registered with `global: false`) | `apps/api/src/plugin.ts` | Each copy counts on its own, so a limit such as 5 logins a minute becomes up to 5 per copy. | The plugin's Redis store, or a Postgres counter |
+| In-process event bus behind Server-Sent Events (`inMemoryEventBus`) | `apps/api/src/platform/event-bus.ts` | An event is published only to listeners on the same copy. A browser connected to copy B never hears about a ticket changed on copy A, and the live screens stay stale. | Postgres `LISTEN/NOTIFY` (the interface already allows another bus), or Redis pub/sub |
+
+Also in the process: live voice calls (an open WebSocket and a provider connection per call). The
+README lists them with the event bus as the reason for "one instance only". A call cannot move to
+another copy mid-call.
+
+Already safe with several copies, because they use the database: the AI job worker and the webhook
+sender (both claim work with `SKIP LOCKED` leases), and the chat turn counter and call claiming
+(single atomic updates).
+
+**What to move first.** (1) The host token replay cache, because it is a security rule and
+silently weakens with a second copy. (2) The event bus, because live ticket updates are a
+requirement of the product and fail without any error. (3) The rate-limit store. (4) The
+conversation queue. The settings cache needs no change.
