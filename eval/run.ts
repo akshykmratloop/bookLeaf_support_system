@@ -63,11 +63,13 @@ async function main(): Promise<void> {
     const rules = fallbackTriage(input);
     let ai: TriageDecision | null = null;
     let latencyMs = 0;
+    let usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
     let error: string | null = null;
     try {
       const run = await runAiTriage(provider, model, input);
       ai = run.decision;
       latencyMs = run.run.latencyMs;
+      usage = run.run.usage;
     } catch (err) {
       error = err instanceof Error ? err.name : 'Error';
     }
@@ -77,6 +79,7 @@ async function main(): Promise<void> {
       rules,
       latencyMs,
       error,
+      ...usage,
       ...score(c, ai),
       rulesCategoryOk: score(c, rules).categoryOk,
       rulesPriorityOk: score(c, rules).priorityOk,
