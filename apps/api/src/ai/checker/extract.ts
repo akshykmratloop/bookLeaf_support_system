@@ -59,9 +59,18 @@ export function findDates(text: string): Found<string>[] {
     out.push({ raw: m[0], value: iso(+m[3]!, monthIndex(m[1]!), +m[2]!) });
   for (const m of text.matchAll(DATE_ISO))
     out.push({ raw: m[0], value: iso(+m[1]!, +m[2]!, +m[3]!) });
-  for (const m of text.matchAll(DATE_SLASH))
-    out.push({ raw: m[0], value: iso(+m[3]!, +m[2]!, +m[1]!) });
+  for (const m of text.matchAll(DATE_SLASH)) out.push({ raw: m[0], value: slashDate(m) });
   return out;
+}
+
+/**
+ * Slash dates are read day first. When the day and month could swap ("04/03/2026" is 4 March or
+ * 3 April), the value matches no fact, so the reply asks for the date to be written out.
+ */
+function slashDate(m: RegExpMatchArray): string {
+  const [day, month, year] = [+m[1]!, +m[2]!, +m[3]!];
+  if (day <= 12 && month <= 12 && day !== month) return `ambiguous:${m[0]}`;
+  return iso(year, month, day);
 }
 
 /** Normalised as "48 hours", "24-48 hours", "5-7 business days". */

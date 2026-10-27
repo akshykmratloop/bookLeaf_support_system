@@ -98,3 +98,30 @@ describe('checkReply', () => {
     expect(r.issues[0]?.code).toBe('TOO_SHORT');
   });
 });
+
+describe('slash dates that read two ways (F-20)', () => {
+  const march4 = {
+    id: 'record.paid_on',
+    label: 'Paid on',
+    type: 'DATE' as const,
+    value: '2026-03-04',
+    display: '4 March 2026',
+    source: { kind: 'RECORD' as const, table: 'royalty', recordId: 'R1', field: 'paid_on' },
+  };
+  const dateCodes = (body: string) =>
+    checkReply({ body, facts: [march4] }).issues.map((i) => i.code);
+
+  it('does not pass 04/03/2026 against 4 March: a reader may take it as 3 April', () => {
+    expect(dateCodes('It was paid on 04/03/2026.')).toContain('UNSUPPORTED_DATE');
+    expect(dateCodes('It was paid on 03/04/2026.')).toContain('UNSUPPORTED_DATE');
+  });
+
+  it('still reads a slash date that can only mean one day', () => {
+    expect(findDates('25/03/2026').map((d) => d.value)).toEqual(['2026-03-25']);
+    expect(dateCodes('It was paid on 4 March 2026.')).not.toContain('UNSUPPORTED_DATE');
+  });
+
+  it('a slash date with the same day and month is not ambiguous', () => {
+    expect(findDates('04/04/2026').map((d) => d.value)).toEqual(['2026-04-04']);
+  });
+});
