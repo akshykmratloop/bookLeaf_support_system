@@ -31,7 +31,7 @@ export function QueueFilters({
         value={value.status}
         onChange={set('status')}
       />
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
         <Input
           aria-label="Search subject or ticket number"
           placeholder="Search subject or BL-1001"
@@ -72,7 +72,7 @@ export function QueueFilters({
           <option value="me">Assigned to me</option>
           <option value="unassigned">Unassigned</option>
         </Select>
-        <div className="col-span-2 flex items-center gap-1 md:col-span-1">
+        <div className="col-span-2 grid min-w-0 grid-cols-2 gap-1">
           <Input
             type="date"
             aria-label="Created from"
