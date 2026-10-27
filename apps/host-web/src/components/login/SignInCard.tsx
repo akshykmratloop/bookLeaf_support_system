@@ -46,7 +46,7 @@ export function SignInCard() {
       />
       <form
         onSubmit={onSubmit}
-        className="relative flex flex-col gap-4 rounded-[28px] border border-white/70 bg-panel/75 p-8 shadow-[0_1px_0_rgb(255_255_255/0.8)_inset,0_40px_90px_-30px_rgb(169_45_66/0.45),0_12px_30px_-16px_rgb(47_46_46/0.2)] backdrop-blur-2xl sm:p-10"
+        className="relative flex flex-col gap-4 rounded-[28px] border border-white/70 bg-panel/75 dark:border-white/10 p-8 shadow-[0_1px_0_rgb(255_255_255/0.8)_inset,0_40px_90px_-30px_rgb(169_45_66/0.45),0_12px_30px_-16px_rgb(47_46_46/0.2)] backdrop-blur-2xl sm:p-10 dark:shadow-[0_1px_0_rgb(255_255_255/0.06)_inset,0_40px_90px_-30px_rgb(0_0_0/0.7)]"
       >
         <div className="mb-2">
           <p className="text-[13px] font-semibold text-brand-ink">

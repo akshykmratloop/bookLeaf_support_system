@@ -60,15 +60,15 @@ function Paper({
 }) {
   const shade =
     side === 'left'
-      ? 'bg-[linear-gradient(to_left,rgb(47_46_46/0.09),transparent_14%),linear-gradient(#fffdfb,#fffaf7)]'
-      : 'bg-[linear-gradient(to_right,rgb(47_46_46/0.09),transparent_14%),linear-gradient(#fffdfb,#fffaf7)]';
+      ? 'bg-[linear-gradient(to_left,var(--paper-shade),transparent_14%),linear-gradient(var(--paper-top),var(--paper-bot))]'
+      : 'bg-[linear-gradient(to_right,var(--paper-shade),transparent_14%),linear-gradient(var(--paper-top),var(--paper-bot))]';
   return (
     <div
-      className={`absolute inset-0 flex flex-col overflow-hidden px-7 pt-7 pb-4 text-[#2f2e2e] ${shade} ${side === 'left' ? 'rounded-l-[10px]' : 'rounded-r-[10px]'}`}
+      className={`absolute inset-0 flex flex-col overflow-hidden px-7 pt-7 pb-4 text-[color:var(--paper-ink)] ${shade} ${side === 'left' ? 'rounded-l-[10px]' : 'rounded-r-[10px]'}`}
     >
       <div className="min-h-0 flex-1">{children}</div>
       <p
-        className={`mt-3 text-[10.5px] tracking-[0.18em] text-[#8a8686] uppercase ${side === 'left' ? 'text-left' : 'text-right'}`}
+        className={`mt-3 text-[10.5px] tracking-[0.18em] text-[color:var(--paper-ink-3)] uppercase ${side === 'left' ? 'text-left' : 'text-right'}`}
       >
         {footer}
       </p>
@@ -81,12 +81,14 @@ export function LeftPage({ index }: { index: number }) {
   if (!s) return null;
   return (
     <Paper side="left" footer={`BookLeaf Publishing · ${folio(index * 2)}`}>
-      <p className="text-[56px] leading-none font-light text-[#f16977]">{folio(index)}</p>
-      <p className="mt-3 text-[11px] font-bold tracking-[0.2em] text-[#c8384c] uppercase">
+      <p className="text-[56px] leading-none font-light text-[color:var(--paper-numeral)]">
+        {folio(index)}
+      </p>
+      <p className="mt-3 text-[11px] font-bold tracking-[0.2em] text-[color:var(--paper-label)] uppercase">
         {s.label}
       </p>
       <h3 className="mt-2 text-[22px] leading-snug font-light tracking-tight">{s.title}</h3>
-      <p className="mt-2 text-[13px] leading-relaxed text-[#5e5e5e]">{s.body}</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--paper-ink-2)]">{s.body}</p>
     </Paper>
   );
 }

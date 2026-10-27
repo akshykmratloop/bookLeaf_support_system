@@ -7,6 +7,10 @@
  *                 { "token": "<hand-over token>" } for the signed-in user. Required.
  * data-label      launcher text. Default "Help".
  * data-title      panel title. Default "BookLeaf Help".
+ * data-theme      "light", "dark" or "auto" (default). Auto follows the host page: class "dark" or
+ *                 data-theme="dark" (or "light") on <html>, else the visitor's system setting. It
+ *                 restyles live when the host switches. Only the launcher and the panel frame
+ *                 follow; the support app inside the frame keeps its own theme.
  *
  * It draws a launcher button. Opening it asks the host for a fresh token and shows the support
  * app in a panel; Expand makes it full screen over the page. The user never leaves the host
@@ -22,6 +26,9 @@
   if (!tokenUrl) throw new Error('BookLeaf support: add data-token-url to the embed.js tag.');
   const label = script.dataset.label || 'Help';
   const title = script.dataset.title || 'BookLeaf Help';
+  const themeMode = ['light', 'dark'].includes(script.dataset.theme)
+    ? script.dataset.theme
+    : 'auto';
   const Z = 2147483000;
   // BookLeaf Publishing coral (bookleafpub.in). The deeper shades keep white text above 4.5:1.
   const BRAND = '#d13f53';
@@ -40,6 +47,52 @@
   const svg = (name, size) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
   const style = (el, css) => Object.assign(el.style, css);
+
+  // Colours match the support app's tokens (apps/web/src/styles/tokens.css), light and dark.
+  const THEMES = {
+    light: {
+      '--bl-panel': '#ffffff',
+      '--bl-bg': '#f6f5f7',
+      '--bl-line': '#ece7ea',
+      '--bl-ink': '#2f2e2e',
+      '--bl-ink-2': '#5e5e5e',
+      '--bl-hover': '#fdecee',
+      '--bl-shadow': '0 24px 64px -16px rgba(53,70,92,.38), 0 2px 6px rgba(47,46,46,.08)',
+      '--bl-launch-shadow': '0 12px 28px -8px rgba(209,63,83,.55), 0 2px 6px rgba(47,46,46,.12)',
+      colorScheme: 'light',
+    },
+    dark: {
+      '--bl-panel': '#182030',
+      '--bl-bg': '#10141c',
+      '--bl-line': '#263043',
+      '--bl-ink': '#f2eff0',
+      '--bl-ink-2': '#b3b0b6',
+      '--bl-hover': 'rgba(241,104,118,.14)',
+      '--bl-shadow': '0 24px 64px -16px rgba(0,0,0,.7), 0 0 0 1px #263043',
+      '--bl-launch-shadow': '0 12px 28px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08)',
+      colorScheme: 'dark',
+    },
+  };
+  const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const root = document.documentElement;
+
+  /** Which theme the widget wears now: the tag's choice, else the host page's, else the system's. */
+  function currentTheme() {
+    if (themeMode !== 'auto') return themeMode;
+    const mark = root.dataset.theme;
+    if (mark === 'dark' || root.classList.contains('dark')) return 'dark';
+    if (mark === 'light' || root.classList.contains('light')) return 'light';
+    return darkQuery.matches ? 'dark' : 'light';
+  }
+
+  /** Sets the theme's colour variables on an element; its children read them. */
+  function paint(el) {
+    if (!el) return;
+    const { colorScheme, ...vars } = THEMES[currentTheme()];
+    for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
+    el.style.colorScheme = colorScheme;
+  }
+  const repaint = () => [launcher, state.panel].forEach(paint);
 
   const state = { panel: null, frame: null, backdrop: null, expanded: false, reauths: [] };
 
@@ -68,7 +121,7 @@
       margin: '0',
       padding: '24px',
       font: `14px/1.5 ${FONT}`,
-      color: '#5e5e5e',
+      color: 'var(--bl-ink-2)',
     });
     p.append(note);
   }
@@ -87,10 +140,10 @@
       border: '0',
       borderRadius: '10px',
       background: 'transparent',
-      color: '#5e5e5e',
+      color: 'var(--bl-ink-2)',
       cursor: 'pointer',
     });
-    b.addEventListener('mouseenter', () => (b.style.background = '#fdecee'));
+    b.addEventListener('mouseenter', () => (b.style.background = 'var(--bl-hover)'));
     b.addEventListener('mouseleave', () => (b.style.background = 'transparent'));
     b.addEventListener('click', onClick);
     return b;
@@ -113,9 +166,9 @@
       alignItems: 'center',
       gap: '8px',
       padding: '10px 12px 10px 16px',
-      background: '#fff',
-      borderBottom: '1px solid #ece7ea',
-      color: '#2f2e2e',
+      background: 'var(--bl-panel)',
+      borderBottom: '1px solid var(--bl-line)',
+      color: 'var(--bl-ink)',
       font: `600 15px ${FONT}`,
     });
     const name = document.createElement('span');
@@ -134,7 +187,7 @@
     f.title = title;
     f.allow = 'microphone';
     f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}`;
-    style(f, { border: '0', width: '100%', flex: '1', background: '#f6f5f7' });
+    style(f, { border: '0', width: '100%', flex: '1', background: 'var(--bl-bg)' });
     return f;
   }
 
@@ -143,9 +196,9 @@
     zIndex: String(Z),
     display: 'flex',
     flexDirection: 'column',
-    background: '#fff',
+    background: 'var(--bl-panel)',
     overflow: 'hidden',
-    boxShadow: '0 24px 64px -16px rgba(53,70,92,.38), 0 2px 6px rgba(47,46,46,.08)',
+    boxShadow: 'var(--bl-shadow)',
     transition: 'all .22s cubic-bezier(.2,.8,.2,1)',
   };
   const DOCKED = {
@@ -185,6 +238,7 @@
     p.setAttribute('role', 'dialog');
     p.setAttribute('aria-label', title);
     style(p, { ...PANEL, ...DOCKED, opacity: '0', transform: 'translateY(12px) scale(.98)' });
+    paint(p);
     p.append(header());
     requestAnimationFrame(() => style(p, { opacity: '1', transform: 'none' }));
     return p;
@@ -327,13 +381,20 @@
     font: `600 15px ${FONT}`,
     letterSpacing: '.01em',
     cursor: 'pointer',
-    boxShadow: '0 12px 28px -8px rgba(209,63,83,.55), 0 2px 6px rgba(47,46,46,.12)',
+    boxShadow: 'var(--bl-launch-shadow)',
     transition: 'transform .15s ease, box-shadow .15s ease',
   });
   launcher.addEventListener('mouseenter', () => (launcher.style.transform = 'translateY(-2px)'));
   launcher.addEventListener('mouseleave', () => (launcher.style.transform = 'none'));
   launcher.addEventListener('click', () => (state.panel ? close() : void open()));
   document.body.append(launcher);
+  paint(launcher);
+  // Restyle live when the host flips its theme or the system setting changes. The frame is not reloaded.
+  new MutationObserver(repaint).observe(root, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme'],
+  });
+  darkQuery.addEventListener('change', repaint);
 
   window.BookLeafSupport = { open, close, expand, collapse };
 })();

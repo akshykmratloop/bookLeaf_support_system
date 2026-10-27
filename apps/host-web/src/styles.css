@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* `dark:` follows the app's own theme switch (data-theme on <html>), not the OS setting. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /* BookLeaf Publishing look (bookleafpub.in): coral, navy and ink on white, soft pink and cream.
    --brand fills carry white text (4.6:1); --brand-ink is for coral text. Light by default. */
 :root {
@@ -29,6 +32,18 @@
   --series-2: #ee5f70;
   --grid: #f0e9ea;
   --shadow: 0 1px 2px rgb(47 46 46 / 0.05), 0 10px 28px -14px rgb(209 63 83 / 0.18);
+  /* The book's paper: warm white by day, deep navy with cream ink by night. */
+  --paper-top: #fffdfb;
+  --paper-bot: #fffaf7;
+  --paper-shade: rgb(47 46 46 / 0.09);
+  --paper-spine: rgb(47 46 46 / 0.12);
+  --paper-edge-a: #f3ece8;
+  --paper-edge-b: #fffaf7;
+  --paper-ink: #2f2e2e;
+  --paper-ink-2: #5e5e5e;
+  --paper-ink-3: #8a8686;
+  --paper-numeral: #f16977;
+  --paper-label: #c8384c;
   color-scheme: light;
 }
 
@@ -58,6 +73,17 @@
   --series-2: #e25a6b;
   --grid: #263043;
   --shadow: 0 10px 28px -14px rgb(0 0 0 / 0.6);
+  --paper-top: #222c40;
+  --paper-bot: #1c2537;
+  --paper-shade: rgb(0 0 0 / 0.32);
+  --paper-spine: rgb(0 0 0 / 0.45);
+  --paper-edge-a: #0f1521;
+  --paper-edge-b: #26314a;
+  --paper-ink: #f4ece6;
+  --paper-ink-2: #c4bfc6;
+  --paper-ink-3: #948f9c;
+  --paper-numeral: #f16977;
+  --paper-label: #ff8a96;
   color-scheme: dark;
 }
 
@@ -213,19 +239,6 @@ body {
   75% {
     transform: translateX(-3px);
   }
-}
-
-/* The book is paper: it keeps light colours even in dark mode. */
-.light-scope [aria-roledescription='book'] {
-  --panel: #ffffff;
-  --panel-2: #fbf6f6;
-  --line: #eee6e8;
-  --ink: #2f2e2e;
-  --ink-2: #5e5e5e;
-  --ink-3: #8a8686;
-  --brand-ink: #c8384c;
-  --brand-soft: #fdecee;
-  --series-2: #ee5f70;
 }
 
 /* Browser autofill keeps our field colours instead of its own pale blue. */

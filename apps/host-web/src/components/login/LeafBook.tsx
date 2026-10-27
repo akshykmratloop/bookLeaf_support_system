@@ -79,14 +79,14 @@ export function LeafBook() {
           className="relative aspect-[1.6] w-full rounded-[14px] transition-transform duration-300 ease-out [transform-style:preserve-3d] [transform:rotateX(calc(8deg+var(--rx,0deg)))_rotateY(var(--ry,0deg))] focus-visible:outline-offset-8"
         >
           <span className="absolute -inset-3 rounded-[18px] bg-[linear-gradient(135deg,#f16977,#c8384c)] shadow-[0_40px_80px_-20px_rgb(169_45_66/0.55)] [transform:translateZ(-24px)]" />
-          <span className="absolute -inset-1.5 rounded-[14px] bg-[repeating-linear-gradient(90deg,#f3ece8_0_1px,#fffaf7_1px_3px)] [transform:translateZ(-10px)]" />
+          <span className="absolute -inset-1.5 rounded-[14px] bg-[repeating-linear-gradient(90deg,var(--paper-edge-a)_0_1px,var(--paper-edge-b)_1px_3px)] [transform:translateZ(-10px)]" />
           <div className="absolute inset-y-0 left-0 w-1/2">
             <LeftPage index={shown.left} />
           </div>
           <div className="absolute inset-y-0 right-0 w-1/2">
             <RightPage index={shown.right} />
           </div>
-          <span className="absolute inset-y-0 left-1/2 z-10 w-8 -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgb(47_46_46/0.12),transparent)]" />
+          <span className="absolute inset-y-0 left-1/2 z-10 w-8 -translate-x-1/2 bg-[linear-gradient(90deg,transparent,var(--paper-spine),transparent)]" />
           {turn ? <TurningLeaf from={index} turn={turn} onDone={finish} /> : null}
         </div>
       </div>

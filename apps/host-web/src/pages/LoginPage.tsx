@@ -31,10 +31,7 @@ export function LoginPage() {
           </a>
         </header>
         <main className="grid flex-1 items-center gap-12 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-          <section
-            aria-label="What BookLeaf does"
-            className="light-scope hidden flex-col gap-8 lg:flex"
-          >
+          <section aria-label="What BookLeaf does" className="hidden flex-col gap-8 lg:flex">
             <h2 className="animate-rise text-[46px] leading-[1.08] font-light tracking-tight text-brand-ink">
               Publishing made easy.
               <span className="block text-ink">Turn the page on your book.</span>
