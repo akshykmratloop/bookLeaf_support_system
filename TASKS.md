@@ -136,7 +136,7 @@ was read but not changed or depended on. Admin switch defaults to OFF.
 | V.1 | `voice_sessions` table, `tickets.voice_session_id`, call status / end-reason enums (additive migration) | ✅ | `9c694fa` |
 | V.2 | `VoiceProvider` interface + OpenAI Realtime adapter (raw WebSocket, GA events, barge-in, truncation); ESLint blocks vendor imports outside the adapter | ✅ | `9c694fa` |
 | V.3 | Call controller: 300 s hard cap, spoken 30 s warning, 45 s idle hang-up, admin re-check every 15 s, `end_call` / `suggest_ticket` tools | ✅ | `9c694fa` |
-| V.4 | Gateway: sign-in + Origin check before upgrade, claim within 30 s, one live call per author (row lock), 3 calls/hour and 10/day, 32 KB frame cap, interrupted calls closed at startup | ✅ | `9c694fa` |
+| V.4 | Gateway: sign-in + Origin check before upgrade, claim within 30 s, one live call per author (row lock), 5 calls/hour and 10/day, 32 KB frame cap, interrupted calls closed at startup | ✅ | `9c694fa` |
 | V.5 | After the call: spoken-figures check, token use logged, author-confirmed ticket (`source = VOICE`), admin call view | ✅ | `9c694fa` |
 | V.6 | Author UI: mic capture worklet (24 kHz PCM16), gap-free player, countdown, warning, live transcript, mute, end, after-call transcript + ticket card; unavailable / off states; admin call panel on voice tickets | ✅ | `1079d82` |
 | V.6b | Review fixes: switch re-check can't crash the server, idle follows the conversation, goodbye plays out, saved before "ended", audio rate cap, failed setup releases the call | ✅ | `280a652` |

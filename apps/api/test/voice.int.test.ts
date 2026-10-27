@@ -102,23 +102,35 @@ describe('voice: admin control and limits', () => {
     await h.db.voiceSession.update({ where: { id: first.id }, data: { status: 'EXPIRED' } });
   });
 
-  it('enforces the hourly limit of connected calls (429)', async () => {
+  it('allows 5 connected calls per hour, then refuses the 6th (429)', async () => {
     const author = await h.db.author.findFirstOrThrow({ where: { user: { email: EMAILS.rohit } } });
     const now = new Date();
-    await h.db.voiceSession.createMany({
-      data: Array.from({ length: 3 }, () => ({
-        authorId: author.id,
-        provider: 'fake',
-        model: 'fake',
-        maxSeconds: 300,
-        status: 'ENDED' as const,
-        startedAt: now,
-        endedAt: now,
-      })),
+    const ended = (n: number) =>
+      h.db.voiceSession.createMany({
+        data: Array.from({ length: n }, () => ({
+          authorId: author.id,
+          provider: 'fake',
+          model: 'fake',
+          maxSeconds: 300,
+          status: 'ENDED' as const,
+          startedAt: now,
+          endedAt: now,
+        })),
+      });
+    await ended(4);
+    const fifth = await call(h, 'POST', '/voice/calls', rohit);
+    expect(fifth.statusCode).toBe(201);
+    const { id } = fifth.json<StartVoiceCall>();
+    await h.db.voiceSession.update({
+      where: { id },
+      data: { status: 'ENDED', startedAt: now, endedAt: now },
     });
     const res = await call(h, 'POST', '/voice/calls', rohit);
     expect(res.statusCode).toBe(429);
-    expect(res.json<{ code: string }>().code).toBe('VOICE_HOURLY_LIMIT');
+    expect(res.json<{ code: string; title: string }>()).toMatchObject({
+      code: 'VOICE_HOURLY_LIMIT',
+      title: expect.stringContaining('5 calls per hour'),
+    });
   });
 });
 

@@ -27,7 +27,7 @@ const EnvSchema = z.object({
   CHAT_MAX_TURNS_PER_SESSION: z.coerce.number().int().min(1).max(200).default(30),
   CHAT_SESSIONS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(10),
   VOICE_MAX_CALL_SECONDS: z.coerce.number().int().min(30).max(300).default(300),
-  VOICE_CALLS_PER_HOUR: z.coerce.number().int().min(1).max(60).default(3),
+  VOICE_CALLS_PER_HOUR: z.coerce.number().int().min(1).max(60).default(5),
   VOICE_CALLS_PER_DAY: z.coerce.number().int().min(1).max(200).default(10),
   // Speech-to-speech provider for voice calls (raw WebSocket, no SDK). Missing key = voice unavailable.
   VOICE_PROVIDER: z.enum(['openai']).default('openai'),
