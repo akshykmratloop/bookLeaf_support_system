@@ -163,6 +163,33 @@ presses Send).
 
 ---
 
+## Phase 4 — History and a pluggable support module · branch `feature/pluggable-support` (27 Oct)
+
+Authors can read past chats and calls. Support became a module that attaches to any product: customer
+data only over HTTP from the host (`apps/host-demo` plays BookLeaf), sign-in by a short host token, and
+three ways to attach (link, `embed.js` widget, Fastify `supportPlugin`). Not merged (your instruction).
+Guide: `docs/integration.md`.
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| H.0 | Register the session in `SHARED_PLAN.md` | ✅ | `6b0e570` |
+| H.1 | Config split into one small Zod schema per area (`config/*.ts`); `.env.example` grouped the same way | ✅ | `297abbc` |
+| H.2 | One file per use case; small route and provider functions | ✅ | `c4c1fa5` |
+| H.3 | Web: long components and hooks split | ✅ | `d0d86c2` |
+| H.4 | ESLint size limits: files 200, functions 40 (components 150), complexity 10, depth 3, params 4 | ✅ | `c4fe5c9` |
+| H.5 | History API: chats + call threads, `(createdAt, id)` cursor, read-only detail, owner-only | ✅ | `aec38f4` |
+| H.6 | History pages (list + read-only transcript + ticket/draft summary) | ✅ | `703f6ad` |
+| H.7 | `apps/host-demo`: authors, books, facts engine moved here, login, customer API, token mint | ✅ | `feda348` |
+| H.8 | Host connector (`src/host/`), host sign-in, reference rows, additive migration (shadow apply + diff = 0), host-down → `host.records_unavailable` | ✅ | `9352323` |
+| H.9 | `supportPlugin` for Fastify hosts (encapsulated; tested mounted under `/support`) | ✅ | `0a747cc` |
+| H.10 | Widget: `/embed`, `embed.js`, `HOST_ORIGINS` (framing only on `/embed`), partitioned cookie | ✅ | `7ffe709` |
+| H.11 | Plugin starts and stops its own AI worker (found while writing the guide) | ✅ | `c501066` |
+| H.12 | Docs: integration guide, architecture, README, write-up, PLAN §19 | ✅ | |
+| H.13 | Review agents (code, security, TypeScript), react-doctor, size table, live run with host-demo | ⬜ | |
+| H.14 | Signed webhooks to the host | ⛔ skipped: optional, kept the code small | |
+
+---
+
 ## P2 — Polish (lowest priority: only after Phase 2/3 are done or NO-GO)
 
 | # | Task | Status |

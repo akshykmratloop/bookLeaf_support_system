@@ -1,193 +1,186 @@
-# BookLeaf Author Support & Communication Portal
+# BookLeaf Support
 
-An author portal and an operations portal for BookLeaf support tickets. AI classifies every ticket,
-sets its priority and drafts a reply grounded in the author's real records and the BookLeaf Knowledge
-Base. A person always reviews and sends the reply.
+A support module for authors, which BookLeaf (or any product) can attach to its own platform.
 
-- **Live demo:** _not deployed yet — see [Deployment](#deployment)_
-- **API docs:** `/api/docs` (Swagger UI, generated from the same schemas that validate requests)
-- **Write-up:** [docs/write-up.md](docs/write-up.md) · **Architecture:** [docs/architecture.md](docs/architecture.md) · **AI evaluation:** [docs/eval-results.md](docs/eval-results.md)
+- **Authors** raise tickets, chat with an assistant, call it by voice, and read their past
+  conversations.
+- **Support staff** get every ticket already classified and prioritised, with a reply drafted from
+  the author's real records. A person always reviews and sends the reply.
 
-## Demo logins
+The module does not own customer data. It reads it from the host product over one HTTP endpoint,
+so it can be attached to a product and detached again. In this repo, `apps/host-demo` plays
+BookLeaf's product.
 
-All seeded authors share one password, and both admins share another.
+- **Attach it to a product:** [docs/integration.md](docs/integration.md)
+- **How it is built:** [docs/architecture.md](docs/architecture.md)
+- **Approach and trade-offs:** [docs/write-up.md](docs/write-up.md)
+- **AI evaluation:** [docs/eval-results.md](docs/eval-results.md)
+- **API docs:** `/api/docs` (Swagger, generated from the same Zod schemas that validate requests)
 
-| Who | Email | Password | Why this account is interesting |
-| --- | --- | --- | --- |
-| Priya Sharma (author) | `priya.sharma@email.com` | `Author@BookLeaf1` | BK002 has nothing pending, but BK001 has ₹3,570 pending |
-| Arjun Malhotra (author) | `arjun.malhotra@email.com` | `Author@BookLeaf1` | ₹2,464 pending and no payout ever recorded ("possibly overdue") |
-| Kavita Deshmukh (author) | `kavita.deshmukh@email.com` | `Author@BookLeaf1` | ₹850 total, below the ₹1,000 threshold; one book still in typesetting |
-| Sneha Kulkarni (author) | `sneha.kulkarni@email.com` | `Author@BookLeaf1` | A book waiting in cover design |
-| Neha Verma (ops) | `admin@bookleaf.demo` | `Admin@BookLeaf1` | Admin |
-| Karan Mehta (ops) | `ops2@bookleaf.demo` | `Admin@BookLeaf1` | Second admin (for assignment) |
+## Repository
 
-Every author in `bookleaf_sample_data.json` can sign in with their email and the author password.
-These are demo-only credentials set by `SEED_*_PASSWORD`; change them for any real deployment.
-
-## What to try
-
-1. **Author:** sign in as Kavita → *My Books* (in-production book shows "Set at publication", not ₹0) → *New Ticket*
-   about *The Nagpur Notebooks*: "When will I get my royalty?".
-2. **Admin** (another browser or a private window): the ticket appears in the queue within seconds, classified
-   *Royalty & Payments / Medium*. Open it: the draft explains that ₹850 is below the ₹1,000 threshold and rolls over,
-   and the evidence panel shows where each figure came from.
-3. Edit the draft and send. Kavita's ticket page updates without refreshing.
-4. Try sending a reply with an invented amount (e.g. "₹9,999"): it is blocked, with the reason shown.
-5. *AI Settings* → turn on **Simulate an AI outage** → raise another ticket. It is still created, classified by rules
-   ("Auto-fallback"), and gets a template draft. Turn it off afterwards.
+```text
+apps/api/         the support module: tickets, AI, chat, voice, history (Fastify + Prisma)
+apps/web/         the support web app (React), including /embed and public/embed.js
+apps/host-demo/   a stand-in BookLeaf product: authors, books, royalty facts, login
+packages/shared/  Zod contracts used by all three, including the host contract
+```
 
 ## Run locally
 
 Requirements: Node 22+, pnpm 12 (`corepack enable`), Docker (for Postgres).
 
 ```bash
-cp .env.example .env            # then set JWT_SECRET; ANTHROPIC_API_KEY is optional
+cp .env.example .env    # set JWT_SECRET, HOST_API_KEY, HOST_SIGNING_SECRET (openssl rand -base64 48)
 pnpm install
-pnpm db:up                       # Postgres 16 on localhost:5433
-pnpm db:migrate                  # prisma migrate deploy
-pnpm db:seed                     # sample data + demo admins (safe to re-run)
-pnpm dev                         # API on :3000, web on :5173 (proxies /api)
+pnpm db:up              # Postgres 16 on localhost:5433
+pnpm db:migrate         # prisma migrate deploy
+pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
+pnpm dev                # support API :3000 · support web :5173 · host-demo :3200
 ```
 
-Open http://localhost:5173. Without `ANTHROPIC_API_KEY` everything still works on the rule-based fallback.
+`ANTHROPIC_API_KEY` (triage, drafts, chat) and `OPENAI_API_KEY` (voice) are optional:
+
+- Without the Anthropic key, tickets use the rule-based fallback, and chat offers a ticket instead
+  of answering.
+- Without the OpenAI key, voice is unavailable.
+
+Everything else works without keys.
+
+## Demo accounts
+
+| Who | Where to sign in | Email | Password |
+| --- | --- | --- | --- |
+| Priya Sharma (author) | host-demo, http://localhost:3200 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
+| Arjun Malhotra (author) | host-demo | `arjun.malhotra@email.com` | same |
+| Kavita Deshmukh (author) | host-demo | `kavita.deshmukh@email.com` | same |
+| Neha Verma (support) | support, http://localhost:5173/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
+| Karan Mehta (support) | support | `ops2@bookleaf.demo` | same |
+
+Authors sign in to the **product**, not to support. Every author in
+`apps/host-demo/src/data/sample-data.json` can sign in. These are demo-only passwords; change them
+for any real deployment.
+
+- Priya: BK001 has ₹3,570 pending; BK002 has nothing pending.
+- Arjun: ₹2,464 pending and no payout ever recorded ("possibly overdue").
+- Kavita: ₹850 in total, below the ₹1,000 threshold; one book is still in typesetting.
+
+## What to try
+
+1. **Sign in as Kavita on host-demo** (:3200). Click **Help** (the widget), or **Open support in a
+   new tab**. You are signed in to support without a second password.
+2. **Ask the assistant** "When will I get my royalty?". It answers from Kavita's facts (₹850 is
+   below the ₹1,000 threshold and rolls over) and shows which facts it used. Ask it to raise a
+   ticket; it fills a draft that Kavita confirms.
+3. **Support side** (another browser or a private window): sign in as Neha. The ticket is in the
+   queue within seconds, classified *Royalty & Payments*. Open it: the reply draft and the evidence
+   for every figure are there. Edit and send; Kavita's page updates without a refresh.
+4. Try sending a reply with an invented amount (for example "₹9,999"). It is blocked, and the
+   reason is shown.
+5. **History** (author menu): every past chat and call, newest first, read-only.
+6. **Detach:** stop host-demo. Support keeps working; the assistant says it cannot see the records
+   right now and offers a ticket.
+
+## Checks
 
 | Command | What it does |
 | --- | --- |
-| `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | Static checks (ESLint also enforces the architecture boundaries) |
-| `pnpm --filter @bookleaf/api exec vitest run --project unit` | 45 unit tests (facts, checker, triage, drafting) |
-| `pnpm --filter @bookleaf/api exec vitest run --project integration` | 48 integration tests on a real Postgres in Docker (testcontainers) |
-| `pnpm eval` | Live triage evaluation → `docs/eval-results.md` (needs the API key; costs cents) |
+| `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | Static checks. ESLint also enforces the boundaries and size limits (files ≤ 200 lines, functions ≤ 40, complexity ≤ 10) |
+| `pnpm test` | API: 250 tests (unit, plus integration on a real Postgres via testcontainers, with host-demo running as a real HTTP host) · web: 29 · host-demo: 21 |
 | `pnpm build && pnpm start` | Production build: one Node process serves the API and the built web app |
-
-## Architecture
-
-```text
-apps/web (React SPA) ──JSON over /api/v1, session cookie──▶ apps/api (Fastify)
-                     ◀── Server-Sent Events (hints) ───────     │
-                                                                ├─ modules/  auth · books · tickets · messages · drafts · ai-admin · events
-                                                                ├─ ai/       facts · triage · drafting · checker · prompts · providers · jobs
-                                                                └─ Postgres (Prisma): tickets, messages, ai_jobs, ai_drafts, ai_runs, audit_events
-packages/shared  ← Zod schemas, enums and labels used by both sides
-```
-
-Key decisions (details and diagrams in [docs/architecture.md](docs/architecture.md)):
-
-- **One deployable.** The API serves the built SPA on the same origin: no CORS, first-party `httpOnly` cookies,
-  and the background worker and SSE live in the same long-running process.
-- **Thin routes, typed contracts.** Routes validate with Zod and call services; only services/repositories touch
-  Prisma. Response schemas strip undeclared fields, and authors and admins get different response shapes, so
-  internal notes and AI data cannot leak to authors by accident.
-- **Background AI via a jobs table.** Creating a ticket writes the ticket, an acknowledgement and an `ai_jobs` row
-  in one transaction, so a ticket can never exist without its AI work queued. A worker claims jobs with
-  `FOR UPDATE SKIP LOCKED` and a lease (crashed jobs are picked up again), retries transient errors with backoff,
-  and falls back to rules after 3 attempts. Results from an outdated job are discarded.
-- **Admin decisions win.** AI never overwrites a category or priority an admin set. Every admin change is audited.
-- **Swappable AI vendor.** The core talks to an `LlmProvider` interface. The Anthropic SDK is imported only in
-  `ai/providers/anthropic/` (ESLint enforces this). Tests use a fake provider.
+| `pnpm eval` | Live triage evaluation → `docs/eval-results.md` (needs the Anthropic key; costs cents) |
 
 ## How the AI works
 
-**Principle: code computes the facts, the model writes the words, code checks the words, a person sends them.**
+**Code gets the facts, the model writes the words, code checks the words, and a person sends them.**
 
-1. **Facts first (no AI).** For each ticket, code builds a facts pack from *that author's* records only: per-book
-   royalties, the author's total pending, payout eligibility against the ₹1,000 threshold, the next payout deadline
-   (quarter end + 45 days), production stage and what comes next, and the distribution record. Each fact carries its
-   source (record field, KB rule or calculation). Unknown values (bank account linked, stage dates) are explicitly
+1. **Facts from the host (no AI).** The host sends verified facts for this customer, each with its
+   source: a record field, a policy rule, a calculation, or "unknown". host-demo calculates
+   BookLeaf's royalty, payout-threshold, payout-date and production facts. Unknown values are
    marked unknown, never treated as zero.
-2. **Triage** (fast model, `claude-haiku-5-5`): one call returns category, priority, short reasons, what to check
-   before replying, and a confidence level. Business rules then set a floor (an ISBN error or a possibly overdue
-   payout is at least High, as the KB requires). Low confidence or a rules override shows "Review suggested".
-3. **Draft** (`claude-sonnet-5-5`): the prompt contains the role and tone guide, **only this category's KB
-   section** and its example, the facts pack, and the latest author message (earlier messages truncated). The model
-   returns the reply plus a list of claims, each citing fact ids. Anything not in the facts must become a
-   `[CONFIRM: …]` placeholder.
-4. **Checker (no AI).** Every amount, date, timeline, percentage and copy count in the text is extracted,
-   normalised (₹3,570 = Rs. 3570 = 3,570 rupees; 14 Feb 2026 = 2026-02-14) and matched against the facts. It also
-   blocks placeholders, internal references, guarantees and refund/legal promises. It runs on the AI draft and again
-   on the admin's final text when they press Send. Placeholders can never be overridden; other blocks need a written
-   reason, which is audited.
+2. **Triage** (`claude-haiku-5-5`): one call returns category, priority, reasons and a confidence
+   level. Business rules then set a minimum priority. For example, an ISBN error or a possibly
+   overdue payout is at least High. If the model is unsure, or a rule overrides it, the ticket
+   shows "Review suggested".
+3. **Reply draft** (`claude-sonnet-5-5`): the prompt holds the tone guide, only this category's
+   knowledge-base section, the facts and the latest author message. The model returns the reply and
+   the fact ids behind each claim. Anything not in the facts becomes a `[CONFIRM: …]` placeholder.
+4. **Checker (no AI).** It finds every amount, date, timeline, percentage and count in the text and
+   matches it against the facts (₹3,570 = Rs. 3570; 14 Feb 2026 = 2026-02-14). It also blocks
+   placeholders, internal references, guarantees and refund or legal promises. It runs on the AI
+   draft and again on the final text when staff press Send.
+5. **Chat and voice** use the same facts and the same checker. Chat answers common questions
+   straight from the facts, without an AI call. A call gets the facts in its instructions. Both can
+   fill a ticket draft, which the author confirms.
 
-**Prompt injection:** author text is wrapped and labelled as untrusted, the prompts say never to follow it, and the
-checker blocks refund promises regardless of what the model writes. Both injection cases in the eval are classified
-by content, not by the injected instruction.
+**When AI fails** (down, rate-limited, bad key, or the outage switch in *AI Settings*): tickets are
+still created and classified by keyword rules ("Auto-fallback"), with a template draft filled in by
+code from the same facts. Staff can always write manually or press "Re-run AI".
 
-**When AI fails** (down, rate-limited, bad key, or the outage switch): tickets are still created; triage uses keyword
-rules + the same priority floor and is flagged "Auto-fallback"; the draft is a per-category template filled by code
-from the same facts; admins can always write and send manually and can press "Re-run AI". The queue shows each
-ticket's AI state (queued, retrying, done, fallback).
+**Prompt injection:** author text is labelled as untrusted, the prompts say never to follow it, and
+the checker blocks refund promises whatever the model writes.
 
-**Cost:** one cheap triage call per ticket and one draft call; drafts are stored and opening a ticket never calls AI;
-only one KB section per prompt; no full history replay; the stable instructions are marked cacheable. Every attempt
-is logged in `ai_runs` with tokens, estimated cost, latency and outcome.
-
-**Model choice:** Claude, because its structured-output mode lets the SDK validate responses against the same Zod
-schemas the app uses, and it follows grounding and tone instructions well. Haiku for classification (cheap and
-fast; 26/26 on our small eval set), Sonnet for the author-facing reply where wording quality matters. Admins can
-switch models per task in *AI Settings*; the allowlist lives on the server.
-
-**API keys** are read from environment variables at startup and never stored in the database, logged or sent to the
-browser. *AI Settings* shows only whether a provider is configured and the last test result. An integration test
-checks that a sentinel key never appears in any response.
+**Keys** are read from environment variables at startup. They are never stored, logged or sent to
+the browser. An integration test checks that a sentinel key never appears in any response.
 
 ## API
 
-Base path `/api/v1`, JSON only. Errors are RFC 7807 `application/problem+json` with a stable `code` and, for 422,
-per-field `errors`. Full schemas are in Swagger at `/api/docs`.
+Base path `/api/v1`, JSON only. Errors are RFC 7807 `application/problem+json` with a stable `code`.
+Full schemas are in Swagger at `/api/docs`.
 
-| Method | Path | Who | Purpose |
-| --- | --- | --- | --- |
-| POST | `/auth/login` · `/auth/logout` | public | Session cookie (login rate-limited: 5/min per IP+email) |
-| GET | `/auth/me` | signed in | Current user |
-| GET | `/books` · `/books/:id` | author: own · admin: all | Books; unknown values are `null`, money in paise |
-| GET | `/tickets` | author: own · admin: all | Filters `status, category, priority, assignee=me\|unassigned, from, to, q`; cursor pagination (50, max 200); admins get urgency order |
-| POST | `/tickets` | author | Create (`Idempotency-Key` header supported) |
-| GET | `/tickets/:id` | owner · admin | Author view or admin view |
-| PATCH | `/tickets/:id` | admin | Status, category, priority, assignee (self or none); requires `version` |
-| POST | `/tickets/:id/messages` | owner · admin | Author follow-up; admin reply (fact-checked) or internal note |
-| GET | `/tickets/:id/draft` | admin | Latest draft with evidence and check results |
-| POST | `/tickets/:id/draft/regenerate` | admin | Queue a new draft |
-| POST | `/tickets/:id/check` | admin | Check edited text against the facts (no AI call) |
-| POST | `/tickets/:id/ai/retry` | admin | Re-run triage |
-| GET | `/events` | signed in | Server-Sent Events: `{ type, ticketId }` hints; authors only see their own public events |
-| GET · PUT | `/admin/ai/settings` | admin | Provider and models (allowlist), outage switch |
-| GET | `/admin/ai/status` · POST `/admin/ai/test` | admin | Which providers have keys; live test call |
-| GET | `/health` | public | Liveness + database check |
+| Area | Endpoints | Who |
+| --- | --- | --- |
+| Sign-in | `POST /auth/login` (staff) · `POST /auth/host` (host token) · `POST /auth/logout` · `GET /auth/me` · `GET /auth/options` | public / signed in |
+| Books | `GET /books` · `GET /books/:id` (read live from the host) | author: own · staff: all |
+| Tickets | `GET·POST /tickets` · `GET·PATCH /tickets/:id` · `POST /tickets/:id/messages` | author: own · staff |
+| Reply drafts | `GET /tickets/:id/draft` · `POST …/draft/regenerate` · `POST …/check` · `POST …/ai/retry` | staff |
+| Chat | `GET /chat/sessions/current` · `POST /chat/sessions` · `GET /chat/sessions/:id` · `POST …/messages` | author |
+| Ticket drafts | `GET /ticket-drafts/chat/:sessionId` · `PATCH /ticket-drafts/:id` · `POST …/submit` | author |
+| Voice | `POST /voice/calls` · `GET /voice/calls/resumable` · `GET /voice/calls/:id` · WebSocket `…/stream` | author |
+| History | `GET /conversations` · `GET /conversations/chats/:id` · `GET /conversations/calls/:id` | author |
+| Live updates | `GET /events` (Server-Sent Events, hints only) | signed in |
+| Settings | `/admin/ai/*` · `/admin/assistant/*` · `GET /assistant/availability` | staff |
+| Health | `GET /health` | public |
 
-Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 missing *or not yours* (another author's
-ticket is indistinguishable from a missing one) · 409 version conflict or invalid status change · 415 non-JSON body ·
-422 validation or fact-check failure · 429 rate limit.
+Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 missing *or not yours* ·
+409 version conflict or invalid change · 422 validation or fact-check failure · 429 rate limit ·
+503 host or AI unavailable.
 
-**Security summary:** argon2id passwords; signed session in an `httpOnly; SameSite=Lax` cookie (`Secure` in
-production); default-deny auth on every API route; CSRF defence by Origin check plus JSON-only bodies; Helmet with a
-CSP; input sanitised (HTML and control characters stripped, NFC) at the boundary; logs redact cookies and secrets.
+**Security:**
+
+- Staff passwords use argon2id.
+- The session is signed and kept in an `httpOnly` cookie.
+- Every API route requires sign-in unless it is marked public.
+- CSRF is blocked by an `Origin` check and JSON-only bodies.
+- Helmet sets a CSP.
+- Input is cleaned at the boundary: HTML and control characters are removed, then NFC-normalised.
+- Logs redact cookies and secrets.
 
 ## Assumptions
 
-- **Business date.** The sample data ends in December 2025, so payout maths runs "as of" `DATA_AS_OF=2025-12-31`
-  (next cycle closes 14 Feb 2026). Timestamps and SLAs use the real clock.
-- **Payout threshold applies to the author's total** pending across books, not per book.
-- **"Possibly overdue"** = money pending and either never paid although the first payout deadline after publication
-  has passed, or no payout for more than one cycle + 45 days. Earnings dates are not in the data, so drafts say
-  "our records show no payout yet" and escalate, rather than asserting a failed payment.
-- **`available_on` is BookLeaf's distribution record**, not live marketplace status, so drafts never claim a book is
-  or isn't listed; they ask the admin to confirm.
+- **Business date.** The sample data ends in December 2025, so payout maths runs "as of"
+  `DATA_AS_OF=2025-12-31`. Timestamps and SLAs use the real clock.
+- **The payout threshold applies to the author's total** pending across books, not per book.
+- **"Possibly overdue"** means money is pending and either it was never paid although the first
+  payout deadline has passed, or there has been no payout for more than one cycle plus 45 days.
+  Replies say "our records show no payout yet" and escalate, rather than claim a failed payment.
 - **First-response targets:** Critical 4 h · High 24 h · Medium 48 h · Low 72 h.
-- Admins can assign tickets to themselves (or unassign), as the brief describes.
 - Attachments are UI-only, as the brief allows.
 
-## Known limitations and next steps
+## Known limitations
 
-- **Not deployed yet.** The Dockerfile builds one image; it runs `prisma migrate deploy` before starting.
-- Single instance: the event bus is in memory. Multiple instances would use Postgres `LISTEN/NOTIFY` (the bus is
-  behind an interface).
-- Only the Anthropic adapter exists; the provider interface is ready for a second vendor.
-- API keys come only from env. A production version would keep per-tenant keys in a secret manager.
-- The evaluation set is small and written by the developer; a larger, independently labelled set is next.
-- No email notifications, attachment upload or full-text search.
-- Planned later phases (separate, feature-flagged): an AI chat for authors and voice support — see `PLAN.md` §18.
+- **Not deployed yet.** The Dockerfile builds one image and runs `prisma migrate deploy` before
+  starting.
+- One instance only: the event bus and live calls are in memory.
+- Webhooks to the host (for example "ticket replied") are not built; see the integration guide.
+- The parts that describe BookLeaf's business (knowledge base, categories, triage rules,
+  templates) are in the module. A different product would replace them; the integration guide lists
+  the files.
+- The evaluation set is small and was written by the developer.
 
 ## Deployment
 
-The app is one container plus Postgres. Required env: `DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (the public URL),
-`ANTHROPIC_API_KEY` (optional), `NODE_ENV=production`. After the first deploy, seed once with
-`SEED_AUTHOR_PASSWORD=… SEED_ADMIN_PASSWORD=… pnpm db:seed`.
+Two services plus Postgres: support (this image) and the host product. Support needs
+`DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings,
+`NODE_ENV=production`, and optionally the AI keys. Seed staff accounts once with
+`SEED_ADMIN_PASSWORD=… pnpm db:seed`.

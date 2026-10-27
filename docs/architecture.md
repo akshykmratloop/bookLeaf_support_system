@@ -1,7 +1,8 @@
-# Architecture — BookLeaf Author Support Portal
+# Architecture — BookLeaf Support
 
-> Planned design (not yet implemented). Mermaid diagrams render on GitHub and in VS Code's Markdown
-> preview. Reasons and trade-offs: `PLAN.md`.
+How the support module is built, and how it attaches to a host product. Diagrams are Mermaid
+(they render on GitHub and in VS Code's Markdown preview). Decisions and their reasons: `PLAN.md`.
+The host's side of the contract: [`integration.md`](integration.md).
 
 ---
 
@@ -9,21 +10,28 @@
 
 ```mermaid
 flowchart LR
-    author["Author<br/>(browser)"]
-    admin["Ops admin<br/>(browser)"]
-    portal["BookLeaf Support Portal<br/>(one Railway service)"]
-    db[("PostgreSQL<br/>data + ai_jobs")]
-    llm["Anthropic API<br/>(OpenAI: P2)"]
-    env[/"Env vars<br/>ANTHROPIC_API_KEY, DATABASE_URL,<br/>JWT_SECRET, APP_ORIGIN, DATA_AS_OF"/]
+    author["Customer / author<br/>(browser)"]
+    admin["Support staff<br/>(browser)"]
+    subgraph hostp["Host product (apps/host-demo here)"]
+        hostpage["Product pages"]
+        hostapi["Customer API<br/>/support/customers/:id"]
+    end
+    support["Support module<br/>(one Node service)"]
+    db[("PostgreSQL<br/>tickets · chats · calls · AI jobs")]
+    llm["Anthropic API<br/>(triage, drafts, chat)"]
+    s2s["OpenAI Realtime<br/>(voice)"]
 
-    author -- "HTTPS: REST + SSE (same origin)" --> portal
-    admin -- "HTTPS: REST + SSE (same origin)" --> portal
-    portal -- Prisma --> db
-    portal -- "server-side only" --> llm
-    env -. "read + validated at startup" .-> portal
+    author -- "signs in" --> hostpage
+    hostpage -- "short token → support session" --> support
+    admin -- "password sign-in" --> support
+    support -- "Bearer key, read-only" --> hostapi
+    support -- Prisma --> db
+    support -- "server-side only" --> llm
+    support -- "server-side only" --> s2s
 ```
 
-The browser never talks to an AI provider and never receives any part of an API key.
+The browser never talks to an AI provider and never receives a key. Customer data is read from the
+host when it is needed; support stores only reference rows (§9).
 
 ---
 
@@ -31,27 +39,32 @@ The browser never talks to an AI provider and never receives any part of an API 
 
 ```mermaid
 flowchart TB
-    subgraph service["Railway service"]
-        spa["Static SPA<br/>React + Vite build"]
+    subgraph service["Support service"]
+        spa["Web app (React)<br/>author · admin · /embed"]
         api["Fastify API<br/>/api/v1/* · /api/docs"]
         sse["SSE hub<br/>/api/v1/events"]
+        ws["Voice WebSocket<br/>/api/v1/voice/calls/:id/stream"]
         worker["AI worker<br/>polls ai_jobs (SKIP LOCKED + lease)"]
-        bus["EventBus (in-memory)"]
+        bus["EventBus (in memory)"]
+        host["Host connector<br/>http · 3 s timeout · 60 s cache"]
     end
     db[("PostgreSQL")]
-    llm["LLM provider"]
 
     api -- "ticket + ai_job in ONE transaction" --> db
     worker -- "claim / complete jobs" --> db
-    worker --> llm
+    api --> host
+    worker --> host
+    ws --> host
     api -- publish --> bus
     worker -- publish --> bus
     bus --> sse
     api -- serves --> spa
 ```
 
-The worker only depends on the DB and the `EventBus` interface, so it can move to its own process
-later. More than one instance would switch `EventBus` to Postgres `LISTEN/NOTIFY` (deferred).
+All of this is `supportPlugin` (`apps/api/src/plugin.ts`). The standalone server (`server.ts`) adds a
+logger and API docs and listens on a port. A Fastify host can register the same plugin under its
+own prefix instead (§15). The worker starts and stops with the plugin (`background.ts`). More than
+one instance would move `EventBus` to Postgres `LISTEN/NOTIFY` (not built).
 
 ---
 
@@ -59,47 +72,55 @@ later. More than one instance would switch `EventBus` to Postgres `LISTEN/NOTIFY
 
 ```mermaid
 flowchart TB
-    routes["routes.ts<br/>validate (Zod) · call service · response schema"]
-    services["service.ts<br/>business rules · status machine · SLA"]
-    repos["repository.ts<br/>only Prisma access · role scoping"]
-    prisma[("Prisma → Postgres")]
-    clock["platform/clock.ts<br/>now() · dataAsOf()"]
+    routes["modules/*/routes.ts<br/>Zod in · call service · Zod out"]
+    service["modules/*/service.ts<br/>binds deps to use cases"]
+    usecases["one file per use case<br/>send-message.ts · start-call.ts · …"]
+    data["data access (Prisma)<br/>role scoping"]
+    clock["platform/clock.ts"]
 
+    subgraph hostseam["host/ — the only code that knows the host"]
+        hosttypes["types.ts · HostRecords"]
+        hosthttp["http/ (real)"]
+        hostfake["fake/ (tests)"]
+    end
     subgraph ai["ai/"]
-        facts["facts/<br/>pure functions + evidence"]
-        triage["triage/<br/>AI → rules floor → fallback"]
-        drafting["drafting/<br/>AI draft · templates"]
-        checker["checker/<br/>claims + independent scan"]
-        port["providers/types.ts<br/>LlmProvider interface"]
-        registry["providers/registry.ts"]
-        jobs["jobs/<br/>worker · handlers"]
+        triage["triage/"]
+        drafting["drafting/"]
+        checker["checker/ (pure code)"]
+        llmseam["providers/types.ts · LlmProvider"]
     end
-
-    subgraph vendors["vendor adapters (only place SDKs are imported)"]
-        anth["anthropic/"]
-        fake["fake/ (tests)"]
-        oai["openai/ (P2)"]
+    subgraph voice["voice/"]
+        controller["call/controller.ts"]
+        s2sseam["providers/types.ts · speech-to-speech seam"]
     end
+    anth["providers/anthropic/"]
+    oai["voice/providers/openai/"]
 
-    routes --> services --> repos --> prisma
-    services --> checker
-    jobs --> triage
-    jobs --> drafting
-    triage --> facts
-    drafting --> facts
-    drafting --> checker
-    facts --> clock
-    services --> clock
-    triage --> port
-    drafting --> port
-    registry --> port
-    anth -. implements .-> port
-    fake -. implements .-> port
-    oai -. implements .-> port
+    routes --> service --> usecases
+    usecases --> data
+    usecases --> hosttypes
+    usecases --> checker
+    usecases --> controller
+    triage --> llmseam
+    drafting --> llmseam
+    controller --> s2sseam
+    hosthttp -. implements .-> hosttypes
+    hostfake -. implements .-> hosttypes
+    anth -. implements .-> llmseam
+    oai -. implements .-> s2sseam
+    usecases --> clock
 ```
 
-ESLint rules: routes never import Prisma; services never import Fastify; vendor SDKs only in their
-adapter folder; no `Date` construction outside `clock.ts`. Wiring happens once in `container.ts`.
+ESLint enforces the boundaries:
+
+- Routes never import Prisma.
+- Vendor SDKs are imported only inside their adapter folder.
+- Core code never imports `host/http/` or `host/fake/`; `host/registry.ts` picks one from config.
+- No `Date` is created outside `clock.ts`.
+- Size limits: files ≤ 200 lines, functions ≤ 40 lines (components ≤ 150), complexity ≤ 10,
+  nesting ≤ 3, parameters ≤ 4.
+
+Wiring happens once, in `container.ts`.
 
 ---
 
@@ -122,7 +143,7 @@ sequenceDiagram
     API->>BUS: ticket.created (admins)
 
     W->>DB: claim job (RUNNING, lease 90 s, attempt+1)
-    W->>W: facts pack with evidence (clock.dataAsOf)
+    W->>W: facts from the host (cached 60 s), each with its source
     W->>LLM: triage (structured)
     LLM-->>W: category · priority · reasons
     W->>W: Zod validate · rules floor · SLA from clock.now
@@ -167,7 +188,7 @@ Every exit leaves the ticket with a category, a priority, an SLA and a usable dr
 
 ```mermaid
 flowchart TD
-    start(["claimed job"]) --> facts["Facts engine<br/>book + author royalty · production · distribution<br/>each fact has a source"]
+    start(["claimed job"]) --> facts["Facts from the host<br/>GET /support/customers/:id<br/>each fact has a source"]
     facts --> avail{"Provider configured<br/>and outage switch off?"}
     avail -- no --> fb
     avail -- yes --> kind{"job kind"}
@@ -247,23 +268,20 @@ erDiagram
     USERS {
         uuid id PK
         text email UK
-        text password_hash
+        text password_hash "null for host customers"
         enum role
     }
     AUTHORS {
         uuid id PK
-        text external_id UK
+        text external_id UK "the host's customer id"
         uuid user_id FK
+        text name
     }
     BOOKS {
         uuid id PK
-        text external_id UK
+        text external_id UK "the host's item id"
         uuid author_id FK
-        enum stage
-        int mrp_paise "nullable"
-        int royalty_pending_paise
-        date last_payout_date "nullable"
-        text_array available_on
+        text title
     }
     TICKETS {
         uuid id PK
@@ -338,6 +356,11 @@ erDiagram
     }
 ```
 
+Authors and books are **reference rows**: the host owns the data, support keeps only ids, names and
+titles so tickets, chats and calls can point at them. Older book columns (stage, royalties, …) are
+now nullable and unused; dropping them is a later migration. Chats, calls and ticket drafts
+(`chat_sessions`, `chat_messages`, `voice_sessions`, `ticket_drafts`) hang off `authors` the same way.
+
 Indexes: `tickets (status, priority, sla_due_at)` for the queue; `tickets (author_id, created_at)`;
 `ticket_messages (ticket_id, created_at)`; `ai_jobs (status, run_after)`; `books (author_id)`.
 Unique: `ai_jobs (ticket_id, kind, generation)`, `tickets (author_id, client_request_id)`,
@@ -371,175 +394,138 @@ Any other transition → `409 INVALID_STATUS_TRANSITION`.
 | Internal notes, drafts, evidence, AI status, category, priority, assignee | never in author responses or author SSE events | read · write |
 | AI settings and status | 403 | read · write (no key access, ever) |
 
-Role and author id come only from the verified session. Role scoping lives in repositories; response
+Role and author id come only from the verified session, never from a request body, a model or the
+host's API. Role scoping lives in the data-access code; response
 shapes are separate Zod schemas per role, so undeclared fields are stripped.
 
-CSRF: SameSite=Lax cookie + Origin must equal `APP_ORIGIN` on state-changing requests + JSON-only
-bodies. No CORS headers.
+CSRF: Origin must equal `APP_ORIGIN` on state-changing requests + JSON-only bodies + a
+`SameSite=Lax` cookie (`SameSite=None; Secure; Partitioned` in embed mode, §15). No CORS headers.
 
 ---
 
-## 12. Shared business services (all channels)
-
-Phase 1 builds these services for admin drafting. Phases 2 and 3 add new **channels** on top; they
-add no new data paths.
+## 12. Host connection
 
 ```mermaid
-flowchart TB
-    subgraph channels["Channels"]
-        admin["Admin drafting<br/>(Phase 1)"]
-        chat["Author chat<br/>(Phase 2, FEATURE_CHAT)"]
-        voice["Voice gateway<br/>(Phase 3, FEATURE_VOICE)"]
-    end
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant HP as Host page
+    participant HS as Host server
+    participant W as Support web app
+    participant API as Support API
+    participant DB as Support DB
 
-    subgraph shared["Shared business services (author-scoped)"]
-        facts["AuthorFactsService<br/>facts + evidence"]
-        policy["PolicyService<br/>KB sections"]
-        tickets["TicketService<br/>create / update"]
-        checker["Checker"]
-    end
-
-    repos["Repositories<br/>(role scoping)"]
-    db[("Postgres")]
-
-    admin --> facts
-    admin --> policy
-    admin --> checker
-    chat --> facts
-    chat --> policy
-    chat --> tickets
-    chat --> checker
-    voice --> facts
-    voice --> tickets
-    facts --> repos
-    tickets --> repos
-    repos --> db
+    C->>HP: signed in to the product, opens support
+    HP->>HS: POST /support-token (host cookie)
+    HS-->>HP: token (HS256, aud "support", ≤ 300 s)
+    HP->>W: open /auth/host#t=TOKEN (fragment: never sent to a server)
+    W->>API: POST /api/v1/auth/host {token}
+    API->>API: verify signature, audience, age ≤ 300 s
+    API->>HS: GET /support/customers/:sub (Bearer key)
+    HS-->>API: name, email, items, facts, details
+    API->>DB: upsert reference rows (user, author, books)
+    API-->>W: session cookie (role AUTHOR only)
 ```
 
-Author identity always comes from the BookLeaf session. No channel accepts an author id from a
-model, a browser body or a third-party platform.
+- **Facts are read live** whenever a ticket is triaged or drafted, a chat answers, a call starts, or
+  *My Books* opens. One answer is cached for `HOST_CACHE_SECONDS`.
+- **Host down or slow:** a typed `HostUnavailableError` becomes the single fact
+  `host.records_unavailable`. The assistant says it cannot see the records and offers a ticket. A
+  failure is never cached.
+- **Bad data from the host:** the response is checked against `HostCustomerSchema`. Anything that
+  does not match is treated as "host unavailable", not trusted.
 
 ---
 
-## 13. Phase 2 — AI chat
+## 13. AI chat
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor A as Author
     participant API as Chat API
-    participant CS as Chat service
+    participant H as Host connector
+    participant Q as Quick answers (code)
     participant LLM as LLM provider
-    participant T as Assistant tools
     participant CK as Checker
-    participant TS as TicketService
+    participant TD as Ticket draft
 
     A->>API: POST /chat/sessions/:id/messages
-    API->>CS: authorId from session
-    CS->>LLM: prompt + last turns + tool schemas
-    LLM-->>CS: tool call get_book_royalties(BK001)
-    CS->>T: run with authorId (bookId ownership checked)
-    T-->>CS: facts + evidence
-    CS->>LLM: tool result
-    LLM-->>CS: answer text
-    CS->>CK: scan answer vs facts from this turn + KB constants
-    alt passes
-        CS-->>A: answer
-    else blocked (after one retry)
-        CS-->>A: safe reply + "raise a ticket?"
+    API->>H: facts for this author (from the session)
+    API->>Q: common question with a direct fact? (pending royalty, next payout…)
+    alt quick answer
+        Q-->>A: answer built from facts, no AI call
+    else
+        API->>LLM: system prompt + KB + facts + recent turns + current draft
+        LLM-->>API: answer · fact ids used · draft change
+        API->>CK: every figure in the answer vs the facts
+        alt passes
+            API-->>A: answer + "facts used"
+        else blocked (after one retry)
+            API-->>A: safe reply + offer to raise a ticket
+        end
+        API->>TD: apply the draft change under server rules
     end
-    A->>API: confirm ticket proposal (Idempotency-Key)
-    API->>TS: create ticket (source CHAT, chat_session_id)
-    TS-->>A: ticket number; normal triage + draft follow
+    A->>API: POST /ticket-drafts/:id/submit (author confirms)
+    API-->>A: ticket number; triage and reply draft follow as in §4
 ```
 
 ---
 
-## 14. Phase 3 — Voice: integration boundary with Vocal
-
-**Vocal** is a separate product (repo `Loop Methods/voice_agent`, QA at `verbi.si`). BookLeaf uses
-it as an external platform, configured but not modified.
-
-```mermaid
-flowchart LR
-    subgraph browser["Author's browser (BookLeaf SPA)"]
-        panel["Talk to BookLeaf Support panel<br/>lazy-loads @verbisi/web SDK"]
-    end
-
-    subgraph bookleaf["BookLeaf application (this repo)"]
-        gw["Voice gateway<br/>POST /api/v1/voice/gateway/v1/calls/web"]
-        snap["Facts snapshot builder<br/>(AuthorFactsService)"]
-        vs[("voice_sessions")]
-        ts["TicketService"]
-    end
-
-    subgraph vocal["Vocal platform (existing product, unchanged)"]
-        orch["call-orchestrator<br/>POST /v1/calls/web"]
-        worker["voice-worker<br/>WebRTC + speech-to-speech chain"]
-        agentcfg["Agent config<br/>providers.realtime + prompt"]
-    end
-
-    s2s["S2S model<br/>OpenAI Realtime / Gemini Live"]
-
-    panel -- "1 · hop 1 (same origin, session cookie)" --> gw
-    gw --> snap
-    gw --> vs
-    gw -- "2 · secret key + server-built variables" --> orch
-    orch -- "3 · callId + session token + worker URL" --> gw
-    gw -- "4 · pass-through response" --> panel
-    panel -- "5 · hop 2: WebRTC media (rtc. host)" --> worker
-    worker --> agentcfg
-    worker <--> s2s
-    panel -- "6 · after call: create ticket" --> ts
-```
-
-| Side | Owns |
-| --- | --- |
-| BookLeaf | Author login and identity, facts snapshot, voice gateway, `voice_sessions` audit rows, rate limits, UI states, tickets |
-| Vocal | Agent definition (S2S provider, model, voice, prompt), call control, WebRTC media, the S2S model connection, call records |
-| Boundary contract | One server-to-server request (`POST /v1/calls/web` with a `vak_` key and `variables`), and the SDK's media hop. Nothing else crosses |
-
-### Call start
+## 14. Voice calls
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor A as Author
     participant UI as Voice panel
-    participant GW as BookLeaf voice gateway
-    participant F as AuthorFactsService
-    participant V as Vocal call-orchestrator
-    participant W as Vocal voice-worker
-    participant M as S2S model
+    participant API as Support API
+    participant H as Host connector
+    participant C as Call controller
+    participant M as Speech-to-speech model
 
-    A->>UI: Talk to BookLeaf Support
-    UI->>GW: GET /voice/status (flag, configured, reachable, hours)
-    UI->>UI: mic permission
-    UI->>GW: SDK start() → POST {baseUrl}/v1/calls/web (cookie)
-    GW->>GW: check session + Origin; drop client variables/metadata/webhookUrl/agentId
-    GW->>F: facts snapshot for this author (≤ 8 KB)
-    GW->>V: POST /v1/calls/web (vak_ key, agentId from env, variables = snapshot)
-    V-->>GW: callId, sessionToken, worker URL
-    GW->>GW: insert voice_sessions (author, callId, snapshot hash)
-    GW-->>UI: same response
-    UI->>W: WebRTC offer + sessionToken
-    W->>M: open S2S session (prompt rendered with snapshot)
-    A->>M: "How much royalty is pending?"
-    M-->>A: spoken answer from the snapshot (also shown on screen)
+    A->>UI: Start call
+    UI->>API: POST /voice/calls (limits, quota, voice switched on?)
+    API->>H: facts for this author
+    API-->>UI: call id (must connect within a short window)
+    UI->>API: WebSocket /voice/calls/:id/stream (session cookie, Origin checked; PENDING → ACTIVE once)
+    API->>C: instructions with the facts, tools: draft fields + end_call
+    C->>M: raw WebSocket (server-side key)
+    loop the conversation
+        UI->>C: microphone audio (PCM16)
+        C->>M: audio
+        M-->>C: audio + transcript + tool calls
+        C-->>UI: audio + transcript + draft updates
+    end
+    C->>API: call ended (time cap, idle, hang-up or assistant ended)
+    API-->>UI: transcript + ticket draft → author confirms the ticket
 ```
 
-Failure handling: status check fails → panel shows "Voice support unavailable" with ticket/chat
-links; `microphone-denied` → explain how to allow it; reconnecting → shown; call ends after
-5 minutes (fits Vocal's 300 s session token); any error stays inside the panel's error boundary.
+- The browser never connects to the model vendor. The key stays on the server.
+- Every call has a hard time cap (`VOICE_MAX_CALL_SECONDS`, at most 300) with a spoken warning
+  before it. There are per-author hourly and daily limits, and one call at a time.
+- A call that ended without a ticket can be continued within 60 minutes. It joins the same thread
+  and is listed once in History.
 
-### Phase 3b (deferred): live tools inside the S2S call
+---
 
-Not possible by configuration today: Vocal's speech-to-speech chain registers only `end_call`;
-HTTP tools run only on cascade flow agents. The target, if Vocal is extended:
+## 15. Embedding and the Fastify plugin
 
-```mermaid
-flowchart LR
-    m["S2S model"] -- "function call" --> w["Vocal voice-worker<br/>(HTTP tools registered in realtime_chain)"]
-    w -- "HTTPS + static secret header<br/>+ per-call BookLeaf token header" --> t["BookLeaf /api/v1/voice/tools/*<br/>same assistant tools as chat"]
-    t --> s["Shared business services"]
-```
+| Way to attach | What the host adds | What support does |
+| --- | --- | --- |
+| Link | A button that opens `/auth/host#t=…` | Normal session cookie (`SameSite=Lax`) |
+| Widget | `<script src="…/embed.js" data-token-url="/support-token">` | With `HOST_ORIGINS` set: `frame-ancestors` only on `/embed`, cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned` |
+| Fastify plugin | `app.register(supportPlugin, { prefix: '/support', env })` | Everything under the prefix, encapsulated: headers, cookies, rate limits, errors, worker |
+
+The CSRF `Origin` check is the same in every mode, so a host page can frame support but cannot post
+to it.
+
+---
+
+## 16. History (read-only)
+
+`GET /conversations` merges the author's chats and call threads (one row per thread), newest first.
+It pages with a `(createdAt, id)` cursor, so rows created in the same millisecond are never skipped
+or repeated. Each row shows the date, a title (the ticket draft's subject, otherwise the first thing
+the author said), the message count and the ticket it led to. `GET /conversations/chats/:id` and
+`/conversations/calls/:id` return a read-only transcript. Another author's conversation is a 404.

@@ -163,33 +163,30 @@ The checker validates claims in the draft against that evidence before an admin 
 | Every channel reads author data only through the **shared business services**: `AuthorFactsService` (facts + evidence, author-scoped), `PolicyService` (KB sections), `TicketService` (create/update tickets). Admin drafting uses them in Phase 1; chat (Phase 2) and voice (Phase 3) reuse them unchanged. | One place for facts, scoping and policy; later channels add no new data paths |
 | Typed errors (`NotFoundError`, `ForbiddenError`, `ConflictError`, `ValidationError`, `AiUnavailableError`, …) → RFC 7807 in one handler. | No generic 500s, no silent catches |
 
-### 5.3 Layout
+### 5.3 Layout (current, after the pluggable-support work in §19)
 
 ```text
 apps/api/src/
-  server.ts · app.ts · container.ts
-  platform/    env.ts  db.ts  clock.ts  event-bus.ts  errors.ts  logger.ts  security.ts
-  modules/
-    auth/ books/ tickets/ messages/ drafts/ ai-admin/ events/
-        (each: routes.ts · service.ts · repository.ts · schemas.ts)
-    tickets/status-machine.ts · tickets/sla.ts
-  ai/
-    facts/       royalty.ts  production.ts  distribution.ts  evidence.ts  index.ts
-    triage/      service.ts  rules.ts  fallback-classifier.ts
-    drafting/    service.ts  templates.ts
-    checker/     extract.ts  normalise.ts  rules.ts  index.ts
-    prompts/     triage.v1.ts  draft.v1.ts  kb/<category>.md  examples.ts
-    providers/   types.ts  registry.ts  errors.ts  anthropic/  fake/   (openai/ = P2)
-    jobs/        worker.ts  claim.ts  handlers/triage.ts  handlers/draft.ts
-  # Phase 2 / 3 only — added behind feature flags after the core gates (§18):
-  modules/assistant/   tools.ts (author-scoped tool set over the shared services)
-  modules/chat/        routes · service · repository · schemas · prompt.v1.ts
-  modules/voice/       gateway.routes.ts · service · repository · facts-snapshot.ts · prompt.v1.md
-apps/api/prisma/ schema.prisma  migrations/  seed.ts
-apps/web/src/  app/  lib/ (api client, sse hook)  features/  components/
-packages/shared/src/  enums.ts  schemas/
-eval/   dataset.jsonl  run.ts
-docs/   architecture.md  eval-results.md  write-up.md
+  index.ts       what a Node host imports: supportPlugin, loadEnv
+  plugin.ts      the whole module as one encapsulated Fastify plugin
+  app.ts         standalone app = logger + API docs + plugin;  server.ts = listen + shutdown
+  background.ts  AI worker + clean-up of cut-off calls, tied to the app lifecycle
+  container.ts   wiring, once;  routes.ts  every route under /api/v1
+  config/        one small Zod schema per area: server, database, auth, ai, chat, voice, host
+  host/          the ONLY code that knows about the host product
+                 types.ts (HostRecords) · registry.ts · http/ (real) · fake/ (tests)
+                 sync.ts (reference rows) · facts.ts · author.ts · errors.ts
+  platform/      db · clock · event-bus · errors · http/ (auth guard, CSRF, CSP, embed, SPA)
+  modules/       auth books tickets messages drafts ai-admin events
+                 assistant chat voice ticket-drafts conversations
+                 (each: routes.ts · service.ts that only binds deps · one file per use case)
+  ai/            triage · drafting · checker · prompts (KB) · providers (LLM seam) · jobs · domain
+  voice/         call controller · providers (speech-to-speech seam: openai/, fake/)
+apps/web/src/    app/ · lib/ · components/{atoms,molecules,organisms,templates} · pages/{author,admin,embed}
+                 public/embed.js (the widget loader)
+apps/host-demo/  stand-in BookLeaf product: authors + books, facts engine, login, token, customer API
+packages/shared/ Zod contracts shared by all three apps, incl. the host contract (schemas/host.ts)
+eval/  docs/  (architecture.md · integration.md · eval-results.md · write-up.md)
 ```
 
 Limits: files ≤ 200 lines, functions ≤ 40, components ≤ 150, no `any`.
@@ -600,9 +597,13 @@ deployment, README, write-up.
 | 2026-10-26 (rev) | Walking skeleton (no AI) is the first milestone; early deploy on Day A | De-risk the full lifecycle and deployment first |
 | 2026-10-26 (rev 3) | Chat and voice are Phases 2 and 3, gated behind `core-v1` + GO checks + feature flags off by default | Optional work can never displace mandatory work |
 | 2026-10-26 (rev 3) | Shared business services (`AuthorFactsService`, `PolicyService`, `TicketService`) are the only data path for every channel | Chat and voice reuse scoping, facts and policy instead of duplicating them |
-| 2026-10-26 (rev 3) | Voice reuses Vocal unchanged: native speech-to-speech agent + **verified facts injected server-side at call start**; live tools deferred (Phase 3b) | Vocal's speech-to-speech path only registers `end_call` today (`factory_realtime.py`, `factory.py:264-283` on `origin/main`); HTTP tools run only on cascade flow agents |
-| 2026-10-26 (rev 3) | BookLeaf "voice gateway" creates the Vocal call server-side with a secret key | Browser-set `variables`/`metadata`/`webhookUrl` are tamperable with a publishable key; the SDK only builds `{baseUrl}/v1/calls/web`, so pointing `baseUrl` at BookLeaf works without forking the SDK |
+| 2026-10-26 (rev 3) | ~~Superseded by §18.4~~ Voice reuses Vocal unchanged: native speech-to-speech agent + **verified facts injected server-side at call start**; live tools deferred (Phase 3b) | Vocal's speech-to-speech path only registers `end_call` today (`factory_realtime.py`, `factory.py:264-283` on `origin/main`); HTTP tools run only on cascade flow agents |
+| 2026-10-26 (rev 3) | ~~Superseded by §18.4~~ BookLeaf "voice gateway" creates the Vocal call server-side with a secret key | Browser-set `variables`/`metadata`/`webhookUrl` are tamperable with a publishable key; the SDK only builds `{baseUrl}/v1/calls/web`, so pointing `baseUrl` at BookLeaf works without forking the SDK |
 
+| 2026-10-27 | The support module reads customer data **only over HTTP** from the host; BookLeaf's data and facts engine move to `apps/host-demo` | Makes the module attachable to any product; nothing about BookLeaf's tables is built into it (§19) |
+| 2026-10-27 | Host sign-in = short HS256 token (≤ 300 s, `aud: support`) in the URL fragment; admins stay local | No token in logs; a host can never create an admin |
+| 2026-10-27 | Store reference rows (id, name, email, item titles) and read facts live with a 60 s cache | Existing foreign keys keep working; no stale copies of money figures |
+| 2026-10-27 | Attach three ways: link, `embed.js` widget, Fastify `supportPlugin` | The user asked for both a widget and a backend plugin; the link needs no setup |
 ---
 
 ## 17. Unresolved questions
@@ -709,3 +710,21 @@ own call gateway. Protocol knowledge is borrowed from the Vocal voice worker (re
 | Session token 300 s | Reconnect after 5 min fails | 5-min call cap |
 | Kong limit 10 call starts/min per IP; gateway uses one server IP | Shared limit | Per-author limits keep usage far below; note in README |
 | Author data sent to an S2S provider via Vocal | Privacy | Minimal snapshot (no email/phone); state in README |
+
+---
+
+## 19. Pluggable support module (branch `feature/pluggable-support`)
+
+**Goal:** the support system attaches to any product with small changes on either side, and can be
+detached again. Full guide for a host: [`docs/integration.md`](docs/integration.md).
+
+| Part | Design |
+| --- | --- |
+| Customer data | `GET {HOST_API_URL}/support/customers/{id}` (Bearer key) returns the customer, their items and verified facts. Zod-checked, 3 s timeout, 60 s cache, failures never cached |
+| Host down | The assistant gets one fact, `host.records_unavailable`, says it cannot see the records and offers a ticket. Tickets, chat and history keep working |
+| Sign-in | Host token → `POST /auth/host` → support's own session cookie. Customers only (role `AUTHOR`) |
+| Seam | `src/host/`: `HostRecords` interface, `http/` and `fake/` implementations, chosen in `registry.ts`. ESLint blocks core code from importing an implementation |
+| Attach | Link to `/auth/host#t=…` · `embed.js` widget (iframe `/embed`, `HOST_ORIGINS`, partitioned cookie) · `supportPlugin` for Fastify hosts (starts its own worker) |
+| History | Read-only list of past chats and calls (`GET /conversations`, cursor paging) and a read-only view of each |
+| Domain pack | KB, categories, triage rules, templates, signals and fact ids are BookLeaf-specific and listed in the guide as the parts a new product replaces |
+| Not built | Webhooks to the host; dropping the now-unused book/author columns (a later expand → contract migration) |
