@@ -1,7 +1,7 @@
 import { LogIn } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router';
-import { homeFor } from '../app/AuthedLayout';
+import { homeFor } from '../app/user';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
 import { Input } from '../components/atoms/Input';
@@ -69,9 +69,9 @@ export function LoginPage() {
           </Button>
         </form>
         <DemoAccounts
-          onPick={(pickedEmail, pickedPassword) => {
+          onPick={(pickedEmail) => {
             setEmail(pickedEmail);
-            setPassword(pickedPassword);
+            setPassword('');
           }}
         />
       </Card>

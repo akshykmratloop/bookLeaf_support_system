@@ -8,26 +8,7 @@ import {
 } from '@bookleaf/shared';
 import { Input, Select } from '../atoms/Input';
 import { FilterChips } from '../molecules/FilterChips';
-
-export interface QueueFilterValues {
-  status: string;
-  category: string;
-  priority: string;
-  assignee: string;
-  from: string;
-  to: string;
-  q: string;
-}
-
-export const EMPTY_FILTERS: QueueFilterValues = {
-  status: '',
-  category: '',
-  priority: '',
-  assignee: '',
-  from: '',
-  to: '',
-  q: '',
-};
+import type { QueueFilterValues } from '../../lib/queueFilters';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },

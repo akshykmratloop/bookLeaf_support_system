@@ -1,7 +1,7 @@
 import type { AdminTicket, UpdateTicketRequest } from '@bookleaf/shared';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
-import { useUser } from '../../app/AuthedLayout';
+import { useUser } from '../../app/user';
 import { Card } from '../../components/atoms/Card';
 import { AiBadge, PriorityPill, StatusPill } from '../../components/molecules/DomainPills';
 import { ErrorState, LoadingState } from '../../components/molecules/States';

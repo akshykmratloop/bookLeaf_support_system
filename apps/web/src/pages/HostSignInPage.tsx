@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { homeFor } from '../app/AuthedLayout';
+import { homeFor } from '../app/user';
 import { Card } from '../components/atoms/Card';
 import { LoadingState } from '../components/molecules/States';
 import { useHostSignIn } from '../lib/useHostSignIn';

@@ -9,8 +9,9 @@ async function post(path, body) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body ?? {}),
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? 'Request failed');
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? 'Request failed');
+  return data;
 }
 
 // The support widget: one script tag, added once the author is signed in.
@@ -45,8 +46,15 @@ $('login').addEventListener('submit', async (e) => {
 
 $('support').addEventListener('click', async () => {
   const tab = window.open('', '_blank');
-  const { token } = await post('/support-token');
-  tab.location = `${supportUrl}/auth/host#t=${encodeURIComponent(token)}`;
+  if (!tab) return; // pop-up blocked
+  tab.opener = null;
+  try {
+    const { token } = await post('/support-token');
+    tab.location = `${supportUrl}/auth/host#t=${encodeURIComponent(token)}`;
+  } catch (err) {
+    tab.close();
+    $('home-error').textContent = err.message;
+  }
 });
 
 $('logout').addEventListener('click', async () => {
@@ -54,4 +62,7 @@ $('logout').addEventListener('click', async () => {
   location.reload(); // also removes the widget
 });
 
-void show();
+show().catch((err) => {
+  $('login').hidden = false;
+  $('error').textContent = err.message;
+});

@@ -22,13 +22,15 @@ export function relative(iso: string, now = Date.now()): string {
   return diff >= 0 ? `${unit} ago` : `in ${unit}`;
 }
 
+const DATE_TIME = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 export function dateTime(iso: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso));
+  return DATE_TIME.format(new Date(iso));
 }
 
 export interface SlaView {

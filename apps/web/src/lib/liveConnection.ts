@@ -5,6 +5,13 @@ const MAX_FAILURES = 3;
 const POLL_MS = 15_000;
 const SSE_RETRY_MS = 60_000;
 
+/** The ticket id in a `ticket` event, or null if the event is not shaped as expected. */
+function ticketIdOf(data: string): string | null {
+  const event: unknown = JSON.parse(data);
+  if (typeof event !== 'object' || event === null || !('ticketId' in event)) return null;
+  return typeof event.ticketId === 'string' ? event.ticketId : null;
+}
+
 /** What the connection tells the app. */
 export interface LiveHandlers {
   onState: (state: LiveState) => void;
@@ -34,8 +41,8 @@ export class LiveConnection {
     source.onopen = () => this.opened();
     source.onerror = () => this.failed();
     source.addEventListener('ticket', (ev) => {
-      const { ticketId } = JSON.parse((ev as MessageEvent<string>).data) as { ticketId: string };
-      this.on.refreshTicket(ticketId);
+      const ticketId = ticketIdOf((ev as MessageEvent<string>).data);
+      if (ticketId) this.on.refreshTicket(ticketId);
     });
     source.addEventListener('session-expired', () => {
       source.close();

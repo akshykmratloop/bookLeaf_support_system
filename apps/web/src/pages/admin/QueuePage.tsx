@@ -2,14 +2,11 @@ import { useDeferredValue, useState } from 'react';
 import { Card } from '../../components/atoms/Card';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
-import {
-  EMPTY_FILTERS,
-  QueueFilters,
-  type QueueFilterValues,
-} from '../../components/organisms/QueueFilters';
+import { QueueFilters } from '../../components/organisms/QueueFilters';
 import { QueueTable } from '../../components/organisms/QueueTable';
 import { errorMessage } from '../../lib/api';
 import { sla } from '../../lib/format';
+import { EMPTY_FILTERS, type QueueFilterValues } from '../../lib/queueFilters';
 import { useAdminTickets } from '../../lib/queries';
 
 function Count({ label, value, tone }: { label: string; value: number; tone: string }) {

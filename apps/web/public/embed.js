@@ -7,10 +7,11 @@
  *                 { "token": "<hand-over token>" } for the signed-in user. Required.
  * data-label      button text. Default "Help".
  *
- * It draws a floating button. Opening it asks the host for a fresh token and shows the
+ * Load it with `defer` (or at the end of <body>). It draws a floating button. Opening it asks the host for a fresh token and shows the
  * support app in an iframe. Remove the tag and the widget is gone: nothing else to undo.
  */
 (() => {
+  if (window.BookLeafSupport) return; // the tag was added twice
   const script = document.currentScript;
   const supportUrl = new URL(script.src).origin;
   const tokenUrl = script.dataset.tokenUrl;
@@ -29,7 +30,17 @@
       body: '{}',
     });
     if (!res.ok) throw new Error('Please sign in to get help.');
-    return (await res.json()).token;
+    const { token } = await res.json();
+    if (typeof token !== 'string') throw new Error('Help is not available right now.');
+    return token;
+  }
+
+  function showNote(p, err) {
+    const note = document.createElement('p');
+    note.setAttribute('role', 'alert');
+    note.textContent = err instanceof Error ? err.message : 'Help is not available right now.';
+    style(note, { padding: '16px', font: '14px system-ui, sans-serif' });
+    p.append(note);
   }
 
   function headerButton(text, title, onClick) {
@@ -59,14 +70,15 @@
   }
 
   async function openInNewTab() {
+    const p = panel;
     const tab = window.open('', '_blank');
-    if (!tab) return;
+    if (!tab) return; // pop-up blocked: the panel stays open
     tab.opener = null;
     try {
       tab.location = `${supportUrl}/auth/host#t=${encodeURIComponent(await freshToken())}`;
     } catch (err) {
       tab.close();
-      throw err;
+      if (p) showNote(p, err);
     }
   }
 
@@ -101,15 +113,14 @@
 
   async function open() {
     if (panel) return;
-    panel = buildPanel();
-    document.body.append(panel);
+    const p = buildPanel();
+    panel = p;
+    document.body.append(p);
     try {
-      panel.append(frame(await freshToken()));
+      const token = await freshToken();
+      if (panel === p) p.append(frame(token)); // not closed while waiting
     } catch (err) {
-      const note = document.createElement('p');
-      note.textContent = err instanceof Error ? err.message : 'Help is not available right now.';
-      style(note, { padding: '16px', font: '14px system-ui, sans-serif' });
-      panel.append(note);
+      showNote(p, err);
     }
   }
 

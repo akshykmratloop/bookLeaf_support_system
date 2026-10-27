@@ -14,7 +14,7 @@ interface HostSignIn {
 export function useHostSignIn(): HostSignIn {
   const qc = useQueryClient();
   const [state, setState] = useState<HostSignIn>({ user: null, error: null });
-  // The token is single-use: exchange it once, even if React runs the effect twice.
+  // The server accepts each token once: exchange it once, even if React runs the effect twice.
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;

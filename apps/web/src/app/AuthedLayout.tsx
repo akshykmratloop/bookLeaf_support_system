@@ -1,18 +1,14 @@
 import type { AuthUser, Role } from '@bookleaf/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { Navigate, Outlet, useNavigate, useOutletContext } from 'react-router';
+import { Navigate, Outlet, useNavigate } from 'react-router';
 import { LoadingState } from '../components/molecules/States';
 import { AppShell } from '../components/templates/AppShell';
 import { api } from '../lib/api';
 import { useAssistantAvailability } from '../lib/assistant';
 import { useLiveUpdates } from '../lib/live-updates';
 import { useMe } from '../lib/queries';
-
-export const homeFor = (user: AuthUser) => (user.role === 'ADMIN' ? '/admin' : '/books');
-
-/** The signed-in user, available to every page under the authed layout. */
-export const useUser = () => useOutletContext<AuthUser>();
+import { homeFor } from './user';
 
 function Shell({ user }: { user: AuthUser }) {
   const qc = useQueryClient();
