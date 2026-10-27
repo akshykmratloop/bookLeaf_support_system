@@ -184,9 +184,12 @@ Guide: `docs/integration.md`.
 | H.9 | `supportPlugin` for Fastify hosts (encapsulated; tested mounted under `/support`) | ✅ | `0a747cc` |
 | H.10 | Widget: `/embed`, `embed.js`, `HOST_ORIGINS` (framing only on `/embed`), partitioned cookie | ✅ | `7ffe709` |
 | H.11 | Plugin starts and stops its own AI worker (found while writing the guide) | ✅ | `c501066` |
-| H.12 | Docs: integration guide, architecture, README, write-up, PLAN §19 | ✅ | |
-| H.13 | Review agents (code, security, TypeScript), react-doctor, size table, live run with host-demo | ⬜ | |
-| H.14 | Signed webhooks to the host | ⛔ skipped: optional, kept the code small | |
+| H.12 | Docs: integration guide, architecture, README, write-up, PLAN §19 | ✅ | `069ca01` |
+| H.13 | Review fixes. Security review found 1 CRITICAL: under a mount prefix the auth guard was skipped (admin routes open); fixed by scoping the guard to `/api/v1`, with a test. Also: one-time host tokens (`jti`), id rules, connector checks, cache limit, items never move between authors, cursor 422, one `authorIdOf`, widget error handling | ✅ | `aba969a` `9068588` `2af5811` `6306f9c` `064d796` |
+| H.14 | react-doctor 59 → 78, 0 errors (2 warnings left, both false positives); `check.ts` split to stay under 200 raw lines | ✅ | `6306f9c` `b94dbc8` |
+| H.15 | Live run (production build, support on 127.0.0.1:3300, host-demo on localhost:3400 = two sites, embed mode): sign in on host → Help widget → chat answered from host facts (₹850 < ₹1,000, next cycle 14 Feb 2026) → ticket drafted, sent as BL-1001 → admin queue (Royalty & Payments / Medium, grounded AI draft) → History lists the chat, opens read-only → My Books shows the ten fields → host stopped: assistant does not guess and offers a ticket, books show "Details are not available right now". Found and fixed: the widget's "Full support" link lost the session | ✅ | `d008a59` `6849c6b` |
+| H.16 | A real voice call with a microphone through the widget | ⛔ (you): needs a person speaking | |
+| H.17 | Signed webhooks to the host | ⛔ skipped: optional, kept the code small | |
 
 ---
 

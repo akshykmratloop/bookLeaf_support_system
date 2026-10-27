@@ -81,7 +81,7 @@ A live voice call still needs `OPENAI_API_KEY` in the worktree `.env`.
 | **Worktree**    | `/Users/aksykmr_mac/Loop Methods/experiments/bookleaf-pluggable` |
 | **Base commit** | `9489277`                              |
 | **Started**     | 2026-10-27                             |
-| **Status**      | 🔄 In Progress                          |
+| **Status**      | ✅ Built and verified on its branch — awaiting the user's review; not merged |
 
 **Goal:** read-only conversation history for authors; turn the support system into a module any
 product can attach (embed widget + Fastify plugin), with customer data read only over HTTP from the
