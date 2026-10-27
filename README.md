@@ -209,6 +209,13 @@ characters). With its own key it runs only on that key and never falls back to t
 
 **Code gets the facts, the model writes the words, code checks the words, and a person sends them.**
 
+**Why Claude for text.** Structured output is parsed straight into the Zod schemas (`messages.parse`), so a malformed
+answer is a typed error, not a crash. The fixed part of each prompt is cached: in the live triage eval, 75K of the 80K
+input tokens were cache reads. Measured cost is about $0.08 per 1,000 triaged tickets (Haiku) and $10 per 1,000 drafts
+(Sonnet), with triage at 98% category accuracy on 46 cases (`docs/qa/ai-benchmark.md`). The provider sits behind one
+interface (`apps/api/src/ai/providers/types.ts`), so another vendor is a new adapter, not a rewrite. Voice calls use
+OpenAI's realtime speech API, which is a separate provider behind its own interface.
+
 1. **Facts from the host (no AI).** The host sends verified facts for this customer, each with its
    source: a record field, a policy rule, a calculation, or "unknown". host-demo calculates
    BookLeaf's royalty, payout-threshold, payout-date and production facts. Unknown values are
