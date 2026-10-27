@@ -1,20 +1,16 @@
-import { ExternalLink } from 'lucide-react';
 import { LoadingState } from '../../components/molecules/States';
 import { useHostSignIn } from '../../lib/useHostSignIn';
 import { AssistantPage } from '../author/AssistantPage';
 
+/**
+ * No link out to the full app here: in a cross-site iframe the session cookie is partitioned
+ * to the host, so a plain link would open without it. The widget's "open in a new tab" button
+ * signs the author in there with a fresh token instead.
+ */
 function EmbedHeader() {
   return (
-    <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+    <header className="border-b border-line px-4 py-3">
       <p className="text-[14px] font-semibold">BookLeaf support</p>
-      <a
-        href="/history"
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 text-[12.5px] text-ink-2 underline"
-      >
-        Full support <ExternalLink size={12} aria-hidden />
-      </a>
     </header>
   );
 }
