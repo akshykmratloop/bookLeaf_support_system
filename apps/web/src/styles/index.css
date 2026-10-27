@@ -88,6 +88,16 @@ body {
   }
 }
 
+/* Browser autofill keeps our field colours instead of its own pale blue. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-1);
+  -webkit-box-shadow: 0 0 0 1000px var(--panel-inset) inset;
+  caret-color: var(--text-1);
+  transition: background-color 9999s ease-out 0s;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

@@ -1,5 +1,5 @@
 import type { TicketDraft } from '@bookleaf/shared';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
@@ -12,6 +12,7 @@ import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { authorPaths } from '../../lib/paths';
 import { useChatDraft } from '../../lib/useChatDraft';
+import { draftHasContent, shouldShowTicket } from '../../lib/ticketVisibility';
 import { useMediaQuery, WIDE } from '../../lib/useMediaQuery';
 import { useVoiceCall, type VoiceCallControls } from '../../lib/voice/useVoiceCall';
 
@@ -32,12 +33,13 @@ function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
   );
 }
 
-const hasContent = (d: TicketDraft | null) =>
-  !!d && d.status !== 'SUBMITTED' && !!(d.subject || d.description || d.category || d.bookId);
-
-/** The ticket: the call's draft while a call is on (or just ended), else this chat's draft. */
+/**
+ * The ticket: the call's draft while a call is on (or just ended), else this chat's draft. It is
+ * shown only when there is something in it, or after the author opens it with the Ticket button.
+ */
 function useTicket(chatOn: boolean, call: VoiceCallControls) {
   const chat = useChatDraft(chatOn);
+  const [opened, setOpened] = useState(false);
   const callDraft = call.view.phase === 'idle' ? null : call.view.draft;
   const fromCall = callDraft !== null;
   const draft = fromCall ? callDraft : chat.draft;
@@ -51,7 +53,12 @@ function useTicket(chatOn: boolean, call: VoiceCallControls) {
       isStarting={chat.start.isPending}
     />
   );
-  return { draft, panel };
+  const open = () => {
+    setOpened(true);
+    if (!fromCall && !chat.draft && chatOn && !chat.start.isPending) chat.start.mutate();
+  };
+  const close = () => setOpened(false);
+  return { draft, panel, visible: shouldShowTicket(draft, { opened }), open, close };
 }
 
 type Availability = NonNullable<ReturnType<typeof useAssistantAvailability>['data']>;
@@ -70,6 +77,23 @@ function useTicketSheet(draft: TicketDraft | null) {
     setDismissed(version);
   }, [version]);
   return { isOpen: open || asking, show: () => setOpen(true), close };
+}
+
+/** Where the ticket goes: a side column when wide (only if there is one), else a slide-up sheet. */
+function TicketSlot(props: {
+  wide: boolean;
+  visible: boolean;
+  sheet: ReturnType<typeof useTicketSheet>;
+  children: ReactNode;
+}) {
+  const { wide, visible, sheet, children } = props;
+  if (wide)
+    return visible ? (
+      <aside className="lg:sticky lg:top-0 lg:self-start" aria-label="Ticket">
+        {children}
+      </aside>
+    ) : null;
+  return sheet.isOpen ? <DraftSheet onClose={sheet.close}>{children}</DraftSheet> : null;
 }
 
 function ChatArea({ chat, onRestarted }: { chat: Availability['chat']; onRestarted: () => void }) {
@@ -98,10 +122,12 @@ function Assistant({
   const ticket = useTicket(chat.state === 'AVAILABLE', call);
   const sheet = useTicketSheet(ticket.draft);
   const callShown = callOpen || call.view.phase !== 'idle';
+  const closeTicket = ticket.close;
   const reset = useCallback(() => {
     call.reset();
     setCallOpen(false);
-  }, [call]);
+    closeTicket();
+  }, [call, closeTicket]);
   return (
     <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="flex min-w-0 flex-col gap-4" aria-label="Ask BookLeaf">
@@ -109,8 +135,8 @@ function Assistant({
           voice={voice.state}
           callShown={callShown}
           onCall={() => setCallOpen(true)}
-          onTicket={wide ? undefined : sheet.show}
-          ticketHasContent={hasContent(ticket.draft)}
+          onTicket={wide ? ticket.open : sheet.show}
+          ticketHasContent={draftHasContent(ticket.draft) && ticket.draft?.status !== 'SUBMITTED'}
         />
         {callShown && voice.state === 'AVAILABLE' ? (
           <VoiceCallPanel
@@ -121,13 +147,9 @@ function Assistant({
         ) : null}
         <ChatArea chat={chat} onRestarted={reset} />
       </section>
-      {wide ? (
-        <aside className="lg:sticky lg:top-0 lg:self-start" aria-label="Ticket">
-          {ticket.panel}
-        </aside>
-      ) : sheet.isOpen ? (
-        <DraftSheet onClose={sheet.close}>{ticket.panel}</DraftSheet>
-      ) : null}
+      <TicketSlot wide={wide} visible={ticket.visible} sheet={sheet}>
+        {ticket.panel}
+      </TicketSlot>
     </div>
   );
 }

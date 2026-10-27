@@ -7,7 +7,7 @@ interface Props {
   /** A call is starting, live or just ended: its panel is already showing. */
   callShown: boolean;
   onCall: () => void;
-  /** Narrow layout only: opens the ticket sheet. Absent when the ticket is in a side column. */
+  /** Opens the ticket: the sheet on narrow screens, the side column (starting a draft) when wide. */
   onTicket?: () => void;
   ticketHasContent: boolean;
 }

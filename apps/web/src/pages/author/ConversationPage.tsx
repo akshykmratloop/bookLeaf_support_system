@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { TranscriptList } from '../../components/molecules/TranscriptList';
 import { errorMessage } from '../../lib/api';
 import { kindOf, useConversation } from '../../lib/conversations';
+import { shouldShowTicket } from '../../lib/ticketVisibility';
 import { dateTime } from '../../lib/format';
 import { authorPaths } from '../../lib/paths';
 
@@ -23,7 +24,9 @@ function Body({ conversation: c }: { conversation: ConversationDetail }) {
       <Card className="p-4">
         <TranscriptList lines={c.lines} className="flex flex-col gap-3" label="Conversation" />
       </Card>
-      {c.draft ? <DraftSummary draft={c.draft} /> : null}
+      {c.draft && shouldShowTicket(c.draft, { opened: false }) ? (
+        <DraftSummary draft={c.draft} />
+      ) : null}
     </div>
   );
 }
