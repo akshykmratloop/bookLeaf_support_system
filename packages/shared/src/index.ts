@@ -14,3 +14,5 @@ export * from './schemas/chat.js';
 export * from './schemas/voice.js';
 export * from './schemas/ticket-drafts.js';
 export * from './schemas/conversations.js';
+export * from './schemas/host.js';
+export * from './fact-ids.js';

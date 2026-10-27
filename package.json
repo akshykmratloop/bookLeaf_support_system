@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web dev",
+    "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web --filter @bookleaf/host-demo dev",
     "build": "pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build",
     "start": "pnpm --filter @bookleaf/api start",
     "typecheck": "pnpm -r typecheck",
@@ -18,7 +18,8 @@
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @bookleaf/api db:migrate",
     "db:seed": "pnpm --filter @bookleaf/api db:seed",
-    "eval": "pnpm --filter @bookleaf/api eval"
+    "eval": "pnpm --filter @bookleaf/api eval",
+    "host:start": "pnpm --filter @bookleaf/host-demo start"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

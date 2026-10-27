@@ -32,8 +32,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/**/*.ts', 'eval/**/*.ts'],
+    files: ['apps/api/**/*.ts', 'apps/host-demo/**/*.ts', 'eval/**/*.ts'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // Plain browser scripts served as they are (the demo host page, the embed loader).
+    files: ['apps/*/public/**/*.js'],
+    languageOptions: { globals: globals.browser },
   },
   {
     files: ['apps/api/src/**/*.ts'],
