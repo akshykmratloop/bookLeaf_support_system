@@ -20,6 +20,7 @@ import { addAdminMessage, addAuthorMessage } from '../messages/service.js';
 import { createTicket } from './create.js';
 import type { TicketDeps } from './deps.js';
 import { getAdminTicket, getAuthorTicket, listAdminTickets, listAuthorTickets } from './queries.js';
+import { solveTicket } from './solve.js';
 import { retryAi, updateTicket } from './update.js';
 
 const ADMIN = { roles: ['ADMIN'] as const };
@@ -116,6 +117,22 @@ function changeTicket(app: RouteApp, deps: TicketDeps) {
   );
 }
 
+function solveOwnTicket(app: RouteApp, deps: TicketDeps) {
+  app.post(
+    '/tickets/:id/solve',
+    {
+      config: { ...AUTHOR, rateLimit: { max: 20, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['tickets'],
+        summary: 'Mark my open ticket as solved (409 ALREADY_SOLVED if it is solved or closed)',
+        params: IdParamSchema,
+        response: { 200: AuthorTicketSchema, ...errors },
+      },
+    },
+    async (req) => solveTicket(deps, sessionOf(req), req.params.id),
+  );
+}
+
 function addMessage(app: RouteApp, deps: TicketDeps) {
   app.post(
     '/tickets/:id/messages',
@@ -162,6 +179,7 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
   raiseTicket(app, deps);
   getTicket(app, deps);
   changeTicket(app, deps);
+  solveOwnTicket(app, deps);
   addMessage(app, deps);
   retryTicketAi(app, deps);
 };

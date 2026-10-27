@@ -7,6 +7,7 @@ import {
   type AuthorTicketListItem,
   type TicketMessage,
 } from '@bookleaf/shared';
+import { lastConversationMessage, requesterFields, type PublicMessage } from './requester-view.js';
 
 type Person = { id: string; name: string };
 type MessageWithSender = MessageRow & { sender: Person | null };
@@ -36,13 +37,14 @@ export function toMessage(m: MessageWithSender, audience: 'AUTHOR' | 'ADMIN'): T
 }
 
 export function toAuthorListItem(
-  t: TicketRow & { _count: { messages: number } },
+  t: TicketRow & { _count: { messages: number }; messages: PublicMessage[] },
 ): AuthorTicketListItem {
   return {
     id: t.id,
     number: ticketNumberLabel(t.number),
     subject: t.subject,
     status: t.status,
+    ...requesterFields(t, t.messages[0] ?? null),
     book: bookRef(t),
     createdAt: iso(t.createdAt),
     updatedAt: iso(t.updatedAt),
@@ -57,6 +59,7 @@ export function toAuthorTicket(t: TicketRow, messages: MessageWithSender[]): Aut
     subject: t.subject,
     description: t.description,
     status: t.status,
+    ...requesterFields(t, lastConversationMessage(messages)),
     book: bookRef(t),
     createdAt: iso(t.createdAt),
     updatedAt: iso(t.updatedAt),

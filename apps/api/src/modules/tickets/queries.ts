@@ -3,6 +3,7 @@ import type { Session } from '../auth/session.js';
 import { getAuthorTicket } from './create.js';
 import type { TicketDeps } from './deps.js';
 import { toAdminListItem, toAdminTicket, toAuthorListItem } from './mappers.js';
+import { CONVERSATION_KINDS } from './requester-view.js';
 import {
   findMessages,
   findTicketOrThrow,
@@ -53,7 +54,17 @@ export async function listAuthorTickets(
 ): Promise<Page<AuthorTicketListItem>> {
   const rows = await deps.db.ticket.findMany({
     where: listFilter(session, q),
-    include: { ...ticketInclude, _count: { select: { messages: { where: { kind: 'REPLY' } } } } },
+    include: {
+      ...ticketInclude,
+      _count: { select: { messages: { where: { kind: 'REPLY' } } } },
+      // The last message of the conversation only, fetched with the page (no query per ticket).
+      messages: {
+        where: { kind: { in: CONVERSATION_KINDS } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 1,
+        select: { kind: true, body: true, createdAt: true },
+      },
+    },
     orderBy: RECENT_ORDER,
     take: q.limit + 1,
     ...cursorArgs(q.cursor),

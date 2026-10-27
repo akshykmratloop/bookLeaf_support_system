@@ -86,8 +86,8 @@ describe('author isolation', () => {
     const raw = res.body;
     expect(raw).not.toContain('SECRET-NOTE');
     const body = res.json<Record<string, unknown>>();
+    // The issue type is part of the requester view (as in Zendesk); priority and AI data are not.
     for (const field of [
-      'category',
       'priority',
       'aiJobs',
       'aiState',
@@ -99,7 +99,7 @@ describe('author isolation', () => {
       expect(body).not.toHaveProperty(field);
     }
     const list = await call(h, 'GET', '/tickets', priya);
-    expect(list.body).not.toMatch(/"category"|"priority"|"aiState"/);
+    expect(list.body).not.toMatch(/"priority"|"aiState"|"slaDueAt"|"needsReview"/);
   });
 });
 

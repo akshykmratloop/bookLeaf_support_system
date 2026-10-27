@@ -133,7 +133,7 @@ Full schemas are in Swagger at `/api/docs`.
 | --- | --- | --- |
 | Sign-in | `POST /auth/login` (staff) · `POST /auth/host` (host token) · `POST /auth/logout` · `GET /auth/me` · `GET /auth/options` | public / signed in |
 | Books | `GET /books` · `GET /books/:id` (read live from the host) | author: own · staff: all |
-| Tickets | `GET·POST /tickets` · `GET·PATCH /tickets/:id` · `POST /tickets/:id/messages` | author: own · staff |
+| Tickets | `GET·POST /tickets` · `GET·PATCH /tickets/:id` · `POST /tickets/:id/messages` · `POST /tickets/:id/solve` (author) | author: own · staff |
 | Reply drafts | `GET /tickets/:id/draft` · `POST …/draft/regenerate` · `POST …/check` · `POST …/ai/retry` | staff |
 | Chat | `GET /chat/sessions/current` · `POST /chat/sessions` · `GET /chat/sessions/:id` · `POST …/messages` | author |
 | Ticket drafts | `GET /ticket-drafts/chat/:sessionId` · `PATCH /ticket-drafts/:id` · `POST …/submit` · `POST …/discard` | author |

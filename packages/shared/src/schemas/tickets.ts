@@ -34,13 +34,35 @@ export type TicketMessage = z.infer<typeof TicketMessageSchema>;
 const BookRefSchema = z.object({ id: z.uuid(), title: z.string() }).nullable();
 const PersonRefSchema = z.object({ id: z.uuid(), name: z.string() });
 
-/** What an author sees: no category, priority, assignee, AI data or internal notes. */
+export const ACTIVITY_PARTIES = ['YOU', 'TEAM'] as const;
+export type ActivityParty = (typeof ACTIVITY_PARTIES)[number];
+
+/** The latest public message (or the request itself), as a short preview. */
+export const LastActivitySchema = z.object({
+  from: z.enum(ACTIVITY_PARTIES),
+  at: z.iso.datetime(),
+  preview: z.string(),
+});
+export type LastActivity = z.infer<typeof LastActivitySchema>;
+
+/**
+ * What an author sees: the requester view (like Zendesk's Requests API). The issue type and
+ * channel are shown; priority, SLA, assignee, AI data and internal notes never are.
+ */
 export const AuthorTicketSchema = z.object({
   id: z.uuid(),
   number: z.string(),
   subject: z.string(),
   description: z.string(),
   status: z.enum(TICKET_STATUSES),
+  category: z.enum(TICKET_CATEGORIES).nullable(),
+  /** Where the ticket was raised: the ticket form, a chat or a call. */
+  channel: z.enum(TICKET_SOURCES),
+  lastActivity: LastActivitySchema,
+  /** The team answered last and the ticket is still open: the author's turn. */
+  awaitingYou: z.boolean(),
+  /** The author may mark it solved (open or in progress). */
+  canSolve: z.boolean(),
   book: BookRefSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
