@@ -15,7 +15,12 @@ export interface RunRecord {
 
 /** Every AI attempt (success or failure) is recorded: tokens, cost estimate, latency, outcome. */
 export async function recordRun(db: Db, r: RunRecord): Promise<void> {
-  const usage = r.usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const usage = r.usage ?? {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
   await db.aiRun.create({
     data: {
       ticketId: r.ticketId,

@@ -28,8 +28,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
     stdio: 'pipe',
   });
   const db = createDb(url);
-  const data: unknown = JSON.parse(readFileSync(`${apiRoot}prisma/seed-data/bookleaf_sample_data.json`, 'utf8'));
-  await seedCore(db, data, { authorPassword: TEST_AUTHOR_PASSWORD, adminPassword: TEST_ADMIN_PASSWORD });
+  const data: unknown = JSON.parse(
+    readFileSync(`${apiRoot}prisma/seed-data/bookleaf_sample_data.json`, 'utf8'),
+  );
+  await seedCore(db, data, {
+    authorPassword: TEST_AUTHOR_PASSWORD,
+    adminPassword: TEST_ADMIN_PASSWORD,
+  });
   await db.$disconnect();
   project.provide('databaseUrl', url);
   return async () => {

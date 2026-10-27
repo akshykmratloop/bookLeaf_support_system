@@ -17,7 +17,16 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md';
 }
 
-export function Button({ variant = 'primary', icon, isLoading = false, size = 'md', className = '', children, disabled, ...rest }: Props) {
+export function Button({
+  variant = 'primary',
+  icon,
+  isLoading = false,
+  size = 'md',
+  className = '',
+  children,
+  disabled,
+  ...rest
+}: Props) {
   const height = size === 'sm' ? 'h-8 px-3 text-[12px]' : 'h-9 px-4 text-[12.5px]';
   return (
     <button

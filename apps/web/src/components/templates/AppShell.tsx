@@ -35,9 +35,18 @@ const navClass = (isActive: boolean) =>
 
 function NavItems({ items, compact = false }: { items: NavItem[]; compact?: boolean }) {
   return (
-    <nav aria-label="Main" className={compact ? 'flex gap-1 overflow-x-auto' : 'flex flex-col gap-1'}>
+    <nav
+      aria-label="Main"
+      className={compact ? 'flex gap-1 overflow-x-auto' : 'flex flex-col gap-1'}
+    >
       {items.map((i) => (
-        <NavLink key={i.to} to={i.to} end={i.end} aria-label={compact ? i.label : undefined} className={({ isActive }) => navClass(isActive)}>
+        <NavLink
+          key={i.to}
+          to={i.to}
+          end={i.end}
+          aria-label={compact ? i.label : undefined}
+          className={({ isActive }) => navClass(isActive)}
+        >
           {i.icon}
           {compact ? null : i.label}
         </NavLink>
@@ -69,7 +78,9 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
           <div>
             <p className="font-serif text-[16px] leading-none font-semibold">BookLeaf</p>
-            <p className="text-[11px] text-ink-3">{user.role === 'ADMIN' ? 'Operations' : 'Author Support'}</p>
+            <p className="text-[11px] text-ink-3">
+              {user.role === 'ADMIN' ? 'Operations' : 'Author Support'}
+            </p>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -85,8 +96,14 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
           <div className="min-w-0 md:hidden">
             <NavItems items={nav} compact />
           </div>
-          <p className="hidden items-center gap-2 text-[12px] text-ink-3 md:flex" aria-live="polite">
-            <span className={`h-2 w-2 rounded-full ${live === 'live' ? 'bg-success' : 'bg-warning'}`} aria-hidden />
+          <p
+            className="hidden items-center gap-2 text-[12px] text-ink-3 md:flex"
+            aria-live="polite"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${live === 'live' ? 'bg-success' : 'bg-warning'}`}
+              aria-hidden
+            />
             {LIVE_TEXT[live]}
           </p>
           <div className="flex items-center gap-1">
@@ -98,7 +115,11 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
             >
               {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
             </button>
-            <button type="button" onClick={onSignOut} className="flex h-9 items-center gap-2 rounded-[9px] px-3 text-[12.5px] text-ink-2 hover:bg-panel-2">
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="flex h-9 items-center gap-2 rounded-[9px] px-3 text-[12.5px] text-ink-2 hover:bg-panel-2"
+            >
               <LogOut size={15} aria-hidden /> Sign out
             </button>
           </div>

@@ -20,7 +20,10 @@ function Header({ t }: { t: AdminTicket }) {
   const s = sla(t.slaDueAt, t.firstResponseAt);
   return (
     <div className="mb-5">
-      <Link to="/admin" className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink">
+      <Link
+        to="/admin"
+        className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink"
+      >
         <ArrowLeft size={14} aria-hidden /> Queue
       </Link>
       <div className="flex flex-wrap items-center gap-2">
@@ -28,11 +31,14 @@ function Header({ t }: { t: AdminTicket }) {
         <StatusPill status={t.status} />
         <PriorityPill priority={t.priority} />
         <AiBadge state={t.aiState} needsReview={t.needsReview} />
-        <span className={`text-[12px] ${s.overdue ? 'font-semibold text-danger' : 'text-ink-3'}`}>First response: {s.text}</span>
+        <span className={`text-[12px] ${s.overdue ? 'font-semibold text-danger' : 'text-ink-3'}`}>
+          First response: {s.text}
+        </span>
       </div>
       <h1 className="mt-1 text-[22px] font-semibold break-words">{t.subject}</h1>
       <p className="text-[12.5px] text-ink-3">
-        {t.author.name} · {t.book?.title ?? 'General / Account level'} · opened {dateTime(t.createdAt)}
+        {t.author.name} · {t.book?.title ?? 'General / Account level'} · opened{' '}
+        {dateTime(t.createdAt)}
       </p>
     </div>
   );
@@ -45,14 +51,31 @@ export function TicketWorkspacePage() {
   const ticket = useAdminTicket(id);
   const draft = useDraft(id);
   const refresh = [keys.ticket(id), keys.tickets(), keys.draft(id)];
-  const patch = useApiMutation((p: Patch & { version: number }) => api<AdminTicket>(`/tickets/${id}`, { method: 'PATCH', body: p }), refresh);
-  const retry = useApiMutation(() => api<AdminTicket>(`/tickets/${id}/ai/retry`, { method: 'POST' }), refresh);
-  const regenerate = useApiMutation(() => api(`/tickets/${id}/draft/regenerate`, { method: 'POST' }), [keys.draft(id)]);
+  const patch = useApiMutation(
+    (p: Patch & { version: number }) =>
+      api<AdminTicket>(`/tickets/${id}`, { method: 'PATCH', body: p }),
+    refresh,
+  );
+  const retry = useApiMutation(
+    () => api<AdminTicket>(`/tickets/${id}/ai/retry`, { method: 'POST' }),
+    refresh,
+  );
+  const regenerate = useApiMutation(
+    () => api(`/tickets/${id}/draft/regenerate`, { method: 'POST' }),
+    [keys.draft(id)],
+  );
   if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
-  if (ticket.isError) return <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />;
+  if (ticket.isError)
+    return (
+      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
+    );
   const t = ticket.data;
   const onError = (err: unknown) => toast('error', errorMessage(err));
-  const onPatch = (p: Patch) => patch.mutate({ ...p, version: t.version }, { onSuccess: () => toast('success', 'Ticket updated'), onError });
+  const onPatch = (p: Patch) =>
+    patch.mutate(
+      { ...p, version: t.version },
+      { onSuccess: () => toast('success', 'Ticket updated'), onError },
+    );
   return (
     <>
       <Header t={t} />
@@ -70,7 +93,14 @@ export function TicketWorkspacePage() {
           />
         </div>
         <div className="flex flex-col gap-4">
-          <TicketProperties ticket={t} user={user} isSaving={patch.isPending} onPatch={onPatch} onRetryAi={() => retry.mutate(undefined, { onError })} isRetrying={retry.isPending} />
+          <TicketProperties
+            ticket={t}
+            user={user}
+            isSaving={patch.isPending}
+            onPatch={onPatch}
+            onRetryAi={() => retry.mutate(undefined, { onError })}
+            isRetrying={retry.isPending}
+          />
           {draft.data?.draft ? <EvidencePanel facts={draft.data.draft.facts} /> : null}
         </div>
       </div>

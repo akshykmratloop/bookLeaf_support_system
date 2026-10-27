@@ -20,7 +20,10 @@ export function mapAnthropicError(error: unknown): AiError {
   if (error instanceof Anthropic.RateLimitError) {
     return new AiRateLimitedError('Provider rate limit reached', retryAfterMs(error.headers));
   }
-  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+  if (
+    error instanceof Anthropic.AuthenticationError ||
+    error instanceof Anthropic.PermissionDeniedError
+  ) {
     return new AiAuthError('Provider rejected the API key');
   }
   if (error instanceof Anthropic.NotFoundError || error instanceof Anthropic.BadRequestError) {

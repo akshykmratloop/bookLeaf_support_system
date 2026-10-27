@@ -16,6 +16,7 @@ export const csrfGuard = fp<{ appOrigin: string }>(async (app: FastifyInstance, 
   app.addHook('onRequest', async (req) => {
     if (!UNSAFE.has(req.method)) return;
     const origin = req.headers.origin;
-    if (origin !== undefined && origin !== allowed) throw new ForbiddenError('Cross-origin request rejected');
+    if (origin !== undefined && origin !== allowed)
+      throw new ForbiddenError('Cross-origin request rejected');
   });
 });

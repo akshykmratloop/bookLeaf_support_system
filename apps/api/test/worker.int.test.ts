@@ -1,24 +1,39 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { AiAuthError, AiUnavailableError } from '../src/ai/providers/errors.js';
 import type { StructuredRequest } from '../src/ai/providers/types.js';
-import { bookId, call, createHarness, createTicket, defaultHandler, EMAILS, type Harness } from './helpers/app.js';
+import {
+  bookId,
+  call,
+  createHarness,
+  createTicket,
+  defaultHandler,
+  EMAILS,
+  type Harness,
+} from './helpers/app.js';
 
 let h: Harness;
 let priya: string;
 let admin: string;
 
 const royaltyTicket = async () => {
-  const res = await createTicket(h, priya, { bookId: await bookId(h, 'BK001'), subject: 'Royalty payout', description: 'My royalty payout has not arrived yet for my book, please check.' });
+  const res = await createTicket(h, priya, {
+    bookId: await bookId(h, 'BK001'),
+    subject: 'Royalty payout',
+    description: 'My royalty payout has not arrived yet for my book, please check.',
+  });
   return res.json<{ id: string }>().id;
 };
 /** Ordered TRIAGE then DRAFT (enum declaration order), then by generation. */
-const jobsOf = (ticketId: string) => h.db.aiJob.findMany({ where: { ticketId }, orderBy: [{ kind: 'asc' }, { generation: 'asc' }] });
+const jobsOf = (ticketId: string) =>
+  h.db.aiJob.findMany({ where: { ticketId }, orderBy: [{ kind: 'asc' }, { generation: 'asc' }] });
 
 /** Runs every due job, then jumps the clock past the longest backoff, until nothing is left for this ticket. */
 async function settle(ticketId: string): Promise<void> {
   for (let i = 0; i < 12; i += 1) {
     await h.drain();
-    const open = await h.db.aiJob.count({ where: { ticketId, status: { in: ['QUEUED', 'RUNNING'] } } });
+    const open = await h.db.aiJob.count({
+      where: { ticketId, status: { in: ['QUEUED', 'RUNNING'] } },
+    });
     if (open === 0) return;
     h.clock.advance(130_000);
   }
@@ -38,10 +53,21 @@ describe('AI pipeline with a working provider', () => {
     const id = await royaltyTicket();
     await h.drain();
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
-    expect(t).toMatchObject({ category: 'ROYALTY_PAYMENTS', categorySource: 'AI', prioritySource: 'AI', aiState: 'DONE' });
-    expect((await jobsOf(id)).map((j) => [j.kind, j.status])).toEqual([['TRIAGE', 'SUCCEEDED'], ['DRAFT', 'SUCCEEDED']]);
+    expect(t).toMatchObject({
+      category: 'ROYALTY_PAYMENTS',
+      categorySource: 'AI',
+      prioritySource: 'AI',
+      aiState: 'DONE',
+    });
+    expect((await jobsOf(id)).map((j) => [j.kind, j.status])).toEqual([
+      ['TRIAGE', 'SUCCEEDED'],
+      ['DRAFT', 'SUCCEEDED'],
+    ]);
     const draft = await call(h, 'GET', `/tickets/${id}/draft`, admin);
-    const body = draft.json<{ pending: boolean; draft: { source: string; facts: unknown[]; check: { passed: boolean } } }>();
+    const body = draft.json<{
+      pending: boolean;
+      draft: { source: string; facts: unknown[]; check: { passed: boolean } };
+    }>();
     expect(body.pending).toBe(false);
     expect(body.draft.source).toBe('AI');
     expect(body.draft.facts.length).toBeGreaterThan(0);
@@ -62,15 +88,32 @@ describe('AI pipeline with a working provider', () => {
     const id = await royaltyTicket();
     await h.drain();
     const view = await call(h, 'GET', `/tickets/${id}`, admin);
-    const patched = await call(h, 'PATCH', `/tickets/${id}`, admin, { version: view.json<{ version: number }>().version, category: 'ISBN_METADATA', priority: 'LOW' });
+    const patched = await call(h, 'PATCH', `/tickets/${id}`, admin, {
+      version: view.json<{ version: number }>().version,
+      category: 'ISBN_METADATA',
+      priority: 'LOW',
+    });
     expect(patched.statusCode).toBe(200);
     h.setAi((req: StructuredRequest<unknown>) =>
-      req.task === 'TRIAGE' ? { category: 'PRINTING_QUALITY', priority: 'CRITICAL', priorityReasons: ['x'], needsInfo: [], confidence: 'high' } : defaultHandler(req),
+      req.task === 'TRIAGE'
+        ? {
+            category: 'PRINTING_QUALITY',
+            priority: 'CRITICAL',
+            priorityReasons: ['x'],
+            needsInfo: [],
+            confidence: 'high',
+          }
+        : defaultHandler(req),
     );
     expect((await call(h, 'POST', `/tickets/${id}/ai/retry`, admin)).statusCode).toBe(202);
     await h.drain();
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
-    expect(t).toMatchObject({ category: 'ISBN_METADATA', categorySource: 'ADMIN', priority: 'LOW', prioritySource: 'ADMIN' });
+    expect(t).toMatchObject({
+      category: 'ISBN_METADATA',
+      categorySource: 'ADMIN',
+      priority: 'LOW',
+      prioritySource: 'ADMIN',
+    });
   });
 });
 
@@ -83,13 +126,26 @@ describe('AI failures degrade gracefully', () => {
     const startedAt = h.clock.now().getTime();
     await h.drain();
     const [triage] = await jobsOf(id);
-    expect(triage).toMatchObject({ kind: 'TRIAGE', status: 'QUEUED', attempts: 1, lastErrorCode: 'AI_UNAVAILABLE' });
+    expect(triage).toMatchObject({
+      kind: 'TRIAGE',
+      status: 'QUEUED',
+      attempts: 1,
+      lastErrorCode: 'AI_UNAVAILABLE',
+    });
     expect(triage?.runAfter.getTime()).toBeGreaterThan(startedAt);
     await settle(id);
     const jobs = await jobsOf(id);
-    expect(jobs.map((j) => [j.kind, j.status, j.attempts])).toEqual([['TRIAGE', 'FALLBACK', 3], ['DRAFT', 'FALLBACK', 3]]);
+    expect(jobs.map((j) => [j.kind, j.status, j.attempts])).toEqual([
+      ['TRIAGE', 'FALLBACK', 3],
+      ['DRAFT', 'FALLBACK', 3],
+    ]);
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
-    expect(t).toMatchObject({ category: 'ROYALTY_PAYMENTS', categorySource: 'RULES', aiState: 'FALLBACK', needsReview: true });
+    expect(t).toMatchObject({
+      category: 'ROYALTY_PAYMENTS',
+      categorySource: 'RULES',
+      aiState: 'FALLBACK',
+      needsReview: true,
+    });
     const draft = await call(h, 'GET', `/tickets/${id}/draft`, admin);
     expect(draft.json<{ draft: { source: string; body: string } }>().draft.source).toBe('TEMPLATE');
     expect(await h.db.aiRun.count({ where: { ticketId: id, outcome: 'ERROR' } })).toBe(6);
@@ -102,12 +158,18 @@ describe('AI failures degrade gracefully', () => {
     const id = await royaltyTicket();
     await h.drain();
     const jobs = await jobsOf(id);
-    expect(jobs.map((j) => [j.kind, j.status, j.attempts])).toEqual([['TRIAGE', 'FALLBACK', 1], ['DRAFT', 'FALLBACK', 1]]);
+    expect(jobs.map((j) => [j.kind, j.status, j.attempts])).toEqual([
+      ['TRIAGE', 'FALLBACK', 1],
+      ['DRAFT', 'FALLBACK', 1],
+    ]);
   });
 
   it('outage switch: tickets are still created, AI is not called, fallback applies', async () => {
     const settings = await call(h, 'GET', '/admin/ai/settings', admin);
-    const on = await call(h, 'PUT', '/admin/ai/settings', admin, { version: settings.json<{ version: number }>().version, simulateOutage: true });
+    const on = await call(h, 'PUT', '/admin/ai/settings', admin, {
+      version: settings.json<{ version: number }>().version,
+      simulateOutage: true,
+    });
     expect(on.statusCode).toBe(200);
     try {
       const before = h.aiCalls.length;
@@ -116,11 +178,16 @@ describe('AI failures degrade gracefully', () => {
       expect(h.aiCalls.length).toBe(before);
       const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
       expect(t).toMatchObject({ aiState: 'FALLBACK', categorySource: 'RULES' });
-      const reply = await call(h, 'POST', `/tickets/${id}/messages`, admin, { body: 'Hi Priya, thank you for your patience. Our team will get back to you within 48 hours. Warm regards, BookLeaf Author Support' });
+      const reply = await call(h, 'POST', `/tickets/${id}/messages`, admin, {
+        body: 'Hi Priya, thank you for your patience. Our team will get back to you within 48 hours. Warm regards, BookLeaf Author Support',
+      });
       expect(reply.statusCode).toBe(201);
     } finally {
       const cur = await call(h, 'GET', '/admin/ai/settings', admin);
-      await call(h, 'PUT', '/admin/ai/settings', admin, { version: cur.json<{ version: number }>().version, simulateOutage: false });
+      await call(h, 'PUT', '/admin/ai/settings', admin, {
+        version: cur.json<{ version: number }>().version,
+        simulateOutage: false,
+      });
     }
   });
 });
@@ -128,7 +195,14 @@ describe('AI failures degrade gracefully', () => {
 describe('job safety', () => {
   it('reclaims a RUNNING job whose lease expired (crashed worker)', async () => {
     const id = await royaltyTicket();
-    await h.db.aiJob.updateMany({ where: { ticketId: id, kind: 'TRIAGE' }, data: { status: 'RUNNING', attempts: 1, leaseExpiresAt: new Date(h.clock.now().getTime() - 1000) } });
+    await h.db.aiJob.updateMany({
+      where: { ticketId: id, kind: 'TRIAGE' },
+      data: {
+        status: 'RUNNING',
+        attempts: 1,
+        leaseExpiresAt: new Date(h.clock.now().getTime() - 1000),
+      },
+    });
     await h.drain();
     const [triage] = (await jobsOf(id)).filter((j) => j.kind === 'TRIAGE');
     expect(triage).toMatchObject({ status: 'SUCCEEDED', attempts: 2 });
@@ -137,7 +211,14 @@ describe('job safety', () => {
 
   it('does not reclaim a RUNNING job whose lease is still valid', async () => {
     const id = await royaltyTicket();
-    await h.db.aiJob.updateMany({ where: { ticketId: id, kind: 'TRIAGE' }, data: { status: 'RUNNING', attempts: 1, leaseExpiresAt: new Date(h.clock.now().getTime() + 60_000) } });
+    await h.db.aiJob.updateMany({
+      where: { ticketId: id, kind: 'TRIAGE' },
+      data: {
+        status: 'RUNNING',
+        attempts: 1,
+        leaseExpiresAt: new Date(h.clock.now().getTime() + 60_000),
+      },
+    });
     await h.drain();
     const [triage] = await jobsOf(id);
     expect(triage).toMatchObject({ status: 'RUNNING', attempts: 1 });
@@ -150,7 +231,10 @@ describe('job safety', () => {
     await call(h, 'POST', `/tickets/${id}/draft/regenerate`, admin);
     await call(h, 'POST', `/tickets/${id}/draft/regenerate`, admin);
     await h.drain();
-    const drafts = await h.db.aiDraft.findMany({ where: { ticketId: id }, orderBy: { generation: 'asc' } });
+    const drafts = await h.db.aiDraft.findMany({
+      where: { ticketId: id },
+      orderBy: { generation: 'asc' },
+    });
     expect(drafts.map((d) => d.generation)).toEqual([1, 3]);
     const latest = await call(h, 'GET', `/tickets/${id}/draft`, admin);
     expect(latest.json<{ draft: { generation: number } }>().draft.generation).toBe(3);
@@ -161,7 +245,9 @@ describe('job safety', () => {
     await h.drain();
     const v = (await call(h, 'GET', `/tickets/${id}`, admin)).json<{ version: number }>().version;
     await call(h, 'PATCH', `/tickets/${id}`, admin, { version: v, status: 'RESOLVED' });
-    const msg = await call(h, 'POST', `/tickets/${id}/messages`, priya, { body: 'Still not received, please check again.' });
+    const msg = await call(h, 'POST', `/tickets/${id}/messages`, priya, {
+      body: 'Still not received, please check again.',
+    });
     expect(msg.statusCode).toBe(201);
     expect(msg.json<{ status: string }>().status).toBe('OPEN');
     const drafts = (await jobsOf(id)).filter((j) => j.kind === 'DRAFT');

@@ -20,17 +20,25 @@ export function EvidencePanel({ facts }: { facts: Fact[] }) {
   const shown = facts.filter((f) => !f.id.startsWith('kb.'));
   return (
     <Card className="p-4">
-      <p className="mb-3 text-[11.5px] font-semibold text-ink-3 uppercase">Verified facts used for this draft</p>
+      <p className="mb-3 text-[11.5px] font-semibold text-ink-3 uppercase">
+        Verified facts used for this draft
+      </p>
       <ul className="flex flex-col gap-2.5">
         {shown.map((f) => (
           <li key={f.id} className="text-[12.5px]">
             <span className="text-ink-2">{f.label}</span>
-            <span className={`block font-semibold ${f.type === 'UNKNOWN' ? 'text-warning' : 'text-ink'}`}>{f.type === 'UNKNOWN' ? 'Unknown — confirm before stating' : f.display}</span>
+            <span
+              className={`block font-semibold ${f.type === 'UNKNOWN' ? 'text-warning' : 'text-ink'}`}
+            >
+              {f.type === 'UNKNOWN' ? 'Unknown — confirm before stating' : f.display}
+            </span>
             <span className="block text-[11px] text-ink-3">{sourceText(f)}</span>
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-[11px] text-ink-3">Policy figures (₹1,000 threshold, 45-day window, timelines) come from the Knowledge Base.</p>
+      <p className="mt-3 text-[11px] text-ink-3">
+        Policy figures (₹1,000 threshold, 45-day window, timelines) come from the Knowledge Base.
+      </p>
     </Card>
   );
 }
@@ -47,8 +55,15 @@ export function CheckIssues({ result }: { result: CheckResult }) {
   return (
     <ul className="flex flex-col gap-1.5" aria-label="Reply check results">
       {result.issues.map((i, n) => (
-        <li key={`${i.code}-${n}`} className={`flex items-start gap-2 text-[12.5px] ${i.severity === 'BLOCK' ? 'text-danger' : 'text-warning'}`}>
-          {i.severity === 'BLOCK' ? <AlertOctagon size={14} className="mt-0.5 shrink-0" aria-hidden /> : <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />}
+        <li
+          key={`${i.code}-${n}`}
+          className={`flex items-start gap-2 text-[12.5px] ${i.severity === 'BLOCK' ? 'text-danger' : 'text-warning'}`}
+        >
+          {i.severity === 'BLOCK' ? (
+            <AlertOctagon size={14} className="mt-0.5 shrink-0" aria-hidden />
+          ) : (
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+          )}
           <span>
             {i.message}
             {i.excerpt ? <span className="ml-1 font-mono text-[11.5px]">“{i.excerpt}”</span> : null}

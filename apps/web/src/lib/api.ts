@@ -25,7 +25,12 @@ interface RequestOptions {
 }
 
 function fallbackProblem(status: number): Problem {
-  return { type: 'about:blank', title: status >= 500 ? 'The server had a problem. Please try again.' : 'Request failed', status, code: 'HTTP_ERROR' };
+  return {
+    type: 'about:blank',
+    title: status >= 500 ? 'The server had a problem. Please try again.' : 'Request failed',
+    status,
+    code: 'HTTP_ERROR',
+  };
 }
 
 /** JSON-only client. Cookies carry the session; the server never sees a token in JS. */
@@ -43,12 +48,18 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
       signal: opts.signal,
     });
   } catch {
-    throw new ApiError(0, { type: 'about:blank', title: 'Cannot reach the server. Check your connection.', status: 0, code: 'NETWORK' });
+    throw new ApiError(0, {
+      type: 'about:blank',
+      title: 'Cannot reach the server. Check your connection.',
+      status: 0,
+      code: 'NETWORK',
+    });
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data: unknown = text ? JSON.parse(text) : undefined;
-  if (!res.ok) throw new ApiError(res.status, (data as Problem | undefined) ?? fallbackProblem(res.status));
+  if (!res.ok)
+    throw new ApiError(res.status, (data as Problem | undefined) ?? fallbackProblem(res.status));
   return data as T;
 }
 

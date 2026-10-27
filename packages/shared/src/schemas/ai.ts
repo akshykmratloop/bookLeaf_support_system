@@ -20,9 +20,7 @@ export const AiStatusSchema = z.object({
       models: z.array(z.object({ id: z.string(), label: z.string(), tier: z.string() })),
     }),
   ),
-  lastTest: z
-    .object({ ok: z.boolean(), at: z.iso.datetime(), detail: z.string() })
-    .nullable(),
+  lastTest: z.object({ ok: z.boolean(), at: z.iso.datetime(), detail: z.string() }).nullable(),
 });
 export type AiStatus = z.infer<typeof AiStatusSchema>;
 

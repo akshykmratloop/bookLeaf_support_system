@@ -2,7 +2,12 @@ import type { Fact } from '@bookleaf/shared';
 import { distributionFacts } from './distribution.js';
 import { KB_FACTS } from './kb-constants.js';
 import { bookProfileFacts, portfolioFacts, productionFacts } from './production.js';
-import { assessRoyalty, bookRoyaltyFacts, royaltyAssessmentFacts, type RoyaltyAssessment } from './royalty.js';
+import {
+  assessRoyalty,
+  bookRoyaltyFacts,
+  royaltyAssessmentFacts,
+  type RoyaltyAssessment,
+} from './royalty.js';
 import type { FactsInput } from './types.js';
 
 export interface FactsPack {
@@ -20,7 +25,12 @@ export function buildFactsPack(input: FactsInput): FactsPack {
   const royalty = assessRoyalty(author, book, dataAsOf);
   const facts: Fact[] = [];
   if (book) {
-    facts.push(...bookProfileFacts(book), ...bookRoyaltyFacts(book), ...productionFacts(book), ...distributionFacts(book, text));
+    facts.push(
+      ...bookProfileFacts(book),
+      ...bookRoyaltyFacts(book),
+      ...productionFacts(book),
+      ...distributionFacts(book, text),
+    );
   } else {
     facts.push(...portfolioFacts(author.books));
   }

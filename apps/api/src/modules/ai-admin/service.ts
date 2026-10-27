@@ -22,12 +22,22 @@ const toDto = (s: AiSettingsRow): AiSettings => ({
   updatedAt: s.updatedAt.toISOString(),
 });
 
-function validateChoice(next: Pick<AiSettingsRow, 'provider' | 'triageModel' | 'draftModel'>, configured: string[]): void {
+function validateChoice(
+  next: Pick<AiSettingsRow, 'provider' | 'triageModel' | 'draftModel'>,
+  configured: string[],
+): void {
   const errors: { path: string; message: string }[] = [];
-  if (!PROVIDER_CATALOG.some((p) => p.id === next.provider)) errors.push({ path: 'provider', message: 'Unknown provider' });
-  else if (!configured.includes(next.provider)) errors.push({ path: 'provider', message: 'This provider has no API key configured on the server' });
-  if (!findModel(next.provider, next.triageModel)) errors.push({ path: 'triageModel', message: 'Model is not in the allowed list' });
-  if (!findModel(next.provider, next.draftModel)) errors.push({ path: 'draftModel', message: 'Model is not in the allowed list' });
+  if (!PROVIDER_CATALOG.some((p) => p.id === next.provider))
+    errors.push({ path: 'provider', message: 'Unknown provider' });
+  else if (!configured.includes(next.provider))
+    errors.push({
+      path: 'provider',
+      message: 'This provider has no API key configured on the server',
+    });
+  if (!findModel(next.provider, next.triageModel))
+    errors.push({ path: 'triageModel', message: 'Model is not in the allowed list' });
+  if (!findModel(next.provider, next.draftModel))
+    errors.push({ path: 'draftModel', message: 'Model is not in the allowed list' });
   if (errors.length) throw new ValidationError('Invalid AI settings', errors);
 }
 
@@ -50,12 +60,37 @@ export function createAiAdminService({ db, ai, clock }: Deps) {
     },
     async update(session: Session, input: UpdateAiSettings): Promise<AiSettings> {
       const current = await db.aiSettings.findUniqueOrThrow({ where: { id: 1 } });
-      const next = { provider: input.provider ?? current.provider, triageModel: input.triageModel ?? current.triageModel, draftModel: input.draftModel ?? current.draftModel };
+      const next = {
+        provider: input.provider ?? current.provider,
+        triageModel: input.triageModel ?? current.triageModel,
+        draftModel: input.draftModel ?? current.draftModel,
+      };
       validateChoice(next, ai.configuredProviders());
-      const data = { ...next, simulateOutage: input.simulateOutage ?? current.simulateOutage, updatedById: session.userId, version: { increment: 1 } };
-      const res = await db.aiSettings.updateMany({ where: { id: 1, version: input.version }, data });
-      if (res.count === 0) throw new ConflictError('VERSION_CONFLICT', 'AI settings were changed by someone else. Reload and try again.');
-      await db.auditEvent.create({ data: { actorId: session.userId, entityType: 'ai_settings', entityId: '1', action: 'ai_settings.updated', before: toDto(current), after: data } });
+      const data = {
+        ...next,
+        simulateOutage: input.simulateOutage ?? current.simulateOutage,
+        updatedById: session.userId,
+        version: { increment: 1 },
+      };
+      const res = await db.aiSettings.updateMany({
+        where: { id: 1, version: input.version },
+        data,
+      });
+      if (res.count === 0)
+        throw new ConflictError(
+          'VERSION_CONFLICT',
+          'AI settings were changed by someone else. Reload and try again.',
+        );
+      await db.auditEvent.create({
+        data: {
+          actorId: session.userId,
+          entityType: 'ai_settings',
+          entityId: '1',
+          action: 'ai_settings.updated',
+          before: toDto(current),
+          after: data,
+        },
+      });
       ai.invalidate();
       return toDto(await ai.settings());
     },
@@ -64,13 +99,17 @@ export function createAiAdminService({ db, ai, clock }: Deps) {
       const s = await ai.settings();
       const provider = ai.providerById(s.provider);
       let result: { ok: boolean; detail: string };
-      if (!provider) result = { ok: false, detail: 'No API key is configured for this provider on the server' };
+      if (!provider)
+        result = { ok: false, detail: 'No API key is configured for this provider on the server' };
       else {
         try {
           await provider.ping(s.triageModel);
           result = { ok: true, detail: `${s.triageModel} responded` };
         } catch (err) {
-          result = { ok: false, detail: err instanceof AiError ? `Failed: ${err.code}` : 'Failed: unexpected error' };
+          result = {
+            ok: false,
+            detail: err instanceof AiError ? `Failed: ${err.code}` : 'Failed: unexpected error',
+          };
         }
       }
       lastTest = { ...result, at: clock.now().toISOString() };

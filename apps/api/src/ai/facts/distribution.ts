@@ -24,14 +24,31 @@ export function detectPlatforms(text: string): string[] {
 export function distributionFacts(book: BookRecord, text: string): Fact[] {
   const id = `book.${book.externalId}`;
   const src = recordSource('books', book.externalId, 'available_on');
-  const record = book.availableOn.length ? book.availableOn.join(', ') : 'No platforms recorded yet';
-  const facts: Fact[] = [textFact(`${id}.distribution_record`, `${book.title}: platforms in BookLeaf's distribution record`, record, src)];
+  const record = book.availableOn.length
+    ? book.availableOn.join(', ')
+    : 'No platforms recorded yet';
+  const facts: Fact[] = [
+    textFact(
+      `${id}.distribution_record`,
+      `${book.title}: platforms in BookLeaf's distribution record`,
+      record,
+      src,
+    ),
+  ];
   for (const platform of detectPlatforms(text)) {
     const inRecord = book.availableOn.some((p) => p.toLowerCase() === platform.toLowerCase());
     const key = platform.toLowerCase().replace(/[^a-z]+/g, '_');
-    facts.push(textFact(`${id}.platform.${key}`, `${book.title} on ${platform}`,
-      inRecord ? `${platform} is in BookLeaf's distribution record` : `${platform} is not in BookLeaf's distribution record (the record may be incomplete — confirm before stating)`,
-      src, 'STATUS'));
+    facts.push(
+      textFact(
+        `${id}.platform.${key}`,
+        `${book.title} on ${platform}`,
+        inRecord
+          ? `${platform} is in BookLeaf's distribution record`
+          : `${platform} is not in BookLeaf's distribution record (the record may be incomplete — confirm before stating)`,
+        src,
+        'STATUS',
+      ),
+    );
   }
   return facts;
 }

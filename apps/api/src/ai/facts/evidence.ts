@@ -33,5 +33,12 @@ export function textFact(
 
 /** A fact BookLeaf does not have. Drafts must ask an admin to confirm instead of guessing. */
 export function unknownFact(id: string, label: string, reason: string): Fact {
-  return { id, label, type: 'UNKNOWN', value: null, display: 'Unknown', source: { kind: 'MISSING', reason } };
+  return {
+    id,
+    label,
+    type: 'UNKNOWN',
+    value: null,
+    display: 'Unknown',
+    source: { kind: 'MISSING', reason },
+  };
 }

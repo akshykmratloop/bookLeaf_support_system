@@ -45,7 +45,10 @@ export function createSessionCodec(secret: string, ttlHours: number, clock: Cloc
     },
     async verify(token) {
       try {
-        const { payload } = await jwtVerify(token, key, { algorithms: ['HS256'], currentDate: clock.now() });
+        const { payload } = await jwtVerify(token, key, {
+          algorithms: ['HS256'],
+          currentDate: clock.now(),
+        });
         const c = SessionClaimsSchema.parse(payload);
         return { userId: c.sub, role: c.role, authorId: c.authorId, name: c.name, email: c.email };
       } catch {

@@ -17,7 +17,8 @@ export function NewTicketPage() {
   // One key per form: a double-click or a retry after a network blip creates one ticket, not two.
   const [requestKey] = useState(newRequestKey);
   const create = useApiMutation(
-    (values: TicketFormValues) => api<AuthorTicket>('/tickets', { method: 'POST', body: values, idempotencyKey: requestKey }),
+    (values: TicketFormValues) =>
+      api<AuthorTicket>('/tickets', { method: 'POST', body: values, idempotencyKey: requestKey }),
     [keys.tickets()],
   );
   const submit = (values: TicketFormValues) =>
@@ -27,17 +28,36 @@ export function NewTicketPage() {
         navigate(`/tickets/${ticket.id}`);
       },
     });
-  const serverError = (path: string) => (isApiError(create.error) ? create.error.fieldError(path) : undefined);
-  const generalError = create.error && !(isApiError(create.error) && create.error.problem.errors?.length) ? errorMessage(create.error) : null;
+  const serverError = (path: string) =>
+    isApiError(create.error) ? create.error.fieldError(path) : undefined;
+  const generalError =
+    create.error && !(isApiError(create.error) && create.error.problem.errors?.length)
+      ? errorMessage(create.error)
+      : null;
   return (
     <>
-      <PageHeader title="New support ticket" subtitle="Tell us what's going on. Our team usually replies within one working day." />
+      <PageHeader
+        title="New support ticket"
+        subtitle="Tell us what's going on. Our team usually replies within one working day."
+      />
       <Card className="max-w-[760px] p-6">
         {books.isPending ? <LoadingState /> : null}
-        {books.isError ? <ErrorState message={errorMessage(books.error)} onRetry={() => void books.refetch()} /> : null}
-        {books.data ? <TicketForm books={books.data} isSubmitting={create.isPending} serverError={serverError} onSubmit={submit} /> : null}
+        {books.isError ? (
+          <ErrorState message={errorMessage(books.error)} onRetry={() => void books.refetch()} />
+        ) : null}
+        {books.data ? (
+          <TicketForm
+            books={books.data}
+            isSubmitting={create.isPending}
+            serverError={serverError}
+            onSubmit={submit}
+          />
+        ) : null}
         {generalError ? (
-          <p role="alert" className="mt-4 rounded-[9px] bg-danger-bg px-3 py-2 text-[13px] text-danger">
+          <p
+            role="alert"
+            className="mt-4 rounded-[9px] bg-danger-bg px-3 py-2 text-[13px] text-danger"
+          >
             {generalError}
           </p>
         ) : null}

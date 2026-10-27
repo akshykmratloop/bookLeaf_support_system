@@ -17,11 +17,21 @@ function who(m: TicketMessage, audience: 'AUTHOR' | 'ADMIN'): string {
 }
 
 /** The original query followed by the conversation, oldest first. Text is rendered as plain text. */
-export function MessageThread({ description, messages, audience }: { description: string; messages: TicketMessage[]; audience: 'AUTHOR' | 'ADMIN' }) {
+export function MessageThread({
+  description,
+  messages,
+  audience,
+}: {
+  description: string;
+  messages: TicketMessage[];
+  audience: 'AUTHOR' | 'ADMIN';
+}) {
   return (
     <ol className="flex flex-col gap-3">
       <li className="rounded-[12px] border border-line bg-panel-2 p-4">
-        <p className="mb-1.5 text-[11.5px] font-semibold text-ink-3 uppercase">{audience === 'AUTHOR' ? 'Your original query' : 'Original query'}</p>
+        <p className="mb-1.5 text-[11.5px] font-semibold text-ink-3 uppercase">
+          {audience === 'AUTHOR' ? 'Your original query' : 'Original query'}
+        </p>
         <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap">{description}</p>
       </li>
       {messages.map((m) => (

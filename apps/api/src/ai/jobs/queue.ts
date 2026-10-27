@@ -24,8 +24,16 @@ export async function claimNextJob(db: Db, now: Date, leaseMs: number): Promise<
   return rows[0] ?? null;
 }
 
-export async function enqueueJob(tx: Tx, ticketId: string, kind: JobKind, runAfter: Date): Promise<number> {
-  const latest = await tx.aiJob.aggregate({ where: { ticketId, kind }, _max: { generation: true } });
+export async function enqueueJob(
+  tx: Tx,
+  ticketId: string,
+  kind: JobKind,
+  runAfter: Date,
+): Promise<number> {
+  const latest = await tx.aiJob.aggregate({
+    where: { ticketId, kind },
+    _max: { generation: true },
+  });
   const generation = (latest._max.generation ?? 0) + 1;
   await tx.aiJob.create({ data: { ticketId, kind, generation, runAfter } });
   return generation;
@@ -33,14 +41,28 @@ export async function enqueueJob(tx: Tx, ticketId: string, kind: JobKind, runAft
 
 /** Results are written only by the newest job of a kind; older or duplicate runs are discarded. */
 export async function isLatestGeneration(tx: Tx, job: ClaimedJob): Promise<boolean> {
-  const latest = await tx.aiJob.aggregate({ where: { ticketId: job.ticketId, kind: job.kind }, _max: { generation: true } });
+  const latest = await tx.aiJob.aggregate({
+    where: { ticketId: job.ticketId, kind: job.kind },
+    _max: { generation: true },
+  });
   return latest._max.generation === job.generation;
 }
 
-export async function finishJob(db: Db, job: ClaimedJob, status: 'SUCCEEDED' | 'FALLBACK', now: Date, errorCode: string | null) {
+export async function finishJob(
+  db: Db,
+  job: ClaimedJob,
+  status: 'SUCCEEDED' | 'FALLBACK',
+  now: Date,
+  errorCode: string | null,
+) {
   await db.aiJob.update({
     where: { id: job.id },
-    data: { status, finishedAt: now, leaseExpiresAt: null, ...(errorCode ? { lastErrorCode: errorCode } : {}) },
+    data: {
+      status,
+      finishedAt: now,
+      leaseExpiresAt: null,
+      ...(errorCode ? { lastErrorCode: errorCode } : {}),
+    },
   });
 }
 

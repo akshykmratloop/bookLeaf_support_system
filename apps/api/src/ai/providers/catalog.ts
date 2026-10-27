@@ -21,9 +21,27 @@ export const PROVIDER_CATALOG: readonly ProviderInfo[] = [
     id: 'anthropic',
     label: 'Anthropic Claude',
     models: [
-      { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', tier: 'fast', inputPerMTok: 0.1, outputPerMTok: 0.5 },
-      { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', tier: 'balanced', inputPerMTok: 2, outputPerMTok: 10 },
-      { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', tier: 'strong', inputPerMTok: 4, outputPerMTok: 20 },
+      {
+        id: 'claude-haiku-5-5',
+        label: 'Claude Haiku 5.5',
+        tier: 'fast',
+        inputPerMTok: 0.1,
+        outputPerMTok: 0.5,
+      },
+      {
+        id: 'claude-sonnet-5-5',
+        label: 'Claude Sonnet 5.5',
+        tier: 'balanced',
+        inputPerMTok: 2,
+        outputPerMTok: 10,
+      },
+      {
+        id: 'claude-opus-5-5',
+        label: 'Claude Opus 5.5',
+        tier: 'strong',
+        inputPerMTok: 4,
+        outputPerMTok: 20,
+      },
     ],
   },
 ];
@@ -42,10 +60,14 @@ export function findModel(providerId: string, modelId: string): ModelInfo | unde
 /** Cost in micro-dollars. Cache reads ~0.1×, cache writes ~1.25× the input price. */
 export function estimateCostMicros(
   model: ModelInfo | undefined,
-  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number },
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+  },
 ): number | null {
   if (!model) return null;
-  const input =
-    usage.inputTokens + usage.cacheReadTokens * 0.1 + usage.cacheWriteTokens * 1.25;
+  const input = usage.inputTokens + usage.cacheReadTokens * 0.1 + usage.cacheWriteTokens * 1.25;
   return Math.round(input * model.inputPerMTok + usage.outputTokens * model.outputPerMTok);
 }

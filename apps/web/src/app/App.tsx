@@ -20,7 +20,8 @@ const queryClient = new QueryClient({
       staleTime: 10_000,
       refetchOnWindowFocus: true,
       // Client errors (401/403/404/422) will not fix themselves; only retry network and 5xx.
-      retry: (count, err) => !(isApiError(err) && err.status >= 400 && err.status < 500) && count < MAX_RETRIES,
+      retry: (count, err) =>
+        !(isApiError(err) && err.status >= 400 && err.status < 500) && count < MAX_RETRIES,
     },
   },
 });

@@ -20,7 +20,9 @@ async function main(): Promise<void> {
       authorPassword: env.SEED_AUTHOR_PASSWORD,
       adminPassword: env.SEED_ADMIN_PASSWORD,
     });
-    console.log(`Seeded ${summary.authors} authors, ${summary.books} books, ${summary.admins} admins.`);
+    console.log(
+      `Seeded ${summary.authors} authors, ${summary.books} books, ${summary.admins} admins.`,
+    );
   } finally {
     await db.$disconnect();
   }

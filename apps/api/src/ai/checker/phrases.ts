@@ -12,13 +12,15 @@ export interface PhraseRule {
 export const PHRASE_RULES: readonly PhraseRule[] = [
   {
     code: 'INTERNAL_LEAK',
-    pattern: /\b(internal note|facts? pack|kb\.[a-z_]+|book\.BK\d+\.[a-z_.]+|author\.[a-z_]+|evidence id|as an ai|language model)\b/i,
+    pattern:
+      /\b(internal note|facts? pack|kb\.[a-z_]+|book\.BK\d+\.[a-z_.]+|author\.[a-z_]+|evidence id|as an ai|language model)\b/i,
     message: 'Mentions internal tooling or evidence ids. Authors must not see these.',
     overridable: false,
   },
   {
     code: 'GUARANTEE',
-    pattern: /\b(guarantee[ds]?|we promise|i promise|definitely (?:be|arrive|reach|resolved)|100% sure|without fail)\b/i,
+    pattern:
+      /\b(guarantee[ds]?|we promise|i promise|definitely (?:be|arrive|reach|resolved)|100% sure|without fail)\b/i,
     message: 'Promises an outcome BookLeaf cannot guarantee.',
     overridable: true,
   },
@@ -36,7 +38,8 @@ export const PHRASE_RULES: readonly PhraseRule[] = [
   },
   {
     code: 'VAGUE_DEFLECTION',
-    pattern: /\b(we are looking into it|please be patient|it will be done soon|as soon as possible)\b/i,
+    pattern:
+      /\b(we are looking into it|please be patient|it will be done soon|as soon as possible)\b/i,
     message: 'Vague reassurance without a concrete next step or timeline (KB: be specific).',
     overridable: true,
   },

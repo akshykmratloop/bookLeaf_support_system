@@ -9,7 +9,8 @@ interface Example {
 export const EXAMPLES: Record<TicketCategory, Example[]> = {
   ROYALTY_PAYMENTS: [
     {
-      query: "I published my book 4 months ago and still haven't received any royalty. What's going on?",
+      query:
+        "I published my book 4 months ago and still haven't received any royalty. What's going on?",
       guidance:
         'Acknowledge the frustration. Explain the quarterly cycle and 45-day payout window. Check if bank details are linked. Give the specific next payout date. If genuinely overdue, escalate with a 48-hour resolution timeline.',
     },
@@ -28,7 +29,8 @@ export const EXAMPLES: Record<TicketCategory, Example[]> = {
   ],
   PRINTING_QUALITY: [
     {
-      query: 'I received my author copies and the print quality is terrible. The images are blurry and pages are misaligned.',
+      query:
+        'I received my author copies and the print quality is terrible. The images are blurry and pages are misaligned.',
       guidance:
         'Apologise sincerely. Ask for photos of the defective copies. Confirm a free reprint once verified. Give 5–7 business days for the reprint.',
     },
@@ -57,5 +59,7 @@ export const EXAMPLES: Record<TicketCategory, Example[]> = {
 };
 
 export function examplesText(category: TicketCategory): string {
-  return EXAMPLES[category].map((e, i) => `Example ${i + 1}\nAuthor: ${e.query}\nHow to respond: ${e.guidance}`).join('\n\n');
+  return EXAMPLES[category]
+    .map((e, i) => `Example ${i + 1}\nAuthor: ${e.query}\nHow to respond: ${e.guidance}`)
+    .join('\n\n');
 }

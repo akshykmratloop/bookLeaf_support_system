@@ -18,16 +18,26 @@ export type TicketRow = Ticket & {
 };
 
 const iso = (d: Date) => d.toISOString();
-const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 const bookRef = (t: TicketRow) => (t.book ? { id: t.book.id, title: t.book.title } : null);
 
 /** Authors never see who on the team wrote a reply beyond "BookLeaf Support", nor internal notes. */
 export function toMessage(m: MessageWithSender, audience: 'AUTHOR' | 'ADMIN'): TicketMessage {
-  const senderName = m.kind === 'AUTHOR' ? (m.sender?.name ?? null) : m.kind === 'SYSTEM' ? null : audience === 'ADMIN' ? (m.sender?.name ?? null) : 'BookLeaf Support';
+  const senderName =
+    m.kind === 'AUTHOR'
+      ? (m.sender?.name ?? null)
+      : m.kind === 'SYSTEM'
+        ? null
+        : audience === 'ADMIN'
+          ? (m.sender?.name ?? null)
+          : 'BookLeaf Support';
   return { id: m.id, kind: m.kind, body: m.body, senderName, createdAt: iso(m.createdAt) };
 }
 
-export function toAuthorListItem(t: TicketRow & { _count: { messages: number } }): AuthorTicketListItem {
+export function toAuthorListItem(
+  t: TicketRow & { _count: { messages: number } },
+): AuthorTicketListItem {
   return {
     id: t.id,
     number: ticketNumberLabel(t.number),
@@ -79,11 +89,22 @@ export function toAdminListItem(t: TicketRow): AdminTicketListItem {
 /** Latest job per kind, so the UI can show "Queued", "Retrying (2 of 3)", "Fallback". */
 function latestJobs(jobs: AiJob[]) {
   const latest = new Map<string, AiJob>();
-  for (const j of jobs) if ((latest.get(j.kind)?.generation ?? -1) < j.generation) latest.set(j.kind, j);
-  return [...latest.values()].map((j) => ({ kind: j.kind, status: j.status, attempts: j.attempts, maxAttempts: j.maxAttempts, lastErrorCode: j.lastErrorCode }));
+  for (const j of jobs)
+    if ((latest.get(j.kind)?.generation ?? -1) < j.generation) latest.set(j.kind, j);
+  return [...latest.values()].map((j) => ({
+    kind: j.kind,
+    status: j.status,
+    attempts: j.attempts,
+    maxAttempts: j.maxAttempts,
+    lastErrorCode: j.lastErrorCode,
+  }));
 }
 
-export function toAdminTicket(t: TicketRow, messages: MessageWithSender[], jobs: AiJob[]): AdminTicket {
+export function toAdminTicket(
+  t: TicketRow,
+  messages: MessageWithSender[],
+  jobs: AiJob[],
+): AdminTicket {
   return {
     ...toAdminListItem(t),
     description: t.description,

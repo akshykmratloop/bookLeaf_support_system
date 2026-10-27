@@ -42,10 +42,19 @@ function testClock(dataAsOf: string): TestClock {
 /** A fake AI that answers plausibly unless a test swaps the handler. */
 export function defaultHandler(req: StructuredRequest<unknown>): unknown {
   if (req.task === 'TRIAGE') {
-    return { category: 'ROYALTY_PAYMENTS', priority: 'MEDIUM', priorityReasons: ['royalty question'], needsInfo: [], confidence: 'high' };
+    return {
+      category: 'ROYALTY_PAYMENTS',
+      priority: 'MEDIUM',
+      priorityReasons: ['royalty question'],
+      needsInfo: [],
+      confidence: 'high',
+    };
   }
   if (req.task === 'DRAFT') {
-    return { body: 'Hi there,\n\nThank you for reaching out. We are checking this with our team.\n\nWarm regards,\nBookLeaf Author Support', claims: [] };
+    return {
+      body: 'Hi there,\n\nThank you for reaching out. We are checking this with our team.\n\nWarm regards,\nBookLeaf Author Support',
+      claims: [],
+    };
   }
   return { ok: true };
 }
@@ -77,11 +86,18 @@ export async function createHarness(): Promise<Harness> {
   const clock = testClock(env.DATA_AS_OF);
   let handler: FakeHandler = defaultHandler;
   const provider = fakeProvider((req) => handler(req));
-  const container = createContainer(env, { db, clock, providers: new Map([['anthropic', provider]]) });
+  const container = createContainer(env, {
+    db,
+    clock,
+    providers: new Map([['anthropic', provider]]),
+  });
   const app = await buildApp(container);
   await app.ready();
   const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
-  const worker = createWorker({ db, ai: container.ai, clock, events: container.events, log: silent }, { pollMs: 10 });
+  const worker = createWorker(
+    { db, ai: container.ai, clock, events: container.events, log: silent },
+    { pollMs: 10 },
+  );
   return {
     app,
     db,
@@ -94,7 +110,11 @@ export async function createHarness(): Promise<Harness> {
     },
     async login(email, password) {
       const pw = password ?? (email.endsWith('@bookleaf.demo') ? ADMIN_PASSWORD : AUTHOR_PASSWORD);
-      const res = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email, password: pw } });
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: { email, password: pw },
+      });
       if (res.statusCode !== 200) throw new Error(`login failed for ${email}: ${res.statusCode}`);
       const cookie = res.cookies.find((c) => c.name === 'bl_session');
       if (!cookie) throw new Error('no session cookie');
@@ -114,7 +134,14 @@ export async function createHarness(): Promise<Harness> {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export function call(h: Harness, method: Method, url: string, cookie?: string, payload?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
+export function call(
+  h: Harness,
+  method: Method,
+  url: string,
+  cookie?: string,
+  payload?: unknown,
+  headers: Record<string, string> = {},
+): Promise<LightMyRequestResponse> {
   return h.app.inject({
     method,
     url: `/api/v1${url}`,
@@ -128,7 +155,19 @@ export async function bookId(h: Harness, externalId: string): Promise<string> {
   return b.id;
 }
 
-export async function createTicket(h: Harness, cookie: string, body: { bookId: string | null; subject: string; description: string }, key?: string) {
-  const res = await call(h, 'POST', '/tickets', cookie, body, key ? { 'idempotency-key': key } : {});
+export async function createTicket(
+  h: Harness,
+  cookie: string,
+  body: { bookId: string | null; subject: string; description: string },
+  key?: string,
+) {
+  const res = await call(
+    h,
+    'POST',
+    '/tickets',
+    cookie,
+    body,
+    key ? { 'idempotency-key': key } : {},
+  );
   return res;
 }

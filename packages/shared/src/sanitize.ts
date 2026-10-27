@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+// Matching control characters is the purpose of this pattern (they are stripped from input).
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 const HTML_TAGS = /<\/?[a-zA-Z][^>]*>/g;
 

@@ -38,7 +38,13 @@ interface Allowed {
 
 /** Everything a reply may quote: typed fact values plus figures inside fact display text. */
 function allowedValues(facts: readonly Fact[]): Allowed {
-  const a: Allowed = { money: new Set(), dates: new Set(), durations: new Set(), percents: new Set(), counts: new Set() };
+  const a: Allowed = {
+    money: new Set(),
+    dates: new Set(),
+    durations: new Set(),
+    percents: new Set(),
+    counts: new Set(),
+  };
   for (const f of facts) {
     if (f.type === 'UNKNOWN') continue;
     if (f.type === 'MONEY' && typeof f.value === 'number') a.money.add(f.value);
@@ -54,7 +60,12 @@ function allowedValues(facts: readonly Fact[]): Allowed {
   return a;
 }
 
-function unsupported<T>(found: Found<T>[], allowed: Set<T>, code: string, what: string): CheckIssue[] {
+function unsupported<T>(
+  found: Found<T>[],
+  allowed: Set<T>,
+  code: string,
+  what: string,
+): CheckIssue[] {
   const seen = new Set<string>();
   return found
     .filter((f) => !allowed.has(f.value))
@@ -90,11 +101,22 @@ function claimIssues(claims: readonly DraftClaim[], facts: readonly Fact[]): Che
   return claims.flatMap((c) => {
     // A claim that is itself a placeholder asserts nothing; the PLACEHOLDER rule already blocks it.
     if (/\[CONFIRM:/i.test(c.quote)) return [];
-    if (c.factIds.length === 0) return [issue('CLAIM_WITHOUT_EVIDENCE', `Claim cites no evidence: "${c.quote}".`, c.quote)];
+    if (c.factIds.length === 0)
+      return [issue('CLAIM_WITHOUT_EVIDENCE', `Claim cites no evidence: "${c.quote}".`, c.quote)];
     return c.factIds.flatMap((id) => {
       const fact = byId.get(id);
-      if (!fact) return [issue('CLAIM_WITHOUT_EVIDENCE', `Claim cites unknown evidence: "${c.quote}".`, c.quote)];
-      if (fact.type === 'UNKNOWN') return [issue('CLAIM_ON_UNKNOWN', `Claim relies on "${fact.label}", which BookLeaf does not know.`, c.quote)];
+      if (!fact)
+        return [
+          issue('CLAIM_WITHOUT_EVIDENCE', `Claim cites unknown evidence: "${c.quote}".`, c.quote),
+        ];
+      if (fact.type === 'UNKNOWN')
+        return [
+          issue(
+            'CLAIM_ON_UNKNOWN',
+            `Claim relies on "${fact.label}", which BookLeaf does not know.`,
+            c.quote,
+          ),
+        ];
       return [];
     });
   });
@@ -103,14 +125,35 @@ function claimIssues(claims: readonly DraftClaim[], facts: readonly Fact[]): Che
 function phraseIssues(body: string): CheckIssue[] {
   return PHRASE_RULES.flatMap((rule) => {
     const m = body.match(rule.pattern);
-    return m ? [{ code: rule.code, severity: 'BLOCK' as const, message: rule.message, excerpt: m[0], overridable: rule.overridable }] : [];
+    return m
+      ? [
+          {
+            code: rule.code,
+            severity: 'BLOCK' as const,
+            message: rule.message,
+            excerpt: m[0],
+            overridable: rule.overridable,
+          },
+        ]
+      : [];
   });
 }
 
 function shapeIssues(body: string): CheckIssue[] {
   const len = body.trim().length;
-  if (len < MIN_LENGTH) return [{ code: 'TOO_SHORT', severity: 'WARN', message: 'Reply is very short.', overridable: true }];
-  if (len > MAX_LENGTH) return [{ code: 'TOO_LONG', severity: 'WARN', message: 'Reply is long; authors prefer concise answers.', overridable: true }];
+  if (len < MIN_LENGTH)
+    return [
+      { code: 'TOO_SHORT', severity: 'WARN', message: 'Reply is very short.', overridable: true },
+    ];
+  if (len > MAX_LENGTH)
+    return [
+      {
+        code: 'TOO_LONG',
+        severity: 'WARN',
+        message: 'Reply is long; authors prefer concise answers.',
+        overridable: true,
+      },
+    ];
   return [];
 }
 

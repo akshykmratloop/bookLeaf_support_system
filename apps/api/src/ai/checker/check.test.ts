@@ -5,22 +5,26 @@ import { canOverride, checkReply } from './check.js';
 import { findDates, findDurations, findMoney } from './extract.js';
 
 const AS_OF = new Date('2025-12-31T00:00:00Z');
-const facts = buildFactsPack({ author: sampleAuthor('AUTH001'), bookId: 'BK001', text: '', dataAsOf: AS_OF }).facts;
+const facts = buildFactsPack({
+  author: sampleAuthor('AUTH001'),
+  bookId: 'BK001',
+  text: '',
+  dataAsOf: AS_OF,
+}).facts;
 const codes = (body: string, extra: Parameters<typeof checkReply>[0] = { body, facts }) =>
   checkReply({ ...extra, body }).issues.map((i) => i.code);
 
 describe('extraction and normalisation', () => {
   it('treats different money spellings as the same paise value', () => {
-    expect(findMoney('₹3,570 or Rs. 3570.00 or 3570 rupees').map((m) => m.value)).toEqual([357000, 357000, 357000]);
+    expect(findMoney('₹3,570 or Rs. 3570.00 or 3570 rupees').map((m) => m.value)).toEqual([
+      357000, 357000, 357000,
+    ]);
   });
 
   it('normalises dates written in several formats', () => {
-    expect(findDates('14 Feb 2026, February 14, 2026, 2026-02-14 and 14/02/2026').map((d) => d.value)).toEqual([
-      '2026-02-14',
-      '2026-02-14',
-      '2026-02-14',
-      '2026-02-14',
-    ]);
+    expect(
+      findDates('14 Feb 2026, February 14, 2026, 2026-02-14 and 14/02/2026').map((d) => d.value),
+    ).toEqual(['2026-02-14', '2026-02-14', '2026-02-14', '2026-02-14']);
   });
 
   it('normalises duration ranges and units', () => {
@@ -42,12 +46,19 @@ describe('checkReply', () => {
   });
 
   it('blocks an invented amount, date and timeline', () => {
-    const c = codes('Hi Priya, we will pay ₹5,000 on 1 March 2026 and it takes 3 days to process, thank you.');
-    expect(c).toEqual(expect.arrayContaining(['UNSUPPORTED_AMOUNT', 'UNSUPPORTED_DATE', 'UNSUPPORTED_TIMELINE']));
+    const c = codes(
+      'Hi Priya, we will pay ₹5,000 on 1 March 2026 and it takes 3 days to process, thank you.',
+    );
+    expect(c).toEqual(
+      expect.arrayContaining(['UNSUPPORTED_AMOUNT', 'UNSUPPORTED_DATE', 'UNSUPPORTED_TIMELINE']),
+    );
   });
 
   it('blocks placeholders and does not allow overriding them', () => {
-    const r = checkReply({ body: `${good} Your bank account is [CONFIRM: bank account linked?].`, facts });
+    const r = checkReply({
+      body: `${good} Your bank account is [CONFIRM: bank account linked?].`,
+      facts,
+    });
     expect(r.passed).toBe(false);
     expect(r.placeholders).toEqual(['[CONFIRM: bank account linked?]']);
     expect(canOverride(r)).toBe(false);
@@ -80,7 +91,11 @@ describe('checkReply', () => {
         { quote: 'Bank: [CONFIRM: is the bank linked?]', factIds: ['author.bank_account_linked'] },
       ],
     });
-    expect(r.issues.map((i) => i.code)).toEqual(['CLAIM_ON_UNKNOWN', 'CLAIM_WITHOUT_EVIDENCE', 'CLAIM_WITHOUT_EVIDENCE']);
+    expect(r.issues.map((i) => i.code)).toEqual([
+      'CLAIM_ON_UNKNOWN',
+      'CLAIM_WITHOUT_EVIDENCE',
+      'CLAIM_WITHOUT_EVIDENCE',
+    ]);
   });
 
   it('warns but does not block on a very short reply', () => {

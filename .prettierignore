@@ -4,3 +4,7 @@ coverage
 pnpm-lock.yaml
 apps/api/prisma/migrations
 *.md
+graphify-out
+bookleaf_sample_data.json
+apps/api/prisma/seed-data
+.mcp.json

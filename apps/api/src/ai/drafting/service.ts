@@ -1,6 +1,12 @@
 import type { CheckResult } from '@bookleaf/shared';
 import { checkReply, type DraftClaim } from '../checker/index.js';
-import { DRAFT_PROMPT_VERSION, DRAFT_SYSTEM, DraftOutputSchema, draftContext, draftUserMessage } from '../prompts/draft.v1.js';
+import {
+  DRAFT_PROMPT_VERSION,
+  DRAFT_SYSTEM,
+  DraftOutputSchema,
+  draftContext,
+  draftUserMessage,
+} from '../prompts/draft.v1.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
 import { templateBody } from './templates.js';
 import { firstName, type DraftInput } from './types.js';
@@ -22,7 +28,11 @@ const check = (input: DraftInput, body: string, claims: DraftClaim[]) =>
   checkReply({ body, facts: input.facts, claims, ignorePhrases: input.ignorePhrases });
 
 /** Calls the model. Throws AiError subclasses; the job worker decides retry vs template fallback. */
-export async function runAiDraft(provider: LlmProvider, model: string, input: DraftInput): Promise<AiDraftRun> {
+export async function runAiDraft(
+  provider: LlmProvider,
+  model: string,
+  input: DraftInput,
+): Promise<AiDraftRun> {
   const promptInput = {
     category: input.category,
     authorFirstName: firstName(input.authorName),
@@ -45,10 +55,25 @@ export async function runAiDraft(provider: LlmProvider, model: string, input: Dr
   const body = result.data.body.trim();
   const claims = result.data.claims;
   const { data: _data, ...run } = result;
-  return { draft: { source: 'AI', body, claims, check: check(input, body, claims), promptVersion: DRAFT_PROMPT_VERSION }, run };
+  return {
+    draft: {
+      source: 'AI',
+      body,
+      claims,
+      check: check(input, body, claims),
+      promptVersion: DRAFT_PROMPT_VERSION,
+    },
+    run,
+  };
 }
 
 export function templateDraft(input: DraftInput): DraftResult {
   const body = templateBody(input);
-  return { source: 'TEMPLATE', body, claims: [], check: check(input, body, []), promptVersion: null };
+  return {
+    source: 'TEMPLATE',
+    body,
+    claims: [],
+    check: check(input, body, []),
+    promptVersion: null,
+  };
 }

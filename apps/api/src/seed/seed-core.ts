@@ -66,6 +66,10 @@ export async function seedCore(db: Db, input: unknown, opts: SeedOptions): Promi
       create: { ...admin, role: 'ADMIN', passwordHash: adminHash },
     });
   }
-  await db.aiSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1, ...DEFAULT_AI_SETTINGS } });
+  await db.aiSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, ...DEFAULT_AI_SETTINGS },
+  });
   return { authors: data.authors.length, books, admins: DEMO_ADMINS.length };
 }

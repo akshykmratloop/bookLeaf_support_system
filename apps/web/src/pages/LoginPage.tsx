@@ -13,12 +13,30 @@ import { keys, useMe } from '../lib/queries';
 
 /** Public demo accounts (listed in the README). Passwords come from build-time config, if provided. */
 const DEMO = [
-  { label: 'Priya Sharma', hint: 'Royalties pending', email: 'priya.sharma@email.com', role: 'author' },
-  { label: 'Arjun Malhotra', hint: 'No payout yet', email: 'arjun.malhotra@email.com', role: 'author' },
-  { label: 'Kavita Deshmukh', hint: 'Below threshold · book in production', email: 'kavita.deshmukh@email.com', role: 'author' },
+  {
+    label: 'Priya Sharma',
+    hint: 'Royalties pending',
+    email: 'priya.sharma@email.com',
+    role: 'author',
+  },
+  {
+    label: 'Arjun Malhotra',
+    hint: 'No payout yet',
+    email: 'arjun.malhotra@email.com',
+    role: 'author',
+  },
+  {
+    label: 'Kavita Deshmukh',
+    hint: 'Below threshold · book in production',
+    email: 'kavita.deshmukh@email.com',
+    role: 'author',
+  },
   { label: 'Neha Verma (Ops)', hint: 'Admin', email: 'admin@bookleaf.demo', role: 'admin' },
 ] as const;
-const DEMO_PASSWORDS = { author: import.meta.env.VITE_DEMO_AUTHOR_PASSWORD ?? '', admin: import.meta.env.VITE_DEMO_ADMIN_PASSWORD ?? '' };
+const DEMO_PASSWORDS = {
+  author: import.meta.env.VITE_DEMO_AUTHOR_PASSWORD ?? '',
+  admin: import.meta.env.VITE_DEMO_ADMIN_PASSWORD ?? '',
+};
 
 export function LoginPage() {
   const me = useMe();
@@ -35,7 +53,10 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const { user } = await api<{ user: AuthUser }>('/auth/login', { method: 'POST', body: { email, password } });
+      const { user } = await api<{ user: AuthUser }>('/auth/login', {
+        method: 'POST',
+        body: { email, password },
+      });
       qc.setQueryData(keys.me, user);
       navigate(homeFor(user), { replace: true });
     } catch (err) {
@@ -57,17 +78,39 @@ export function LoginPage() {
         </div>
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4" noValidate>
           <Field id="email" label="Email">
-            <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </Field>
           <Field id="password" label="Password" error={error ?? undefined}>
-            <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={Boolean(error)} required />
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={Boolean(error)}
+              required
+            />
           </Field>
-          <Button type="submit" isLoading={isSubmitting} icon={<LogIn size={15} aria-hidden />} disabled={!email || !password}>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            icon={<LogIn size={15} aria-hidden />}
+            disabled={!email || !password}
+          >
             Sign in
           </Button>
         </form>
         <div className="mt-6 border-t border-line pt-5">
-          <p className="mb-3 text-[12px] font-semibold tracking-wide text-ink-3 uppercase">Demo accounts</p>
+          <p className="mb-3 text-[12px] font-semibold tracking-wide text-ink-3 uppercase">
+            Demo accounts
+          </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {DEMO.map((d) => (
               <button
@@ -84,7 +127,11 @@ export function LoginPage() {
               </button>
             ))}
           </div>
-          {!DEMO_PASSWORDS.author ? <p className="mt-3 text-[11.5px] text-ink-3">Demo passwords are listed in the README.</p> : null}
+          {!DEMO_PASSWORDS.author ? (
+            <p className="mt-3 text-[11.5px] text-ink-3">
+              Demo passwords are listed in the README.
+            </p>
+          ) : null}
         </div>
       </Card>
     </div>

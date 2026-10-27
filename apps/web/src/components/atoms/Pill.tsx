@@ -13,9 +13,22 @@ const TONES: Record<Tone, string> = {
 };
 
 /** Status pill: h22, 11.5px semibold, optional leading dot. */
-export function Pill({ tone = 'neutral', dot = false, children, title }: { tone?: Tone; dot?: boolean; children: ReactNode; title?: string }) {
+export function Pill({
+  tone = 'neutral',
+  dot = false,
+  children,
+  title,
+}: {
+  tone?: Tone;
+  dot?: boolean;
+  children: ReactNode;
+  title?: string;
+}) {
   return (
-    <span title={title} className={`inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-semibold ${TONES[tone]}`}>
+    <span
+      title={title}
+      className={`inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-semibold ${TONES[tone]}`}
+    >
       {dot ? <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" /> : null}
       {children}
     </span>

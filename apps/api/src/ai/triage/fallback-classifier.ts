@@ -2,11 +2,49 @@ import type { Priority, TicketCategory } from '@bookleaf/shared';
 
 /** Used when AI is unavailable. Simple, explainable keyword scoring; always marked for review. */
 const KEYWORDS: Record<Exclude<TicketCategory, 'GENERAL_INQUIRY'>, RegExp[]> = {
-  ROYALTY_PAYMENTS: [/royalt/i, /payout/i, /\bpaid\b/i, /payment/i, /\bbank\b/i, /₹|\brs\.?\s?\d/i, /earning/i],
-  ISBN_METADATA: [/\bisbn\b/i, /metadata/i, /\bdescription\b/i, /author name/i, /wrong (title|price)/i],
-  PRINTING_QUALITY: [/print/i, /blurr?y/i, /misalign/i, /binding/i, /defect/i, /reprint/i, /author copies/i, /damaged/i],
-  DISTRIBUTION_AVAILABILITY: [/unavailable/i, /not (listed|available|showing)/i, /amazon/i, /flipkart/i, /out of stock/i, /listing/i],
-  BOOK_STATUS_PRODUCTION: [/typesetting/i, /proofread/i, /cover design/i, /editing/i, /\bstage\b/i, /when will .*(done|ready|published)/i, /production/i],
+  ROYALTY_PAYMENTS: [
+    /royalt/i,
+    /payout/i,
+    /\bpaid\b/i,
+    /payment/i,
+    /\bbank\b/i,
+    /₹|\brs\.?\s?\d/i,
+    /earning/i,
+  ],
+  ISBN_METADATA: [
+    /\bisbn\b/i,
+    /metadata/i,
+    /\bdescription\b/i,
+    /author name/i,
+    /wrong (title|price)/i,
+  ],
+  PRINTING_QUALITY: [
+    /print/i,
+    /blurr?y/i,
+    /misalign/i,
+    /binding/i,
+    /defect/i,
+    /reprint/i,
+    /author copies/i,
+    /damaged/i,
+  ],
+  DISTRIBUTION_AVAILABILITY: [
+    /unavailable/i,
+    /not (listed|available|showing)/i,
+    /amazon/i,
+    /flipkart/i,
+    /out of stock/i,
+    /listing/i,
+  ],
+  BOOK_STATUS_PRODUCTION: [
+    /typesetting/i,
+    /proofread/i,
+    /cover design/i,
+    /editing/i,
+    /\bstage\b/i,
+    /when will .*(done|ready|published)/i,
+    /production/i,
+  ],
 };
 
 const DEFAULT_PRIORITY: Record<TicketCategory, Priority> = {

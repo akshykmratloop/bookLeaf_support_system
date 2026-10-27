@@ -7,7 +7,16 @@ async function main(): Promise<void> {
   const env = loadEnv();
   const container = createContainer(env);
   const app = await buildApp(container);
-  const worker = createWorker({ db: container.db, ai: container.ai, clock: container.clock, events: container.events, log: app.log }, { pollMs: env.WORKER_POLL_MS });
+  const worker = createWorker(
+    {
+      db: container.db,
+      ai: container.ai,
+      clock: container.clock,
+      events: container.events,
+      log: app.log,
+    },
+    { pollMs: env.WORKER_POLL_MS },
+  );
 
   let stopping = false;
   const shutdown = async (signal: string) => {
@@ -24,7 +33,10 @@ async function main(): Promise<void> {
 
   await app.listen({ port: env.PORT, host: env.HOST });
   if (env.WORKER_ENABLED) worker.start();
-  app.log.info({ ai: container.ai.configuredProviders(), worker: env.WORKER_ENABLED }, 'BookLeaf API ready');
+  app.log.info(
+    { ai: container.ai.configuredProviders(), worker: env.WORKER_ENABLED },
+    'BookLeaf API ready',
+  );
 }
 
 main().catch((err: unknown) => {

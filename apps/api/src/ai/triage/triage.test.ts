@@ -16,14 +16,44 @@ const input = (description: string, extra: Partial<TriageInput> = {}): TriageInp
 
 describe('priority floor', () => {
   it('raises ISBN errors, overdue royalties, long-unpaid and legal threats to at least HIGH', () => {
-    expect(priorityFloor({ text: 'Amazon shows a different ISBN than my copy', category: 'ISBN_METADATA', royaltyStatus: null }).floor).toBe('HIGH');
-    expect(priorityFloor({ text: 'Where is my money', category: 'ROYALTY_PAYMENTS', royaltyStatus: 'POSSIBLY_OVERDUE' }).floor).toBe('HIGH');
-    expect(priorityFloor({ text: "I haven't received any royalty for 6 months", category: 'ROYALTY_PAYMENTS', royaltyStatus: null }).floor).toBe('HIGH');
-    expect(priorityFloor({ text: 'I will contact my lawyer', category: 'GENERAL_INQUIRY', royaltyStatus: null }).floor).toBe('HIGH');
+    expect(
+      priorityFloor({
+        text: 'Amazon shows a different ISBN than my copy',
+        category: 'ISBN_METADATA',
+        royaltyStatus: null,
+      }).floor,
+    ).toBe('HIGH');
+    expect(
+      priorityFloor({
+        text: 'Where is my money',
+        category: 'ROYALTY_PAYMENTS',
+        royaltyStatus: 'POSSIBLY_OVERDUE',
+      }).floor,
+    ).toBe('HIGH');
+    expect(
+      priorityFloor({
+        text: "I haven't received any royalty for 6 months",
+        category: 'ROYALTY_PAYMENTS',
+        royaltyStatus: null,
+      }).floor,
+    ).toBe('HIGH');
+    expect(
+      priorityFloor({
+        text: 'I will contact my lawyer',
+        category: 'GENERAL_INQUIRY',
+        royaltyStatus: null,
+      }).floor,
+    ).toBe('HIGH');
   });
 
   it('leaves ordinary questions at LOW', () => {
-    expect(priorityFloor({ text: 'Can I update my author bio?', category: 'GENERAL_INQUIRY', royaltyStatus: null })).toEqual({ floor: 'LOW', reasons: [] });
+    expect(
+      priorityFloor({
+        text: 'Can I update my author bio?',
+        category: 'GENERAL_INQUIRY',
+        royaltyStatus: null,
+      }),
+    ).toEqual({ floor: 'LOW', reasons: [] });
   });
 });
 
@@ -41,7 +71,12 @@ describe('keyword fallback', () => {
 
   it('marks fallback results for review with source RULES', () => {
     const d = fallbackTriage(input('Wrong ISBN on Amazon'));
-    expect(d).toMatchObject({ category: 'ISBN_METADATA', priority: 'HIGH', source: 'RULES', needsReview: true });
+    expect(d).toMatchObject({
+      category: 'ISBN_METADATA',
+      priority: 'HIGH',
+      source: 'RULES',
+      needsReview: true,
+    });
   });
 });
 
@@ -54,8 +89,17 @@ describe('AI triage', () => {
       needsInfo: [],
       confidence: 'high',
     }));
-    const r = await runAiTriage(provider, 'm', input('Where is my royalty?', { royaltyStatus: 'POSSIBLY_OVERDUE' }));
-    expect(r.decision).toMatchObject({ category: 'ROYALTY_PAYMENTS', priority: 'HIGH', source: 'AI', needsReview: true });
+    const r = await runAiTriage(
+      provider,
+      'm',
+      input('Where is my royalty?', { royaltyStatus: 'POSSIBLY_OVERDUE' }),
+    );
+    expect(r.decision).toMatchObject({
+      category: 'ROYALTY_PAYMENTS',
+      priority: 'HIGH',
+      source: 'AI',
+      needsReview: true,
+    });
     expect(r.decision.priorityReasons[0]).toMatch(/no payout/);
     expect(provider.calls[0]?.user).not.toMatch(/@|₹/);
     expect(provider.calls[0]?.user).toContain('Royalty record for this book: possibly overdue');

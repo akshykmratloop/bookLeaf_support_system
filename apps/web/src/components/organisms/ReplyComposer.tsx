@@ -24,11 +24,18 @@ const MODES = [
 
 function DraftHeader({ draft, pending }: { draft: Draft | null; pending: boolean }) {
   if (pending && !draft) return <Spinner size={14} label="AI is writing a draft…" />;
-  if (!draft) return <span className="text-[12.5px] text-ink-3">No draft yet. You can write the reply yourself.</span>;
+  if (!draft)
+    return (
+      <span className="text-[12.5px] text-ink-3">
+        No draft yet. You can write the reply yourself.
+      </span>
+    );
   return (
     <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
       <Sparkles size={14} className="text-brand" aria-hidden />
-      {draft.source === 'AI' ? `AI draft (${draft.model ?? 'model'})` : 'Template draft (AI was unavailable)'}
+      {draft.source === 'AI'
+        ? `AI draft (${draft.model ?? 'model'})`
+        : 'Template draft (AI was unavailable)'}
       <Pill tone="neutral">Review before sending</Pill>
       {pending ? <Spinner size={12} label="Updating…" /> : null}
     </span>
@@ -36,17 +43,33 @@ function DraftHeader({ draft, pending }: { draft: Draft | null; pending: boolean
 }
 
 /** The admin always sends: AI only proposes. Replies are checked against verified facts on the server. */
-export function ReplyComposer({ ticketId, draft, isDraftPending, onRegenerate, isRegenerating }: Props) {
+export function ReplyComposer({
+  ticketId,
+  draft,
+  isDraftPending,
+  onRegenerate,
+  isRegenerating,
+}: Props) {
   const c = useReplyComposer(ticketId, draft);
-  const canSend = c.text.trim().length > 0 && !c.hardBlocked && (!c.needsOverride || c.overrideReason.trim().length >= 5);
+  const canSend =
+    c.text.trim().length > 0 &&
+    !c.hardBlocked &&
+    (!c.needsOverride || c.overrideReason.trim().length >= 5);
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <FilterChips label="Message type" options={MODES} value={c.mode} onChange={(v) => c.setMode(v as Mode)} />
+        <FilterChips
+          label="Message type"
+          options={MODES}
+          value={c.mode}
+          onChange={(v) => c.setMode(v as Mode)}
+        />
         <DraftHeader draft={draft} pending={isDraftPending} />
       </div>
       <Textarea
-        aria-label={c.mode === 'REPLY' ? 'Reply to the author' : 'Internal note (not visible to the author)'}
+        aria-label={
+          c.mode === 'REPLY' ? 'Reply to the author' : 'Internal note (not visible to the author)'
+        }
         rows={12}
         value={c.text}
         maxLength={MESSAGE_LIMITS.max}
@@ -54,16 +77,30 @@ export function ReplyComposer({ ticketId, draft, isDraftPending, onRegenerate, i
         className={c.mode === 'INTERNAL_NOTE' ? 'border-warning/50' : ''}
       />
       {c.check ? <CheckIssues result={c.check} /> : null}
-      {c.hardBlocked ? <p className="text-[12px] text-danger">Fill in every [CONFIRM: …] placeholder before sending.</p> : null}
+      {c.hardBlocked ? (
+        <p className="text-[12px] text-danger">
+          Fill in every [CONFIRM: …] placeholder before sending.
+        </p>
+      ) : null}
       {c.needsOverride ? (
         <label className="flex flex-col gap-1 text-[12.5px] text-ink-2">
           Reason for sending unverified figures (saved in the audit log)
-          <Input value={c.overrideReason} onChange={(e) => c.setOverrideReason(e.target.value)} placeholder="e.g. Finance confirmed the amount by email" />
+          <Input
+            value={c.overrideReason}
+            onChange={(e) => c.setOverrideReason(e.target.value)}
+            placeholder="e.g. Finance confirmed the amount by email"
+          />
         </label>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={onRegenerate} isLoading={isRegenerating} icon={<RotateCcw size={13} aria-hidden />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRegenerate}
+            isLoading={isRegenerating}
+            icon={<RotateCcw size={13} aria-hidden />}
+          >
             New draft
           </Button>
           {draft ? (
@@ -74,11 +111,24 @@ export function ReplyComposer({ ticketId, draft, isDraftPending, onRegenerate, i
         </div>
         <div className="flex gap-2">
           {c.mode === 'REPLY' ? (
-            <Button variant="secondary" size="sm" onClick={() => void c.runCheck()} isLoading={c.isChecking} disabled={!c.text.trim()} icon={<ShieldCheck size={13} aria-hidden />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void c.runCheck()}
+              isLoading={c.isChecking}
+              disabled={!c.text.trim()}
+              icon={<ShieldCheck size={13} aria-hidden />}
+            >
               Check facts
             </Button>
           ) : null}
-          <Button size="sm" onClick={c.submit} isLoading={c.isSending} disabled={!canSend} icon={<Send size={13} aria-hidden />}>
+          <Button
+            size="sm"
+            onClick={c.submit}
+            isLoading={c.isSending}
+            disabled={!canSend}
+            icon={<Send size={13} aria-hidden />}
+          >
             {c.mode === 'REPLY' ? 'Send reply' : 'Add note'}
           </Button>
         </div>

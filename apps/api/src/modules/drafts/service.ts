@@ -8,11 +8,21 @@ import { findTicketOrThrow } from '../tickets/repository.js';
 const StoredFacts = z.array(FactSchema);
 
 /** Latest stored draft. Opening a ticket never calls the AI: drafts are generated in the background. */
-export async function latestDraft(deps: TicketDeps, session: Session, ticketId: string): Promise<{ draft: Draft | null; pending: boolean }> {
+export async function latestDraft(
+  deps: TicketDeps,
+  session: Session,
+  ticketId: string,
+): Promise<{ draft: Draft | null; pending: boolean }> {
   await findTicketOrThrow(deps.db, session, ticketId);
   const [row, openJob] = await Promise.all([
-    deps.db.aiDraft.findFirst({ where: { ticketId }, orderBy: [{ generation: 'desc' }, { createdAt: 'desc' }] }),
-    deps.db.aiJob.findFirst({ where: { ticketId, status: { in: ['QUEUED', 'RUNNING'] } }, select: { id: true } }),
+    deps.db.aiDraft.findFirst({
+      where: { ticketId },
+      orderBy: [{ generation: 'desc' }, { createdAt: 'desc' }],
+    }),
+    deps.db.aiJob.findFirst({
+      where: { ticketId, status: { in: ['QUEUED', 'RUNNING'] } },
+      select: { id: true },
+    }),
   ]);
   const pending = openJob !== null;
   if (!row) return { draft: null, pending };
@@ -30,9 +40,18 @@ export async function latestDraft(deps: TicketDeps, session: Session, ticketId: 
   return { draft, pending };
 }
 
-export async function regenerateDraft(deps: TicketDeps, session: Session, ticketId: string): Promise<{ draft: Draft | null; pending: boolean }> {
+export async function regenerateDraft(
+  deps: TicketDeps,
+  session: Session,
+  ticketId: string,
+): Promise<{ draft: Draft | null; pending: boolean }> {
   const ticket = await findTicketOrThrow(deps.db, session, ticketId);
   await enqueueJob(deps.db, ticketId, 'DRAFT', deps.clock.now());
-  deps.events.publish({ type: 'ticket.updated', ticketId, authorId: ticket.authorId, authorVisible: false });
+  deps.events.publish({
+    type: 'ticket.updated',
+    ticketId,
+    authorId: ticket.authorId,
+    authorVisible: false,
+  });
   return latestDraft(deps, session, ticketId);
 }

@@ -19,13 +19,18 @@ function errorCodeOf(err: unknown): string {
 
 function retryDelay(err: unknown, attempts: number): number {
   const base = BACKOFF_MS[Math.min(attempts - 1, BACKOFF_MS.length - 1)] ?? BACKOFF_MS[0];
-  return err instanceof AiRateLimitedError && err.retryAfterMs ? Math.max(base, err.retryAfterMs) : base;
+  return err instanceof AiRateLimitedError && err.retryAfterMs
+    ? Math.max(base, err.retryAfterMs)
+    : base;
 }
 
 async function applyFallback(job: ClaimedJob, deps: JobDeps, code: string): Promise<void> {
   await HANDLERS[job.kind].fallback(job, deps);
   await finishJob(deps.db, job, 'FALLBACK', deps.clock.now(), code);
-  deps.log.warn({ jobId: job.id, ticketId: job.ticketId, kind: job.kind, code }, 'ai job fell back to rules');
+  deps.log.warn(
+    { jobId: job.id, ticketId: job.ticketId, kind: job.kind, code },
+    'ai job fell back to rules',
+  );
 }
 
 /** Runs one job end to end. Transient errors retry with backoff; the rest fall back immediately. */

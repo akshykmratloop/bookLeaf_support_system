@@ -1,12 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { bookId, call, createHarness, createTicket, EMAILS, ORIGIN, type Harness } from './helpers/app.js';
+import {
+  bookId,
+  call,
+  createHarness,
+  createTicket,
+  EMAILS,
+  ORIGIN,
+  type Harness,
+} from './helpers/app.js';
 
 let h: Harness;
 let kavita: string;
 let admin: string;
 
-const valid = { subject: 'Book status question', description: 'Could you tell me where my book currently is in production?' };
+const valid = {
+  subject: 'Book status question',
+  description: 'Could you tell me where my book currently is in production?',
+};
 
 beforeAll(async () => {
   h = await createHarness();
@@ -23,7 +34,12 @@ describe('ticket creation', () => {
   it('creates the ticket, a SYSTEM acknowledgement and exactly one TRIAGE job', async () => {
     const res = await createTicket(h, kavita, { bookId: await bookId(h, 'BK015'), ...valid });
     expect(res.statusCode).toBe(201);
-    const t = res.json<{ id: string; number: string; status: string; messages: { kind: string }[] }>();
+    const t = res.json<{
+      id: string;
+      number: string;
+      status: string;
+      messages: { kind: string }[];
+    }>();
     expect(t.status).toBe('OPEN');
     expect(t.number).toMatch(/^BL-\d+$/);
     expect(t.messages.map((m) => m.kind)).toEqual(['SYSTEM']);
@@ -53,10 +69,18 @@ describe('ticket creation', () => {
   });
 
   it('validates fields with field paths (422)', async () => {
-    const short = await createTicket(h, kavita, { bookId: null, subject: 'Hi', description: valid.description });
+    const short = await createTicket(h, kavita, {
+      bookId: null,
+      subject: 'Hi',
+      description: valid.description,
+    });
     expect(short.statusCode).toBe(422);
     expect(short.json<Problem>().errors?.map((e) => e.path)).toContain('subject');
-    const long = await createTicket(h, kavita, { bookId: null, subject: valid.subject, description: 'x'.repeat(4001) });
+    const long = await createTicket(h, kavita, {
+      bookId: null,
+      subject: valid.subject,
+      description: 'x'.repeat(4001),
+    });
     expect(long.statusCode).toBe(422);
     expect(long.json<Problem>().errors?.map((e) => e.path)).toContain('description');
     const badBook = await createTicket(h, kavita, { bookId: 'not-a-uuid', ...valid });
@@ -64,31 +88,63 @@ describe('ticket creation', () => {
   });
 
   it('strips HTML and counts length after cleaning', async () => {
-    const res = await createTicket(h, kavita, { bookId: null, subject: '<b>Cover</b> approval', description: '<script>alert(1)</script>Please share the cover proofs for approval soon.' });
+    const res = await createTicket(h, kavita, {
+      bookId: null,
+      subject: '<b>Cover</b> approval',
+      description: '<script>alert(1)</script>Please share the cover proofs for approval soon.',
+    });
     expect(res.statusCode).toBe(201);
     const t = res.json<{ subject: string; description: string }>();
     expect(t.subject).toBe('Cover approval');
     expect(t.description).not.toMatch(/<|>/);
-    const onlyHtml = await createTicket(h, kavita, { bookId: null, subject: '<i></i><b></b>', description: valid.description });
+    const onlyHtml = await createTicket(h, kavita, {
+      bookId: null,
+      subject: '<i></i><b></b>',
+      description: valid.description,
+    });
     expect(onlyHtml.statusCode).toBe(422);
   });
 });
 
 describe('CSRF and content type', () => {
   it('rejects a state-changing request from a foreign Origin (403)', async () => {
-    const res = await call(h, 'POST', '/tickets', kavita, { bookId: null, ...valid }, { origin: 'https://evil.example' });
+    const res = await call(
+      h,
+      'POST',
+      '/tickets',
+      kavita,
+      { bookId: null, ...valid },
+      { origin: 'https://evil.example' },
+    );
     expect(res.statusCode).toBe(403);
   });
 
-  it('accepts the app\'s own Origin', async () => {
-    const res = await call(h, 'POST', '/tickets', kavita, { bookId: null, ...valid }, { origin: ORIGIN });
+  it("accepts the app's own Origin", async () => {
+    const res = await call(
+      h,
+      'POST',
+      '/tickets',
+      kavita,
+      { bookId: null, ...valid },
+      { origin: ORIGIN },
+    );
     expect(res.statusCode).toBe(201);
   });
 
   it('rejects non-JSON bodies (415)', async () => {
-    const res = await h.app.inject({ method: 'POST', url: '/api/v1/tickets', headers: { cookie: kavita, 'content-type': 'text/plain' }, payload: 'subject=x' });
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/tickets',
+      headers: { cookie: kavita, 'content-type': 'text/plain' },
+      payload: 'subject=x',
+    });
     expect(res.statusCode).toBe(415);
-    const form = await h.app.inject({ method: 'POST', url: '/api/v1/tickets', headers: { cookie: kavita, 'content-type': 'application/x-www-form-urlencoded' }, payload: 'subject=x' });
+    const form = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/tickets',
+      headers: { cookie: kavita, 'content-type': 'application/x-www-form-urlencoded' },
+      payload: 'subject=x',
+    });
     expect(form.statusCode).toBe(415);
   });
 });
@@ -108,7 +164,10 @@ describe('admin updates', () => {
     const ok = await call(h, 'PATCH', `/tickets/${id}`, admin, { version, assigneeId: myId });
     expect(ok.statusCode).toBe(200);
     expect(ok.json<{ assignee: { id: string } }>().assignee.id).toBe(myId);
-    const stale = await call(h, 'PATCH', `/tickets/${id}`, admin, { version, status: 'IN_PROGRESS' });
+    const stale = await call(h, 'PATCH', `/tickets/${id}`, admin, {
+      version,
+      status: 'IN_PROGRESS',
+    });
     expect(stale.statusCode).toBe(409);
     expect(stale.json<Problem>().code).toBe('VERSION_CONFLICT');
   });
@@ -124,7 +183,10 @@ describe('admin updates', () => {
     const { id, version } = await freshTicket();
     const closed = await call(h, 'PATCH', `/tickets/${id}`, admin, { version, status: 'CLOSED' });
     expect(closed.statusCode).toBe(200);
-    const res = await call(h, 'PATCH', `/tickets/${id}`, admin, { version: closed.json<{ version: number }>().version, status: 'RESOLVED' });
+    const res = await call(h, 'PATCH', `/tickets/${id}`, admin, {
+      version: closed.json<{ version: number }>().version,
+      status: 'RESOLVED',
+    });
     expect(res.statusCode).toBe(409);
     expect(res.json<Problem>().code).toBe('INVALID_TRANSITION');
   });
@@ -132,7 +194,9 @@ describe('admin updates', () => {
   it('records an audit event for each admin change', async () => {
     const { id, version } = await freshTicket();
     await call(h, 'PATCH', `/tickets/${id}`, admin, { version, priority: 'CRITICAL' });
-    const audit = await h.db.auditEvent.findMany({ where: { entityId: id, action: 'ticket.updated' } });
+    const audit = await h.db.auditEvent.findMany({
+      where: { entityId: id, action: 'ticket.updated' },
+    });
     expect(audit).toHaveLength(1);
   });
 
@@ -159,6 +223,8 @@ describe('admin queue', () => {
   it('rejects limits above 200 and filters by status', async () => {
     expect((await call(h, 'GET', '/tickets?limit=201', admin)).statusCode).toBe(422);
     const res = await call(h, 'GET', '/tickets?status=CLOSED', admin);
-    expect(res.json<{ items: { status: string }[] }>().items.every((t) => t.status === 'CLOSED')).toBe(true);
+    expect(
+      res.json<{ items: { status: string }[] }>().items.every((t) => t.status === 'CLOSED'),
+    ).toBe(true);
   });
 });

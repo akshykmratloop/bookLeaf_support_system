@@ -19,7 +19,12 @@ function FollowUp({ ticketId, closed }: { ticketId: string; closed: boolean }) {
   const [body, setBody] = useState('');
   const [requestKey, setRequestKey] = useState(newRequestKey);
   const send = useApiMutation(
-    (text: string) => api<AuthorTicket>(`/tickets/${ticketId}/messages`, { method: 'POST', body: { body: text }, idempotencyKey: requestKey }),
+    (text: string) =>
+      api<AuthorTicket>(`/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        body: { body: text },
+        idempotencyKey: requestKey,
+      }),
     [keys.ticket(ticketId), keys.tickets()],
   );
   const submit = (e: FormEvent) => {
@@ -39,9 +44,21 @@ function FollowUp({ ticketId, closed }: { ticketId: string; closed: boolean }) {
       <label htmlFor="followup" className="text-[12.5px] font-semibold text-ink-2">
         {closed ? 'Need more help? Sending a message reopens this ticket.' : 'Add a message'}
       </label>
-      <Textarea id="followup" rows={3} value={body} maxLength={MESSAGE_LIMITS.max} onChange={(e) => setBody(e.target.value)} />
+      <Textarea
+        id="followup"
+        rows={3}
+        value={body}
+        maxLength={MESSAGE_LIMITS.max}
+        onChange={(e) => setBody(e.target.value)}
+      />
       <div className="flex justify-end">
-        <Button type="submit" size="sm" isLoading={send.isPending} disabled={!body.trim()} icon={<Send size={14} aria-hidden />}>
+        <Button
+          type="submit"
+          size="sm"
+          isLoading={send.isPending}
+          disabled={!body.trim()}
+          icon={<Send size={14} aria-hidden />}
+        >
           Send
         </Button>
       </div>
@@ -53,12 +70,18 @@ export function TicketDetailPage() {
   const { id = '' } = useParams();
   const ticket = useAuthorTicket(id);
   if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
-  if (ticket.isError) return <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />;
+  if (ticket.isError)
+    return (
+      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
+    );
   const t = ticket.data;
   const closed = t.status === 'RESOLVED' || t.status === 'CLOSED';
   return (
     <div className="max-w-[820px]">
-      <Link to="/tickets" className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink">
+      <Link
+        to="/tickets"
+        className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink"
+      >
         <ArrowLeft size={14} aria-hidden /> All tickets
       </Link>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">

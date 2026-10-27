@@ -2,7 +2,8 @@ import { STAGE_LABELS, type Book } from '@bookleaf/shared';
 import { Pill } from '../atoms/Pill';
 import { day, money } from '../../lib/format';
 
-const th = 'px-4 py-3 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase whitespace-nowrap';
+const th =
+  'px-4 py-3 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase whitespace-nowrap';
 const td = 'px-4 py-3 align-top whitespace-nowrap';
 
 function StageCell({ book }: { book: Book }) {
@@ -39,7 +40,8 @@ export function BooksTable({ books }: { books: Book[] }) {
               <td className={`${td} font-semibold whitespace-normal`}>
                 {b.title}
                 <span className="block text-[11.5px] font-normal text-ink-3">
-                  Last payout: {day(b.lastPayoutDate, b.stage === 'PUBLISHED_LIVE' ? 'None yet' : '—')}
+                  Last payout:{' '}
+                  {day(b.lastPayoutDate, b.stage === 'PUBLISHED_LIVE' ? 'None yet' : '—')}
                 </span>
               </td>
               <td className={`${td} font-mono text-[12px] text-ink-2`}>{b.isbn}</td>
@@ -49,10 +51,14 @@ export function BooksTable({ books }: { books: Book[] }) {
                 <StageCell book={b} />
               </td>
               <td className={`${td} text-right`}>{money(b.mrpPaise, 'Set at publication')}</td>
-              <td className={`${td} text-right font-mono`}>{b.copiesSold.toLocaleString('en-IN')}</td>
+              <td className={`${td} text-right font-mono`}>
+                {b.copiesSold.toLocaleString('en-IN')}
+              </td>
               <td className={`${td} text-right font-mono`}>{money(b.royaltyEarnedPaise)}</td>
               <td className={`${td} text-right font-mono`}>{money(b.royaltyPaidPaise)}</td>
-              <td className={`${td} text-right font-mono font-semibold ${b.royaltyPendingPaise > 0 ? 'text-accent' : 'text-ink-3'}`}>
+              <td
+                className={`${td} text-right font-mono font-semibold ${b.royaltyPendingPaise > 0 ? 'text-accent' : 'text-ink-3'}`}
+              >
                 {money(b.royaltyPendingPaise)}
               </td>
             </tr>

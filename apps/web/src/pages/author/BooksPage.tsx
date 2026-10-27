@@ -28,18 +28,29 @@ export function BooksPage() {
         title="My Books"
         subtitle="Sales and royalties for every book you publish with BookLeaf."
         actions={
-          <Link to="/tickets/new" className="inline-flex h-9 items-center gap-2 rounded-[9px] bg-brand-strong px-4 text-[12.5px] font-semibold text-white hover:bg-brand">
+          <Link
+            to="/tickets/new"
+            className="inline-flex h-9 items-center gap-2 rounded-[9px] bg-brand-strong px-4 text-[12.5px] font-semibold text-white hover:bg-brand"
+          >
             <PlusCircle size={15} aria-hidden /> Ask a question
           </Link>
         }
       />
       {books.isPending ? <LoadingState label="Loading your books…" /> : null}
-      {books.isError ? <ErrorState message={errorMessage(books.error)} onRetry={() => void books.refetch()} /> : null}
-      {books.data && items.length === 0 ? <EmptyState title="No books yet" body="Books you publish with BookLeaf will appear here." /> : null}
+      {books.isError ? (
+        <ErrorState message={errorMessage(books.error)} onRetry={() => void books.refetch()} />
+      ) : null}
+      {books.data && items.length === 0 ? (
+        <EmptyState title="No books yet" body="Books you publish with BookLeaf will appear here." />
+      ) : null}
       {items.length > 0 ? (
         <>
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat label="Royalty earned" value={money(sum((b) => b.royaltyEarnedPaise))} note={`${items.length} book${items.length === 1 ? '' : 's'}`} />
+            <Stat
+              label="Royalty earned"
+              value={money(sum((b) => b.royaltyEarnedPaise))}
+              note={`${items.length} book${items.length === 1 ? '' : 's'}`}
+            />
             <Stat label="Royalty paid" value={money(sum((b) => b.royaltyPaidPaise))} />
             <Stat
               label="Royalty pending"

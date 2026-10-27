@@ -114,10 +114,9 @@ export const UpdateTicketRequestSchema = z
     priority: z.enum(PRIORITIES).optional(),
     assigneeId: z.uuid().nullable().optional(),
   })
-  .refine(
-    (v) => [v.status, v.category, v.priority, v.assigneeId].some((f) => f !== undefined),
-    { message: 'Provide at least one field to update' },
-  );
+  .refine((v) => [v.status, v.category, v.priority, v.assigneeId].some((f) => f !== undefined), {
+    message: 'Provide at least one field to update',
+  });
 export type UpdateTicketRequest = z.infer<typeof UpdateTicketRequestSchema>;
 
 export const CreateMessageRequestSchema = z.object({

@@ -11,7 +11,10 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(72).default(8),
   DATA_AS_OF: z.iso.date().default('2025-12-31'),
-  ANTHROPIC_API_KEY: z.string().optional().transform((v) => (v ? v : undefined)),
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : undefined)),
   WEB_DIST_DIR: z.string().optional(),
   WORKER_ENABLED: z
     .enum(['true', 'false'])

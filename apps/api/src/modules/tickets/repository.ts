@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { TicketListQuerySchema } from '@bookleaf/shared';
+import { type TicketListQuerySchema } from '@bookleaf/shared';
 import type { z } from 'zod';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -11,7 +11,9 @@ export const ticketInclude = {
   assignee: { select: { id: true, name: true } },
 } satisfies Prisma.TicketInclude;
 
-const messageInclude = { sender: { select: { id: true, name: true } } } satisfies Prisma.TicketMessageInclude;
+const messageInclude = {
+  sender: { select: { id: true, name: true } },
+} satisfies Prisma.TicketMessageInclude;
 
 export type TicketListQuery = z.output<typeof TicketListQuerySchema>;
 
@@ -36,7 +38,12 @@ export function listFilter(session: Session, q: TicketListQuery): Prisma.TicketW
   const createdAt: Prisma.DateTimeFilter = {};
   if (q.from) createdAt.gte = new Date(`${q.from}T00:00:00Z`);
   if (q.to) createdAt.lt = new Date(new Date(`${q.to}T00:00:00Z`).getTime() + DAY_MS);
-  const assignee = q.assignee === 'me' ? { assigneeId: session.userId } : q.assignee === 'unassigned' ? { assigneeId: null } : {};
+  const assignee =
+    q.assignee === 'me'
+      ? { assigneeId: session.userId }
+      : q.assignee === 'unassigned'
+        ? { assigneeId: null }
+        : {};
   return {
     ...ownership(session),
     ...(q.status ? { status: q.status } : {}),
@@ -59,10 +66,16 @@ export const URGENCY_ORDER: Prisma.TicketOrderByWithRelationInput[] = [
   { createdAt: 'asc' },
   { id: 'asc' },
 ];
-export const RECENT_ORDER: Prisma.TicketOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
+export const RECENT_ORDER: Prisma.TicketOrderByWithRelationInput[] = [
+  { createdAt: 'desc' },
+  { id: 'desc' },
+];
 
 export async function findTicketOrThrow(db: Db, session: Session, id: string) {
-  const ticket = await db.ticket.findFirst({ where: { id, ...ownership(session) }, include: ticketInclude });
+  const ticket = await db.ticket.findFirst({
+    where: { id, ...ownership(session) },
+    include: ticketInclude,
+  });
   if (!ticket) throw new NotFoundError('Ticket');
   return ticket;
 }

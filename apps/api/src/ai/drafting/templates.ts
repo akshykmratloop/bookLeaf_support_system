@@ -24,7 +24,10 @@ function royaltyParagraph(input: DraftInput): string {
     case 'SCHEDULED':
       return `${title} has ${pending} pending. Your total pending across your books is ${total}, which is due in the payout cycle that closes by ${deadline}.`;
     case 'NOTHING_PENDING': {
-      const others = royalty.authorTotalPendingPaise > 0 ? ` You do have ${total} pending across your other books, due in the payout cycle that closes by ${deadline}.` : '';
+      const others =
+        royalty.authorTotalPendingPaise > 0
+          ? ` You do have ${total} pending across your other books, due in the payout cycle that closes by ${deadline}.`
+          : '';
       return `${title} has no royalty pending at the moment.${others}`;
     }
     default:
@@ -56,7 +59,8 @@ Could you please reply with a few photos of the defective pages or binding? Once
 
 This is usually a stock sync issue between BookLeaf and the platform. I have asked our distribution team to trigger a re-sync, and the listing should be available again within 24–48 hours.${i.book ? ` [CONFIRM: is ${i.book.title} currently live on the platform the author mentioned?]` : ''}`,
   BOOK_STATUS_PRODUCTION: (i) => {
-    if (!i.book) return 'Thank you for checking in on your book. [CONFIRM: which book and its current stage]';
+    if (!i.book)
+      return 'Thank you for checking in on your book. [CONFIRM: which book and its current stage]';
     const id = `book.${i.book.externalId}`;
     const delay = show(i.facts, `${id}.delay_point`);
     return `Thank you for checking in on ${i.book.title}, and I completely understand wanting to see it move forward.

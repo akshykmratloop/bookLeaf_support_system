@@ -57,8 +57,14 @@ export interface DraftPromptInput {
 const MAX_EARLIER_CHARS = 600;
 
 function factLine(f: Fact): string {
-  if (f.type === 'UNKNOWN') return `- ${f.id} | ${f.label} | UNKNOWN (${f.source.kind === 'MISSING' ? f.source.reason : 'not available'})`;
-  const src = f.source.kind === 'RECORD' ? 'record' : f.source.kind === 'KB' ? 'knowledge base' : 'calculated';
+  if (f.type === 'UNKNOWN')
+    return `- ${f.id} | ${f.label} | UNKNOWN (${f.source.kind === 'MISSING' ? f.source.reason : 'not available'})`;
+  const src =
+    f.source.kind === 'RECORD'
+      ? 'record'
+      : f.source.kind === 'KB'
+        ? 'knowledge base'
+        : 'calculated';
   return `- ${f.id} | ${f.label} | ${f.display} | ${src}`;
 }
 
@@ -75,7 +81,9 @@ ${examplesText(input.category)}`;
 export function draftUserMessage(input: DraftPromptInput): string {
   const messages = input.authorMessages;
   const latest = messages[messages.length - 1] ?? '';
-  const earlier = messages.slice(0, -1).map((m) => (m.length > MAX_EARLIER_CHARS ? `${m.slice(0, MAX_EARLIER_CHARS)}…` : m));
+  const earlier = messages
+    .slice(0, -1)
+    .map((m) => (m.length > MAX_EARLIER_CHARS ? `${m.slice(0, MAX_EARLIER_CHARS)}…` : m));
   return `Author first name: ${input.authorFirstName}
 Book: ${input.bookTitle ?? 'General / Account level (no specific book selected)'}
 

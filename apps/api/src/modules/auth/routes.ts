@@ -15,30 +15,58 @@ interface Opts {
 
 const LOGIN_LIMIT = { max: 5, timeWindow: '1 minute' };
 
-export const authRoutes: FastifyPluginAsyncZod<Opts> = async (app, { auth, ttlSeconds, secureCookies }) => {
+export const authRoutes: FastifyPluginAsyncZod<Opts> = async (
+  app,
+  { auth, ttlSeconds, secureCookies },
+) => {
   const cookie = { httpOnly: true, sameSite: 'lax' as const, secure: secureCookies, path: '/' };
 
-  app.post('/auth/login', {
-    config: {
-      public: true,
-      rateLimit: { ...LOGIN_LIMIT, keyGenerator: (req: FastifyRequest) => `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}` },
+  app.post(
+    '/auth/login',
+    {
+      config: {
+        public: true,
+        rateLimit: {
+          ...LOGIN_LIMIT,
+          keyGenerator: (req: FastifyRequest) =>
+            `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
+        },
+      },
+      schema: {
+        tags: ['auth'],
+        summary: 'Sign in with email and password',
+        body: LoginRequestSchema,
+        response: { 200: z.object({ user: AuthUserSchema }), 401: ProblemSchema },
+      },
     },
-    schema: { tags: ['auth'], summary: 'Sign in with email and password', body: LoginRequestSchema, response: { 200: z.object({ user: AuthUserSchema }), 401: ProblemSchema } },
-  }, async (req, reply) => {
-    const { user, token } = await auth.login(req.body);
-    reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: ttlSeconds });
-    return { user };
-  });
+    async (req, reply) => {
+      const { user, token } = await auth.login(req.body);
+      reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: ttlSeconds });
+      return { user };
+    },
+  );
 
-  app.post('/auth/logout', {
-    config: { public: true },
-    schema: { tags: ['auth'], summary: 'Sign out', response: { 204: z.null() } },
-  }, async (_req, reply) => {
-    reply.clearCookie(SESSION_COOKIE, cookie);
-    return reply.status(204).send(null);
-  });
+  app.post(
+    '/auth/logout',
+    {
+      config: { public: true },
+      schema: { tags: ['auth'], summary: 'Sign out', response: { 204: z.null() } },
+    },
+    async (_req, reply) => {
+      reply.clearCookie(SESSION_COOKIE, cookie);
+      return reply.status(204).send(null);
+    },
+  );
 
-  app.get('/auth/me', {
-    schema: { tags: ['auth'], summary: 'The signed-in user', response: { 200: z.object({ user: AuthUserSchema }), 401: ProblemSchema } },
-  }, async (req) => ({ user: toAuthUser(sessionOf(req)) }));
+  app.get(
+    '/auth/me',
+    {
+      schema: {
+        tags: ['auth'],
+        summary: 'The signed-in user',
+        response: { 200: z.object({ user: AuthUserSchema }), 401: ProblemSchema },
+      },
+    },
+    async (req) => ({ user: toAuthUser(sessionOf(req)) }),
+  );
 };

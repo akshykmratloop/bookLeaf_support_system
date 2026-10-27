@@ -9,7 +9,12 @@ import type { DraftInput } from './types.js';
 
 const AS_OF = new Date('2025-12-31T00:00:00Z');
 
-function draftInput(authorId: string, bookId: string | null, category: TicketCategory, text = 'Please help'): DraftInput {
+function draftInput(
+  authorId: string,
+  bookId: string | null,
+  category: TicketCategory,
+  text = 'Please help',
+): DraftInput {
   const author = sampleAuthor(authorId);
   const { facts, royalty } = buildFactsPack({ author, bookId, text, dataAsOf: AS_OF });
   const book = author.books.find((b) => b.id === bookId) ?? null;
@@ -26,7 +31,8 @@ function draftInput(authorId: string, bookId: string | null, category: TicketCat
   };
 }
 
-const figureIssues = (codes: string[]) => codes.filter((c) => c.startsWith('UNSUPPORTED') || c.startsWith('CLAIM'));
+const figureIssues = (codes: string[]) =>
+  codes.filter((c) => c.startsWith('UNSUPPORTED') || c.startsWith('CLAIM'));
 
 describe('template fallback drafts', () => {
   it.each([
@@ -59,7 +65,7 @@ describe('template fallback drafts', () => {
 });
 
 describe('AI drafts', () => {
-  it('sends only this category\'s KB section and runs the checker on the result', async () => {
+  it("sends only this category's KB section and runs the checker on the result", async () => {
     const provider = fakeProvider(() => ({
       body: 'Hi Priya,\n\nYour pending royalty is ₹9,999 and will be paid soon.\n\nWarm regards,\nBookLeaf Author Support',
       claims: [{ quote: 'Your pending royalty is ₹9,999', factIds: ['author.total_pending'] }],

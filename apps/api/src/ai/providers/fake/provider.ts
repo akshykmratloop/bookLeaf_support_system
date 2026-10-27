@@ -6,7 +6,9 @@ export type FakeHandler = (req: StructuredRequest<unknown>) => unknown | Promise
  * Deterministic provider for tests and local runs without a key. The handler returns the raw
  * object (or throws an AiError to simulate failures); the schema still validates it.
  */
-export function fakeProvider(handler: FakeHandler): LlmProvider & { calls: StructuredRequest<unknown>[] } {
+export function fakeProvider(
+  handler: FakeHandler,
+): LlmProvider & { calls: StructuredRequest<unknown>[] } {
   const calls: StructuredRequest<unknown>[] = [];
   return {
     id: 'fake',

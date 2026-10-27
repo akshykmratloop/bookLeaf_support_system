@@ -18,7 +18,12 @@ for (const model of process.argv.slice(2)) {
       schema: z.object({ aboutPayments: z.boolean() }),
       maxTokens: 512,
     });
-    console.log(model, 'OK', JSON.stringify(r.data), `in=${r.usage.inputTokens} out=${r.usage.outputTokens} ${r.latencyMs}ms`);
+    console.log(
+      model,
+      'OK',
+      JSON.stringify(r.data),
+      `in=${r.usage.inputTokens} out=${r.usage.outputTokens} ${r.latencyMs}ms`,
+    );
   } catch (e) {
     const err = e as { code?: string; message?: string };
     console.log(model, 'FAILED', err.code, err.message);

@@ -3,7 +3,15 @@ import type { ReactNode } from 'react';
 import { Button } from '../atoms/Button';
 import { Spinner } from '../atoms/Spinner';
 
-export function EmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-panel-2 text-ink-3">

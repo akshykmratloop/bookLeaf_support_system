@@ -28,9 +28,18 @@ export const keys = {
 };
 
 export const useMe = () =>
-  useQuery({ queryKey: keys.me, queryFn: () => api<{ user: AuthUser }>('/auth/me').then((r) => r.user), retry: false, staleTime: 60_000 });
+  useQuery({
+    queryKey: keys.me,
+    queryFn: () => api<{ user: AuthUser }>('/auth/me').then((r) => r.user),
+    retry: false,
+    staleTime: 60_000,
+  });
 
-export const useBooks = () => useQuery({ queryKey: keys.books, queryFn: () => api<{ items: Book[] }>('/books').then((r) => r.items) });
+export const useBooks = () =>
+  useQuery({
+    queryKey: keys.books,
+    queryFn: () => api<{ items: Book[] }>('/books').then((r) => r.items),
+  });
 
 function toQuery(filters: Record<string, string>): string {
   const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ''));
@@ -39,13 +48,22 @@ function toQuery(filters: Record<string, string>): string {
 }
 
 export const useAuthorTickets = () =>
-  useQuery({ queryKey: keys.tickets(), queryFn: () => api<Page<AuthorTicketListItem>>('/tickets?limit=200') });
+  useQuery({
+    queryKey: keys.tickets(),
+    queryFn: () => api<Page<AuthorTicketListItem>>('/tickets?limit=200'),
+  });
 
 export const useAdminTickets = (filters: Record<string, string>) =>
-  useQuery({ queryKey: keys.tickets(filters), queryFn: () => api<Page<AdminTicketListItem>>(`/tickets${toQuery({ limit: '200', ...filters })}`) });
+  useQuery({
+    queryKey: keys.tickets(filters),
+    queryFn: () =>
+      api<Page<AdminTicketListItem>>(`/tickets${toQuery({ limit: '200', ...filters })}`),
+  });
 
-export const useAuthorTicket = (id: string) => useQuery({ queryKey: keys.ticket(id), queryFn: () => api<AuthorTicket>(`/tickets/${id}`) });
-export const useAdminTicket = (id: string) => useQuery({ queryKey: keys.ticket(id), queryFn: () => api<AdminTicket>(`/tickets/${id}`) });
+export const useAuthorTicket = (id: string) =>
+  useQuery({ queryKey: keys.ticket(id), queryFn: () => api<AuthorTicket>(`/tickets/${id}`) });
+export const useAdminTicket = (id: string) =>
+  useQuery({ queryKey: keys.ticket(id), queryFn: () => api<AdminTicket>(`/tickets/${id}`) });
 
 /** While a draft is being generated, poll gently in case an SSE hint is missed. */
 export const useDraft = (id: string) =>
@@ -55,10 +73,14 @@ export const useDraft = (id: string) =>
     refetchInterval: (q) => (q.state.data?.pending ? 4000 : false),
   });
 
-export const useAiStatus = () => useQuery({ queryKey: keys.aiStatus, queryFn: () => api<AiStatus>('/admin/ai/status') });
+export const useAiStatus = () =>
+  useQuery({ queryKey: keys.aiStatus, queryFn: () => api<AiStatus>('/admin/ai/status') });
 
 /** Mutation that refreshes the given queries on success. */
-export function useApiMutation<TInput, TResult>(fn: (input: TInput) => Promise<TResult>, invalidate: QueryKey[]) {
+export function useApiMutation<TInput, TResult>(
+  fn: (input: TInput) => Promise<TResult>,
+  invalidate: QueryKey[],
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,

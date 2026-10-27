@@ -1,5 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { call, createHarness, createTicket, EMAILS, SENTINEL_KEY, type Harness } from './helpers/app.js';
+import {
+  call,
+  createHarness,
+  createTicket,
+  EMAILS,
+  SENTINEL_KEY,
+  type Harness,
+} from './helpers/app.js';
 
 let h: Harness;
 let priya: string;
@@ -13,7 +20,11 @@ afterAll(() => h.close());
 
 describe('API key never leaves the server', () => {
   it('no response body or header contains the configured key', async () => {
-    const created = await createTicket(h, priya, { bookId: null, subject: 'Account question', description: 'How do I update my author bio on the BookLeaf store?' });
+    const created = await createTicket(h, priya, {
+      bookId: null,
+      subject: 'Account question',
+      description: 'How do I update my author bio on the BookLeaf store?',
+    });
     const id = created.json<{ id: string }>().id;
     await h.drain();
     const responses = await Promise.all([
@@ -43,14 +54,20 @@ describe('API key never leaves the server', () => {
 
   it('rejects settings that pick a model outside the allowlist (422)', async () => {
     const s = await call(h, 'GET', '/admin/ai/settings', admin);
-    const res = await call(h, 'PUT', '/admin/ai/settings', admin, { version: s.json<{ version: number }>().version, draftModel: 'gpt-4o' });
+    const res = await call(h, 'PUT', '/admin/ai/settings', admin, {
+      version: s.json<{ version: number }>().version,
+      draftModel: 'gpt-4o',
+    });
     expect(res.statusCode).toBe(422);
   });
 });
 
 describe('session cookie', () => {
   it('is httpOnly and SameSite=Lax; logout clears it', async () => {
-    const res = await call(h, 'POST', '/auth/login', undefined, { email: EMAILS.kavita, password: 'Author@Test1' });
+    const res = await call(h, 'POST', '/auth/login', undefined, {
+      email: EMAILS.kavita,
+      password: 'Author@Test1',
+    });
     const cookie = res.cookies.find((c) => c.name === 'bl_session');
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe('Lax');

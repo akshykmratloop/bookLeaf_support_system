@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router';
 import { relative, sla } from '../../lib/format';
 import { AiBadge, CategoryLabel, PriorityPill, StatusPill } from '../molecules/DomainPills';
 
-const th = 'px-4 py-3 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase whitespace-nowrap';
+const th =
+  'px-4 py-3 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase whitespace-nowrap';
 const td = 'px-4 py-3 align-middle';
 
 /** Rows arrive most-urgent-first from the API. Overdue first responses are highlighted. */
@@ -55,10 +56,14 @@ export function QueueTable({ items }: { items: AdminTicketListItem[] }) {
                 <td className={td}>
                   <StatusPill status={t.status} />
                 </td>
-                <td className={`${td} whitespace-nowrap ${late ? 'font-semibold text-danger' : 'text-ink-2'}`}>
+                <td
+                  className={`${td} whitespace-nowrap ${late ? 'font-semibold text-danger' : 'text-ink-2'}`}
+                >
                   {unresolved || t.firstResponseAt ? s.text : '—'}
                 </td>
-                <td className={`${td} whitespace-nowrap text-ink-2`}>{t.assignee?.name ?? 'Unassigned'}</td>
+                <td className={`${td} whitespace-nowrap text-ink-2`}>
+                  {t.assignee?.name ?? 'Unassigned'}
+                </td>
               </tr>
             );
           })}

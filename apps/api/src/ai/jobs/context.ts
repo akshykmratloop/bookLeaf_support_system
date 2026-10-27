@@ -37,9 +37,17 @@ export async function loadTicketContext(db: Db, ticketId: string) {
   });
   if (!ticket) throw new NotFoundError('Ticket');
   const books = ticket.author.books.map(toBookRecord);
-  const author = { id: ticket.author.id, externalId: ticket.author.externalId, name: ticket.author.user.name, books };
+  const author = {
+    id: ticket.author.id,
+    externalId: ticket.author.externalId,
+    name: ticket.author.user.name,
+    books,
+  };
   const book = books.find((b) => b.id === ticket.bookId) ?? null;
-  const authorMessages = [ticket.description, ...ticket.messages.filter((m) => m.kind === 'AUTHOR').map((m) => m.body)];
+  const authorMessages = [
+    ticket.description,
+    ...ticket.messages.filter((m) => m.kind === 'AUTHOR').map((m) => m.body),
+  ];
   const lastReply = [...ticket.messages].reverse().find((m) => m.kind === 'REPLY')?.body ?? null;
   return { ticket, author, book, authorMessages, lastReply };
 }

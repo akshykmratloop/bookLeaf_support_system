@@ -23,7 +23,11 @@ export interface AiRuntime {
 const CACHE_MS = 2000;
 
 /** Reads the admin-chosen provider/model from the DB (briefly cached) and maps it to a provider. */
-export function createAiRuntime(db: Db, providers: Map<string, LlmProvider>, now: () => Date): AiRuntime {
+export function createAiRuntime(
+  db: Db,
+  providers: Map<string, LlmProvider>,
+  now: () => Date,
+): AiRuntime {
   let cached: { row: AiSettingsRow; at: number } | null = null;
   const settings = async (): Promise<AiSettingsRow> => {
     const t = now().getTime();
@@ -41,7 +45,8 @@ export function createAiRuntime(db: Db, providers: Map<string, LlmProvider>, now
       const s = await settings();
       if (s.simulateOutage) throw new AiOutageSimulatedError('AI outage simulation is switched on');
       const provider = providers.get(s.provider);
-      if (!provider) throw new AiNotConfiguredError(`Provider "${s.provider}" has no credentials configured`);
+      if (!provider)
+        throw new AiNotConfiguredError(`Provider "${s.provider}" has no credentials configured`);
       return { provider, model: task === 'TRIAGE' ? s.triageModel : s.draftModel };
     },
     configuredProviders: () => [...providers.keys()],

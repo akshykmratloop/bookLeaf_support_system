@@ -7,7 +7,9 @@ interface ToastItem {
   text: string;
 }
 
-const ToastContext = createContext<(tone: ToastItem['tone'], text: string) => void>(() => undefined);
+const ToastContext = createContext<(tone: ToastItem['tone'], text: string) => void>(
+  () => undefined,
+);
 const TOAST_MS = 4000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -21,10 +23,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2">
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2"
+      >
         {items.map((t) => (
-          <div key={t.id} className="pointer-events-auto flex max-w-sm items-center gap-2 rounded-[12px] border border-line-strong bg-panel px-4 py-3 text-[13px] shadow-lg">
-            {t.tone === 'success' ? <CheckCircle2 size={16} className="text-success" aria-hidden /> : <XCircle size={16} className="text-danger" aria-hidden />}
+          <div
+            key={t.id}
+            className="pointer-events-auto flex max-w-sm items-center gap-2 rounded-[12px] border border-line-strong bg-panel px-4 py-3 text-[13px] shadow-lg"
+          >
+            {t.tone === 'success' ? (
+              <CheckCircle2 size={16} className="text-success" aria-hidden />
+            ) : (
+              <XCircle size={16} className="text-danger" aria-hidden />
+            )}
             {t.text}
           </div>
         ))}

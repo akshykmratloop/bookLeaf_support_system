@@ -22,7 +22,7 @@ export function anthropicProvider(opts: AnthropicProviderOptions): LlmProvider {
   });
 
   async function generateStructured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
-    const started = Date.now();
+    const started = performance.now(); // elapsed time only, not business time
     const system: Anthropic.TextBlockParam[] = [
       { type: 'text', text: req.stableSystem, cache_control: { type: 'ephemeral' } },
     ];
@@ -49,7 +49,7 @@ export function anthropicProvider(opts: AnthropicProviderOptions): LlmProvider {
       return {
         data: parsed,
         model: response.model,
-        latencyMs: Date.now() - started,
+        latencyMs: Math.round(performance.now() - started),
         usage: {
           inputTokens: u.input_tokens,
           outputTokens: u.output_tokens,

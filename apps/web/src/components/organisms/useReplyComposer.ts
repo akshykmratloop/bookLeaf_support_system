@@ -1,5 +1,5 @@
 import type { AdminTicket, CheckResult, Draft } from '@bookleaf/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api, errorMessage, isApiError } from '../../lib/api';
 import { newRequestKey } from '../../lib/ids';
 import { checkReply, keys, useApiMutation } from '../../lib/queries';
@@ -13,24 +13,31 @@ const blocking = (r: CheckResult | null) => r?.issues.filter((i) => i.severity =
 export function useReplyComposer(ticketId: string, draft: Draft | null) {
   const toast = useToast();
   const [text, setText] = useState('');
-  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<{ id: string; body: string } | null>(null);
   const [mode, setMode] = useState<Mode>('REPLY');
   const [check, setCheck] = useState<CheckResult | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [isChecking, setChecking] = useState(false);
   const [requestKey, setRequestKey] = useState(newRequestKey);
 
-  // Load a new draft into the editor only when the editor is untouched or still holds the old draft.
-  useEffect(() => {
-    if (!draft || draft.id === loadedDraftId) return;
-    setText((current) => (current.trim() === '' || loadedDraftId !== null ? draft.body : current));
-    setCheck(draft.check);
-    setLoadedDraftId(draft.id);
-  }, [draft, loadedDraftId]);
+  // Load a new draft into the editor (adjusting state during render, as React recommends over an effect).
+  // A newer draft replaces the text only if the editor is empty or still holds the previous draft.
+  if (draft && draft.id !== loaded?.id) {
+    const untouched = text.trim() === '' || text === loaded?.body;
+    setLoaded({ id: draft.id, body: draft.body });
+    if (untouched) {
+      setText(draft.body);
+      setCheck(draft.check);
+    }
+  }
 
   const send = useApiMutation(
     (body: { body: string; kind: Mode; overrideReason?: string }) =>
-      api<AdminTicket>(`/tickets/${ticketId}/messages`, { method: 'POST', body, idempotencyKey: requestKey }),
+      api<AdminTicket>(`/tickets/${ticketId}/messages`, {
+        method: 'POST',
+        body,
+        idempotencyKey: requestKey,
+      }),
     [keys.ticket(ticketId), keys.tickets()],
   );
 
@@ -46,7 +53,11 @@ export function useReplyComposer(ticketId: string, draft: Draft | null) {
   };
 
   const submit = () => {
-    const payload = { body: text, kind: mode, ...(overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}) };
+    const payload = {
+      body: text,
+      kind: mode,
+      ...(overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}),
+    };
     send.mutate(payload, {
       onSuccess: () => {
         toast('success', mode === 'REPLY' ? 'Reply sent to the author' : 'Internal note added');
@@ -56,7 +67,9 @@ export function useReplyComposer(ticketId: string, draft: Draft | null) {
         setRequestKey(newRequestKey());
       },
       onError: (err) => {
-        const details = isApiError(err) ? (err.problem.details as CheckResult | undefined) : undefined;
+        const details = isApiError(err)
+          ? (err.problem.details as CheckResult | undefined)
+          : undefined;
         if (details?.issues) setCheck(details);
         toast('error', errorMessage(err));
       },

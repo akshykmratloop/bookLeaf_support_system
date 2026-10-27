@@ -4,9 +4,23 @@ interface Option {
 }
 
 /** Segmented single-choice filter. */
-export function FilterChips({ label, options, value, onChange }: { label: string; options: Option[]; value: string; onChange: (v: string) => void }) {
+export function FilterChips({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: Option[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap gap-1 rounded-[10px] border border-line bg-inset p-1">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex flex-wrap gap-1 rounded-[10px] border border-line bg-inset p-1"
+    >
       {options.map((o) => (
         <button
           key={o.value}

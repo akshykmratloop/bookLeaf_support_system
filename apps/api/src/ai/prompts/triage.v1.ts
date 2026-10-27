@@ -64,8 +64,12 @@ export interface TriagePromptInput {
 
 /** Per-ticket content. No email, phone or royalty amounts are sent: triage does not need them. */
 export function triageUserMessage(input: TriagePromptInput): string {
-  const book = input.bookTitle ? `${input.bookTitle} (current stage: ${input.bookStage ?? 'unknown'})` : 'General / Account level';
-  const royalty = input.royaltyRecord ? `\nRoyalty record for this book: ${input.royaltyRecord}` : '';
+  const book = input.bookTitle
+    ? `${input.bookTitle} (current stage: ${input.bookStage ?? 'unknown'})`
+    : 'General / Account level';
+  const royalty = input.royaltyRecord
+    ? `\nRoyalty record for this book: ${input.royaltyRecord}`
+    : '';
   return `Book selected by the author: ${book}${royalty}
 
 <ticket>

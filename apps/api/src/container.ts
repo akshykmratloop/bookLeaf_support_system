@@ -21,7 +21,8 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
   const db = overrides.db ?? createDb(env.DATABASE_URL);
   const events: EventBus = inMemoryEventBus();
-  const providers = overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
+  const providers =
+    overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
   const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now());
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
   return {

@@ -10,9 +10,15 @@ const fact = (p: ReturnType<typeof pack>, id: string) => p.facts.find((f) => f.i
 
 describe('payout calendar', () => {
   it('computes quarter ends and the 45-day payout deadline', () => {
-    expect(quarterEnd(new Date('2025-02-10T00:00:00Z')).toISOString().slice(0, 10)).toBe('2025-03-31');
-    expect(payoutDeadlineFor(new Date('2025-12-31T00:00:00Z')).toISOString().slice(0, 10)).toBe('2026-02-14');
-    expect(payoutDeadlineFor(new Date('2024-07-05T00:00:00Z')).toISOString().slice(0, 10)).toBe('2024-11-14');
+    expect(quarterEnd(new Date('2025-02-10T00:00:00Z')).toISOString().slice(0, 10)).toBe(
+      '2025-03-31',
+    );
+    expect(payoutDeadlineFor(new Date('2025-12-31T00:00:00Z')).toISOString().slice(0, 10)).toBe(
+      '2026-02-14',
+    );
+    expect(payoutDeadlineFor(new Date('2024-07-05T00:00:00Z')).toISOString().slice(0, 10)).toBe(
+      '2024-11-14',
+    );
   });
 });
 
@@ -47,7 +53,11 @@ describe('royalty facts on the seed data', () => {
   });
 
   it('no published, regularly paid book is flagged overdue', () => {
-    for (const [a, b] of [['AUTH002', 'BK003'], ['AUTH004', 'BK006'], ['AUTH007', 'BK011']] as const) {
+    for (const [a, b] of [
+      ['AUTH002', 'BK003'],
+      ['AUTH004', 'BK006'],
+      ['AUTH007', 'BK011'],
+    ] as const) {
       expect(pack(a, b).royalty.bookStatus).toBe('SCHEDULED');
     }
   });
@@ -77,7 +87,9 @@ describe('distribution facts', () => {
 
   it('a platform in the record is reported as such', () => {
     const p = pack('AUTH001', 'BK001', 'not available on flipkart');
-    expect(fact(p, 'book.BK001.platform.flipkart')?.display).toMatch(/is in BookLeaf's distribution record/);
+    expect(fact(p, 'book.BK001.platform.flipkart')?.display).toMatch(
+      /is in BookLeaf's distribution record/,
+    );
   });
 });
 
