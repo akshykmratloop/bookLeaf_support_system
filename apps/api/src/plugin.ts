@@ -5,6 +5,7 @@ import websocket from '@fastify/websocket';
 import type { FastifyPluginAsync } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/index.js';
+import { runInBackground } from './background.js';
 import { createContainer, type Container } from './container.js';
 import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
 import { authGuard } from './platform/http/auth-guard.js';
@@ -29,11 +30,16 @@ export interface SupportPluginOptions {
  *
  *   await app.register(supportPlugin, { prefix: '/support', env: loadEnv() });
  *
- * Routes are then served under `/support/api/v1/...` and `/support/health`.
+ * Routes are then served under `/support/api/v1/...` and `/support/health`. The AI worker
+ * starts when the app is ready and stops when it closes.
  */
 export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (app, opts) => {
   const c = opts.container ?? createContainer(requireEnv(opts.env));
-  if (!opts.container) app.addHook('onClose', () => c.db.$disconnect());
+  const background = runInBackground(app, c);
+  app.addHook('onClose', async () => {
+    await background.stop();
+    if (!opts.container) await c.db.$disconnect();
+  });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);

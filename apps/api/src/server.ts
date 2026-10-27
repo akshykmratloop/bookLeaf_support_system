@@ -1,49 +1,33 @@
 import { buildApp } from './app.js';
-import { createWorker } from './ai/jobs/worker.js';
-import type { FastifyBaseLogger } from 'fastify';
-import { createContainer, type Container } from './container.js';
-import { failInterruptedCalls } from './modules/voice/repository.js';
+import { createContainer } from './container.js';
 import { loadEnv } from './config/index.js';
 
-/** The background worker that runs triage and reply drafts. */
-const workerFor = (c: Container, log: FastifyBaseLogger) =>
-  createWorker(
-    { db: c.db, ai: c.ai, clock: c.clock, events: c.events, records: c.records, log },
-    { pollMs: c.env.WORKER_POLL_MS },
-  );
-
+/** The standalone server: the support module on its own, with the web app and API docs. */
 async function main(): Promise<void> {
   const env = loadEnv();
   const container = createContainer(env);
   const app = await buildApp(container);
-  const worker = workerFor(container, app.log);
 
   let stopping = false;
   const shutdown = async (signal: string) => {
     if (stopping) return;
     stopping = true;
     app.log.info({ signal }, 'shutting down');
-    await worker.stop();
-    await app.close();
+    await app.close(); // also stops the AI worker
     await container.db.$disconnect();
     process.exit(0);
   };
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
-  // Single-instance deployment: calls live in this process, so any left PENDING/ACTIVE died with it.
-  const interrupted = await failInterruptedCalls(container.db, container.clock.now());
-  if (interrupted.count)
-    app.log.warn({ count: interrupted.count }, 'marked interrupted voice calls');
   await app.listen({ port: env.PORT, host: env.HOST });
-  if (env.WORKER_ENABLED) worker.start();
   app.log.info(
     {
       ai: container.ai.configuredProviders(),
       voice: container.voiceProvider?.id ?? 'not configured',
       worker: env.WORKER_ENABLED,
     },
-    'BookLeaf API ready',
+    'BookLeaf support ready',
   );
 }
 
