@@ -2,12 +2,13 @@ import type { Connector, ConnectorTestResult, SaveConnectorRequest } from '@book
 import type { WorkspaceConnector } from '@prisma/client';
 import { CustomerNotFoundError, HostUnavailableError } from '../../host/errors.js';
 import type { HostRecords } from '../../host/types.js';
-import { workspaceHostRecords } from '../../host/workspaces.js';
+import { workspaceHostRecords, type WorkspaceHostSource } from '../../host/workspaces.js';
 import type { Session } from '../auth/session.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 import type { ConnectorDeps } from './deps.js';
 import { saveConnector } from './save.js';
 import { resolveConnector, type Resolved } from './store.js';
+import { assertSafeUrl } from '../../platform/net/ssrf.js';
 
 const hint = (value: string, at: Date) => ({ hint: value, updatedAt: at.toISOString() });
 
@@ -62,21 +63,27 @@ async function tryCustomer(records: HostRecords, workspaceId: string, customerId
   }
 }
 
+/** Where each workspace's product API is, as the records adapter reads it. */
+function hostSource(deps: ConnectorDeps): WorkspaceHostSource {
+  return {
+    defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+    async configFor(workspaceId) {
+      const r = await resolveConnector(deps, workspaceId);
+      if (!r.config) return null;
+      const version = r.row ? `${r.row.version}:${r.row.updatedAt.getTime()}` : 'env';
+      // A tenant's own URL is checked again at every request; env settings are the operator's.
+      const checkUrl = r.row
+        ? async (url: URL) => void (await assertSafeUrl(url.toString(), deps.ssrf))
+        : undefined;
+      return { config: { ...r.config, checkUrl }, version };
+    },
+  };
+}
+
 /** Per-workspace product connections: read, save (encrypted) and test. */
 export function createConnectorService(deps: ConnectorDeps) {
   /** Every workspace's records behind one HostRecords, re-read when a connector is saved. */
-  const records = workspaceHostRecords(
-    {
-      defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
-      async configFor(workspaceId) {
-        const r = await resolveConnector(deps, workspaceId);
-        if (!r.config) return null;
-        const version = r.row ? `${r.row.version}:${r.row.updatedAt.getTime()}` : 'env';
-        return { config: r.config, version };
-      },
-    },
-    () => deps.clock.now().getTime(),
-  );
+  const records = workspaceHostRecords(hostSource(deps), () => deps.clock.now().getTime());
 
   return {
     records,

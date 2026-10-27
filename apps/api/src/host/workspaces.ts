@@ -8,6 +8,8 @@ export interface WorkspaceHostConfig {
   apiKey: string;
   timeoutMs: number;
   cacheSeconds: number;
+  /** Set for a tenant's own connector: the address is re-checked before every request. */
+  checkUrl?: (url: URL) => Promise<void>;
 }
 
 export interface WorkspaceHostSource {

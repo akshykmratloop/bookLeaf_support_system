@@ -20,6 +20,15 @@ describe('private address detection', () => {
     'fd12::1',
     'fe80::1',
     '::ffff:10.0.0.1',
+    '192.0.0.9',
+    '198.18.0.1',
+    '198.19.255.1',
+    '192.0.2.1',
+    '198.51.100.7',
+    '203.0.113.5',
+    '::ffff:7f00:1',
+    'ff02::1',
+    '64:ff9b::a00:1',
   ])('%s is private', (ip) => {
     expect(isPrivateIp(ip)).toBe(true);
   });

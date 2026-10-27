@@ -100,3 +100,22 @@ describe('httpHostRecords', () => {
     expect(calls[0]?.id).toBe('a:b@c');
   });
 });
+
+describe('address re-check at request time (DNS rebinding)', () => {
+  it('sends nothing and reports the host unavailable when the check refuses the address', async () => {
+    const refuse = async () => {
+      throw new Error('private or internal addresses');
+    };
+    await expect(records({ checkUrl: refuse }).customer('C1')).rejects.toBeInstanceOf(
+      HostUnavailableError,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fetches as usual when the check passes', async () => {
+    const seen: string[] = [];
+    const allow = async (url: URL) => void seen.push(url.pathname);
+    await expect(records({ checkUrl: allow }).customer('C1')).resolves.toMatchObject({ id: 'C1' });
+    expect(seen).toEqual(['/support/customers/C1']);
+  });
+});

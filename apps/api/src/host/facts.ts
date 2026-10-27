@@ -1,5 +1,5 @@
 import type { Fact, HostCustomer } from '@bookleaf/shared';
-import { HostUnavailableError } from './errors.js';
+import { CustomerNotFoundError, HostUnavailableError } from './errors.js';
 import type { HostRecords } from './types.js';
 
 /** Used instead of the customer's facts when the host cannot answer: the assistant then says
@@ -23,7 +23,11 @@ export const allFacts = (c: HostCustomer): Fact[] =>
 export const factsFor = (c: HostCustomer, itemId: string | null): Fact[] =>
   unique([...c.facts, ...(c.items.find((i) => i.id === itemId)?.facts ?? [])]);
 
-/** The customer, or null while the host is unavailable. Other errors still propagate. */
+/**
+ * The customer, or null while the host is unavailable or no longer knows this signed-in customer
+ * (deleted or renamed at the host): screens then say the records cannot be seen, instead of
+ * failing. Other errors still propagate.
+ */
 export async function customerOrNull(
   records: HostRecords,
   externalId: string,
@@ -32,7 +36,7 @@ export async function customerOrNull(
   try {
     return await records.customer(externalId, workspaceId);
   } catch (err) {
-    if (err instanceof HostUnavailableError) return null;
+    if (err instanceof HostUnavailableError || err instanceof CustomerNotFoundError) return null;
     throw err;
   }
 }

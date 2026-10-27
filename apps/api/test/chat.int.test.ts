@@ -396,3 +396,27 @@ describe('ticket from chat', () => {
     expect((await call(h, 'GET', `/admin/chat/sessions/${chat.id}`, admin)).statusCode).toBe(200);
   });
 });
+
+// Last in the file: it uses up Kavita's messages for this minute.
+describe('workspace limits', () => {
+  it("follows the workspace's own per-minute limit, even above the platform default of 20", async () => {
+    const saveLimits = async (messagesPerMinute: number) => {
+      const { settings } = (await call(h, 'GET', '/workspace/settings', admin)).json<{
+        settings: { version: number };
+      }>();
+      const res = await call(h, 'PUT', '/workspace/settings', admin, {
+        version: settings.version,
+        messagesPerMinute,
+      });
+      expect(res.statusCode).toBe(200);
+    };
+    await setAssistant({ chatEnabled: true });
+    await saveLimits(60);
+    const chat = await startChat(kavita);
+    const codes: number[] = [];
+    for (let i = 0; i < 25; i += 1)
+      codes.push((await send(kavita, chat.id, `question ${i}`)).statusCode);
+    await saveLimits(20);
+    expect(codes.filter((c) => c !== 200)).toEqual([]);
+  });
+});

@@ -9,11 +9,17 @@ export interface HttpHostOptions {
   timeoutMs: number;
   cacheSeconds: number;
   now: () => number;
+  /**
+   * Re-checks the address right before each request (a tenant's own connector), so a host name
+   * that later resolves to an internal address is refused (DNS rebinding).
+   */
+  checkUrl?: (url: URL) => Promise<void>;
 }
 
 async function fetchCustomer(o: HttpHostOptions, externalId: string): Promise<Response> {
   const url = new URL(`support/customers/${encodeURIComponent(externalId)}`, `${o.baseUrl}/`);
   try {
+    await o.checkUrl?.(url);
     return await fetch(url, {
       headers: { authorization: `Bearer ${o.apiKey}`, accept: 'application/json' },
       redirect: 'error',

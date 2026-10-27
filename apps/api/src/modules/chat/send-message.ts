@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { ChatReply } from '@bookleaf/shared';
-import { UsageLimitError } from '../../platform/errors.js';
+import { ConflictError, UsageLimitError } from '../../platform/errors.js';
 import { QueueFullError } from '../../platform/keyed-queue.js';
 import { startOfUtcDay, type AssistantLimits } from '../assistant/limits.js';
 import { authorIdOf, type Session } from '../auth/session.js';
@@ -43,6 +43,18 @@ async function enforceRateLimits(deps: ChatDeps, authorId: string, limits: ChatL
     );
 }
 
+/** While the chat's call is live, the author talks there: typed turns would bypass its limit. */
+async function refuseDuringCall(deps: ChatDeps, chatId: string): Promise<void> {
+  const live = await deps.db.voiceSession.count({
+    where: { chatSessionId: chatId, status: 'ACTIVE' },
+  });
+  if (live > 0)
+    throw new ConflictError(
+      'VOICE_CALL_ACTIVE',
+      'You are on a call in this conversation. Say it on the call, or end the call to type.',
+    );
+}
+
 async function takeTurn(deps: ChatDeps, chatId: string, maxTurns: number): Promise<void> {
   if (!(await reserveTurn(deps.db, chatId, maxTurns))) throw turnLimitError(maxTurns);
 }
@@ -68,6 +80,7 @@ function saveReply(deps: ChatDeps, chatId: string, a: StoredAnswer, body: string
 async function answerTurn(deps: ChatDeps, session: Session, input: ChatMessageInput) {
   const authorId = authorIdOf(session);
   const chat = await findOwnSession(deps.db, input.chatId, authorId);
+  await refuseDuringCall(deps, chat.id);
   const { limits } = await deps.assistant.config(session.workspaceId);
   await enforceRateLimits(deps, authorId, limits.chat);
   await takeTurn(deps, chat.id, limits.chat.maxTurnsPerSession);

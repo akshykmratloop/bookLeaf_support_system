@@ -28,6 +28,9 @@ const errors = {
   429: ProblemSchema,
 };
 
+/** Highest per-minute limit a workspace may choose (the settings schema's maximum). */
+const FLOOD_GUARD_PER_MINUTE = 120;
+
 /** Rate limits key on the signed-in user, after the auth guard has run. */
 const perUser = (max: number, timeWindow: string) => ({
   max,
@@ -85,11 +88,13 @@ function registerSessionRoutes(app: RouteApp, { chat, limits }: Deps) {
 }
 
 /** Talking in a conversation and raising its ticket. */
-function registerMessageRoutes(app: RouteApp, { chat, limits }: Deps) {
+function registerMessageRoutes(app: RouteApp, { chat }: Deps) {
   app.post(
     '/chat/sessions/:id/messages',
     {
-      config: { ...AUTHOR, rateLimit: perUser(limits.chat.messagesPerMinute, '1 minute') },
+      // Only a flood guard: each workspace's own per-minute and per-day limits are enforced in
+      // the service (send-message.ts), so they can be set above or below the platform default.
+      config: { ...AUTHOR, rateLimit: perUser(FLOOD_GUARD_PER_MINUTE, '1 minute') },
       schema: {
         tags: ['chat'],
         summary: 'Ask a question; the answer is grounded in my own records and fact-checked',

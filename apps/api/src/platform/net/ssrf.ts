@@ -30,22 +30,40 @@ const PRIVATE_V4: readonly [number, [number, number]][] = [
   [169, [254, 254]], // link-local incl. cloud metadata
   [172, [16, 31]], // RFC 1918
   [192, [168, 168]], // RFC 1918
+  [198, [18, 19]], // benchmarking
 ];
+/** /24 blocks that are special-purpose or documentation-only (RFC 6890, RFC 5737). */
+const PRIVATE_V4_24: readonly string[] = ['192.0.0', '192.0.2', '198.51.100', '203.0.113'];
 const MULTICAST_FROM = 224;
 
 /** Loopback, RFC 1918, CGNAT, link-local (incl. cloud metadata), multicast, unspecified. */
 export function isPrivateV4(ip: string): boolean {
   const [a, b] = v4(ip);
   if (a >= MULTICAST_FROM) return true;
+  if (PRIVATE_V4_24.includes(ip.split('.').slice(0, 3).join('.'))) return true;
   return PRIVATE_V4.some(([first, [lo, hi]]) => a === first && b >= lo && b <= hi);
 }
 
+/** `::ffff:7f00:1` is `127.0.0.1` written in hex: decode it to the IPv4 address. */
+function mappedV4(lower: string): string | null {
+  const dotted = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
+  if (dotted?.[1]) return dotted[1];
+  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
+  if (!hex?.[1] || !hex[2]) return null;
+  const hi = parseInt(hex[1], 16);
+  const lo = parseInt(hex[2], 16);
+  return [hi >> 8, hi & 255, lo >> 8, lo & 255].join('.');
+}
+
+/** Loopback, unique-local, link-local, multicast, NAT64 and IPv4-mapped private addresses. */
 export function isPrivateV6(ip: string): boolean {
   const lower = ip.toLowerCase();
   if (lower === '::' || lower === '::1') return true;
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-  if (mapped?.[1]) return isPrivateV4(mapped[1]);
-  return lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80');
+  const v4inV6 = mappedV4(lower);
+  if (v4inV6) return isPrivateV4(v4inV6);
+  // NAT64 (64:ff9b::/96) can reach any IPv4 address, internal ones included.
+  if (lower.startsWith('64:ff9b:')) return true;
+  return ['fc', 'fd', 'fe8', 'fe9', 'fea', 'feb', 'ff'].some((p) => lower.startsWith(p));
 }
 
 export const isPrivateIp = (ip: string): boolean =>

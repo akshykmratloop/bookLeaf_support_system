@@ -206,4 +206,36 @@ describe('a call started from a chat is part of that conversation', () => {
     c.ws.send(JSON.stringify({ type: 'hangup' }));
     await c.closed;
   });
+
+  it('refuses typed messages in the chat while its call is live (409), then takes them again', async () => {
+    const chat = await chatWithHistory(kavita);
+    const started = await call(h, 'POST', '/voice/calls', kavita, { chatSessionId: chat.id });
+    const c = connect(started.json<StartVoiceCall>().socketPath, kavita);
+    await c.waitFor('ready');
+    const typed = await call(h, 'POST', `/chat/sessions/${chat.id}/messages`, kavita, {
+      body: 'typing while talking',
+    });
+    expect(typed.statusCode).toBe(409);
+    expect(typed.json<{ code: string }>().code).toBe('VOICE_CALL_ACTIVE');
+    c.ws.send(JSON.stringify({ type: 'hangup' }));
+    await c.closed;
+    await waitUntil(async () => {
+      const row = await h.db.voiceSession.findFirstOrThrow({ where: { chatSessionId: chat.id } });
+      return row.status !== 'ACTIVE';
+    });
+    const after = await call(h, 'POST', `/chat/sessions/${chat.id}/messages`, kavita, {
+      body: 'and now typing again',
+    });
+    // Other files share this author's per-minute quota, so only "not blocked by the call" is certain.
+    expect(after.json<{ code?: string }>().code).not.toBe('VOICE_CALL_ACTIVE');
+  });
 });
+
+/** Polls until the condition holds (the call is saved just after the socket closes). */
+async function waitUntil(check: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
+  const until = Date.now() + timeoutMs;
+  while (!(await check())) {
+    if (Date.now() > until) throw new Error('condition not met in time');
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
