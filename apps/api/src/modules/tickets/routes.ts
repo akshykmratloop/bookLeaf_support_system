@@ -1,3 +1,4 @@
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { RouteApp } from '../../platform/http/route-app.js';
 import { z } from 'zod';
@@ -59,11 +60,21 @@ function listTickets(app: RouteApp, deps: TicketDeps) {
   );
 }
 
+/** Each new ticket starts paid AI work (triage, then a draft), so authors get a generous cap. */
+export const TICKETS_PER_HOUR = 30;
+
+const perAuthorTickets = {
+  max: TICKETS_PER_HOUR,
+  timeWindow: '1 hour',
+  hook: 'preHandler' as const,
+  keyGenerator: (req: FastifyRequest) => `ticket:${req.session?.userId ?? req.ip}`,
+};
+
 function raiseTicket(app: RouteApp, deps: TicketDeps) {
   app.post(
     '/tickets',
     {
-      config: AUTHOR,
+      config: { ...AUTHOR, rateLimit: perAuthorTickets },
       schema: {
         tags: ['tickets'],
         summary: 'Raise a support ticket (Idempotency-Key header supported)',
