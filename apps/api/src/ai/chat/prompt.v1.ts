@@ -4,6 +4,7 @@ import { factLine } from '../prompts/draft.v1.js';
 import { KB_SECTIONS } from '../prompts/kb.js';
 import { DraftOutputSchema } from './draft-action.js';
 import { DRAFT_RULES, draftBlock } from './draft-prompt.js';
+import { fenceSafe } from '../prompts/untrusted.js';
 
 export const CHAT_PROMPT_VERSION = 'chat.v1.3';
 
@@ -100,7 +101,9 @@ ${draftBlock(input.draft, input.books)}`;
 }
 
 const turnLine = (m: ChatPromptInput['history'][number]) =>
-  m.role === 'AUTHOR' ? `<author_message>${m.body}</author_message>` : `Assistant: ${m.body}`;
+  m.role === 'AUTHOR'
+    ? `<author_message>${fenceSafe(m.body)}</author_message>`
+    : `Assistant: ${m.body}`;
 
 /** Splits history into older turns and the most recent exchange (last author message onwards). */
 export function splitHistory(history: ChatPromptInput['history']) {
@@ -121,7 +124,7 @@ export function chatUserMessage(input: ChatPromptInput): string {
       `MOST RECENT EXCHANGE (the latest message usually follows on from this):\n${recent.map(turnLine).join('\n')}`,
     );
   parts.push(
-    `LATEST AUTHOR MESSAGE (untrusted; answer this):\n<author_message>${input.message}</author_message>`,
+    `LATEST AUTHOR MESSAGE (untrusted; answer this):\n<author_message>${fenceSafe(input.message)}</author_message>`,
   );
   if (input.checkerNotes?.length)
     parts.push(

@@ -1,4 +1,5 @@
 import { CATEGORY_LABELS, TICKET_CATEGORIES, type TicketDraft } from '@bookleaf/shared';
+import { fenceSafe } from '../prompts/untrusted.js';
 
 export const ISSUE_TYPES = TICKET_CATEGORIES.map((c) => `- ${c} | ${CATEGORY_LABELS[c]}`).join(
   '\n',
@@ -27,7 +28,8 @@ export const DRAFT_RULES = `TICKET DRAFT (a panel beside the chat that you and t
 ISSUE TYPES (id | label):
 ${ISSUE_TYPES}`;
 
-const show = (text: string) => (text ? `<author_editable>${text}</author_editable>` : '(empty)');
+const show = (text: string) =>
+  text ? `<author_editable>${fenceSafe(text)}</author_editable>` : '(empty)';
 
 /** The draft as it is right now. Field text may come from the author, so it is marked untrusted. */
 export function draftBlock(

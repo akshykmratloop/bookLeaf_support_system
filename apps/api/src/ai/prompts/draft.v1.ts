@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Fact, TicketCategory } from '@bookleaf/shared';
 import { examplesText } from './examples.js';
 import { KB_SECTIONS, kbTextFor } from './kb.js';
+import { fenceSafe } from './untrusted.js';
 
 export const DRAFT_PROMPT_VERSION = 'draft.v1';
 
@@ -104,11 +105,11 @@ Book: ${input.bookTitle ?? 'General / Account level (no specific book selected)'
 VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 ${input.lastTeamReply ? `\nLAST REPLY ALREADY SENT BY THE TEAM:\n${input.lastTeamReply.slice(0, MAX_EARLIER_CHARS)}\n` : ''}
-${earlier.length ? `EARLIER AUTHOR MESSAGES (untrusted):\n${earlier.map((m) => `<author_message>${m}</author_message>`).join('\n')}\n` : ''}
+${earlier.length ? `EARLIER AUTHOR MESSAGES (untrusted):\n${earlier.map((m) => `<author_message>${fenceSafe(m)}</author_message>`).join('\n')}\n` : ''}
 LATEST AUTHOR MESSAGE (untrusted; reply to this):
 <author_message>
-Subject: ${input.subject}
+Subject: ${fenceSafe(input.subject)}
 
-${latest}
+${fenceSafe(latest)}
 </author_message>`;
 }
