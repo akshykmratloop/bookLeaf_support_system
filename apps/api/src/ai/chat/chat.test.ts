@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
-import { AiUnavailableError } from '../providers/errors.js';
+import { AiAuthError, AiUnavailableError } from '../providers/errors.js';
 import { fakeProvider } from '../providers/fake/provider.js';
 import { buildAuthorFacts } from './author-facts.js';
 import { chatUserMessage } from './prompt.v1.js';
@@ -117,6 +117,30 @@ describe('answerChat', () => {
       description: 'My book is missing on Flipkart',
       bookId: null,
     });
+  });
+
+  it('retries once on a temporary provider error before giving up', async () => {
+    let call = 0;
+    const provider = fakeProvider(() => {
+      call += 1;
+      if (call === 1) throw new AiUnavailableError('blip');
+      return { answer: 'Happy to help with your books.', claims: [], ticketSuggestion: null };
+    });
+    const res = await answerChat(provider, 'm', chatInput('AUTH001', 'hi'));
+    expect(res.source).toBe('AI');
+    expect(call).toBe(2);
+  });
+
+  it('does not retry an error that will not fix itself (bad key)', async () => {
+    let call = 0;
+    const provider = fakeProvider(() => {
+      call += 1;
+      throw new AiAuthError('bad key');
+    });
+    await expect(answerChat(provider, 'm', chatInput('AUTH001', 'hi'))).rejects.toBeInstanceOf(
+      AiAuthError,
+    );
+    expect(call).toBe(1);
   });
 
   it('lets provider errors reach the caller, which decides how to degrade', async () => {

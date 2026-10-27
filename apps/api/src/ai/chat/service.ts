@@ -1,5 +1,6 @@
 import type { CheckResult, TicketProposal } from '@bookleaf/shared';
 import { checkReply } from '../checker/index.js';
+import { AiError } from '../providers/errors.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
 import {
   CHAT_SYSTEM,
@@ -28,8 +29,11 @@ export const SAFE_FALLBACK_TEXT =
 
 const MAX_TOKENS = 700;
 
-async function generate(provider: LlmProvider, model: string, input: ChatPromptInput) {
-  const result = await provider.generateStructured({
+/** The author is waiting, so a temporary provider error gets one quick retry, not a backoff. */
+const RETRY_DELAY_MS = 400;
+
+async function callOnce(provider: LlmProvider, model: string, input: ChatPromptInput) {
+  return provider.generateStructured({
     task: 'CHAT',
     model,
     stableSystem: CHAT_SYSTEM,
@@ -39,6 +43,17 @@ async function generate(provider: LlmProvider, model: string, input: ChatPromptI
     maxTokens: MAX_TOKENS,
     effort: 'low',
   });
+}
+
+async function generate(provider: LlmProvider, model: string, input: ChatPromptInput) {
+  let result: StructuredResult<ChatOutput>;
+  try {
+    result = await callOnce(provider, model, input);
+  } catch (err) {
+    if (!(err instanceof AiError) || !err.retryable) throw err;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    result = await callOnce(provider, model, input);
+  }
   const { data, ...run } = result;
   return { data, run };
 }

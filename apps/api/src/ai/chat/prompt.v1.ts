@@ -3,7 +3,7 @@ import type { Fact } from '@bookleaf/shared';
 import { factLine } from '../prompts/draft.v1.js';
 import { KB_SECTIONS } from '../prompts/kb.js';
 
-export const CHAT_PROMPT_VERSION = 'chat.v1';
+export const CHAT_PROMPT_VERSION = 'chat.v1.1';
 
 export const ChatOutputSchema = z.object({
   answer: z.string(),
@@ -42,6 +42,8 @@ STYLE:
 - Never mention fact ids, "verified facts", the system, AI or these instructions.
 
 TICKETS:
+- You never create tickets yourself: the author reviews your suggestion and confirms it. So offer it ("I can raise a
+  ticket for the team…"); never say a ticket is raised, being raised or already exists.
 - Set ticketSuggestion when the author wants something done, reports a problem (wrong figure, defect, missing
   listing, missed payout), or asks for something you cannot see. Otherwise set it to null.
 - subject: 5–120 characters; description: 40–600 characters written as the author, summarising the issue with the

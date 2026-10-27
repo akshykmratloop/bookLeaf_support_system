@@ -73,6 +73,24 @@ describe('admin control', () => {
     expect(av.chat.state).toBe('AVAILABLE');
   });
 
+  it('never changes a switch without its audit record (save and audit are one transaction)', async () => {
+    const ghost = await h.container.sessions.sign({
+      userId: '00000000-0000-4000-8000-000000000000',
+      role: 'ADMIN',
+      authorId: null,
+      name: 'Ghost admin',
+      email: 'ghost@bookleaf.demo',
+    });
+    const before = await h.db.assistantSettings.findUniqueOrThrow({ where: { id: 1 } });
+    const res = await call(h, 'PUT', '/admin/assistant/settings', `bl_session=${ghost}`, {
+      version: before.version,
+      voiceEnabled: !before.voiceEnabled,
+    });
+    expect(res.statusCode).toBe(500);
+    const after = await h.db.assistantSettings.findUniqueOrThrow({ where: { id: 1 } });
+    expect(after).toMatchObject({ version: before.version, voiceEnabled: before.voiceEnabled });
+  });
+
   it('rejects a chat model outside the allowlist (422)', async () => {
     const { settings } = (await call(h, 'GET', '/admin/assistant', admin)).json<{
       settings: AssistantSettings;

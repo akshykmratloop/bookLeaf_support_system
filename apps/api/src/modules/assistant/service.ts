@@ -128,24 +128,27 @@ export function createAssistantService({ db, ai, limits, voiceConfigured }: Deps
         chatModel: input.chatModel ?? current.chatModel,
         updatedById: session.userId,
       };
-      const res = await db.assistantSettings.updateMany({
-        where: { id: 1, version: input.version },
-        data: { ...data, version: { increment: 1 } },
-      });
-      if (res.count === 0)
-        throw new ConflictError(
-          'VERSION_CONFLICT',
-          'Assistant settings were changed by someone else. Reload and try again.',
-        );
-      await db.auditEvent.create({
-        data: {
-          actorId: session.userId,
-          entityType: 'assistant_settings',
-          entityId: '1',
-          action: 'assistant_settings.updated',
-          before: toDto(current),
-          after: data,
-        },
+      // The change and its audit record commit together, or neither does.
+      await db.$transaction(async (tx) => {
+        const res = await tx.assistantSettings.updateMany({
+          where: { id: 1, version: input.version },
+          data: { ...data, version: { increment: 1 } },
+        });
+        if (res.count === 0)
+          throw new ConflictError(
+            'VERSION_CONFLICT',
+            'Assistant settings were changed by someone else. Reload and try again.',
+          );
+        await tx.auditEvent.create({
+          data: {
+            actorId: session.userId,
+            entityType: 'assistant_settings',
+            entityId: '1',
+            action: 'assistant_settings.updated',
+            before: toDto(current),
+            after: data,
+          },
+        });
       });
       return toDto(await settings());
     },
