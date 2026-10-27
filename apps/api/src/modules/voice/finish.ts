@@ -5,16 +5,20 @@ import type { Db } from '../../platform/db.js';
 import type { CallOutcome } from '../../voice/call/controller.js';
 import { VOICE_PROMPT_VERSION } from '../../voice/call/instructions.js';
 import { saveIntoChat } from './chat-link.js';
+import { wordsToDigits } from '../../ai/checker/number-words.js';
 
 /**
  * Checks every figure the assistant spoke against the facts snapshot it was given. Speech
  * cannot be blocked like a written reply, so this flags problems for admins after the call.
  */
 export function checkSpokenFigures(outcome: CallOutcome, facts: readonly Fact[], ignore: string[]) {
-  const spoken = outcome.transcript
-    .filter((l) => l.role === 'ASSISTANT')
-    .map((l) => l.text)
-    .join('\n');
+  // The assistant says amounts in words; the checker reads digits.
+  const spoken = wordsToDigits(
+    outcome.transcript
+      .filter((l) => l.role === 'ASSISTANT')
+      .map((l) => l.text)
+      .join('\n'),
+  );
   if (!spoken.trim()) return { passed: true, issues: [] };
   const result = checkReply({ body: spoken, facts, ignorePhrases: ignore });
   const issues = result.issues

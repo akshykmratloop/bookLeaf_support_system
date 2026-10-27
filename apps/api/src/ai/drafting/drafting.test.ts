@@ -49,6 +49,22 @@ describe('template fallback drafts', () => {
     expect(d.body).toMatch(/^Hi \w+,/);
   });
 
+  it.each([
+    ['AUTH009', 'BK016', 'ROYALTY_PAYMENTS'],
+    ['AUTH001', 'BK001', 'ISBN_METADATA'],
+    ['AUTH001', 'BK001', 'PRINTING_QUALITY'],
+    ['AUTH001', 'BK001', 'DISTRIBUTION_AVAILABILITY'],
+  ] as const)(
+    '%s %s %s: without the knowledge-base facts, asks the agent instead of stating a figure (F-08)',
+    (author, book, category) => {
+      const full = draftInput(author, book, category);
+      const facts = full.facts.filter((f) => !f.id.startsWith('kb.'));
+      const d = templateDraft({ ...full, facts });
+      expect(figureIssues(d.check.issues.map((i) => i.code))).toEqual([]);
+      expect(d.body).toContain('[CONFIRM:');
+    },
+  );
+
   it('Kavita: explains the ₹850 roll-over below the ₹1,000 threshold', () => {
     const d = templateDraft(draftInput('AUTH009', 'BK016', 'ROYALTY_PAYMENTS'));
     expect(d.body).toContain('₹850');
