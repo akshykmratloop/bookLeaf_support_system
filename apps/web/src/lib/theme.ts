@@ -18,3 +18,8 @@ export function applyTheme(theme: Theme): void {
     // Storage can be unavailable (private mode); the theme still applies for this page view.
   }
 }
+
+/** Shows a theme without saving it (the widget wears the host page's choice, not its own). */
+export function showTheme(theme: Theme): void {
+  document.documentElement.dataset.theme = theme;
+}

@@ -92,7 +92,12 @@
     for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
     el.style.colorScheme = colorScheme;
   }
-  const repaint = () => [launcher, state.panel].forEach(paint);
+  /** Repaints the frame around the support app and tells the app inside, so both match. */
+  const repaint = () => {
+    [launcher, state.panel].forEach(paint);
+    const theme = currentTheme();
+    state.frame?.contentWindow?.postMessage({ type: 'bookleaf-support:theme', theme }, supportUrl);
+  };
 
   const state = { panel: null, frame: null, backdrop: null, expanded: false, reauths: [] };
 
@@ -186,7 +191,7 @@
     const f = document.createElement('iframe');
     f.title = title;
     f.allow = 'microphone';
-    f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}`;
+    f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}&theme=${currentTheme()}`;
     style(f, { border: '0', width: '100%', flex: '1', background: 'var(--bl-bg)' });
     return f;
   }
