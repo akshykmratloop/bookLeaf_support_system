@@ -1,0 +1,3 @@
+#!/bin/sh
+# Passes through to the global pre-push hook, so it keeps running with this repo's hooks on.
+exec "$(dirname "$0")/run-global.sh" pre-push "$@"

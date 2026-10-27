@@ -1,0 +1,5 @@
+#!/bin/sh
+# Formats and lint-fixes the staged files, after any global pre-commit hook.
+set -e
+"$(dirname "$0")/run-global.sh" pre-commit "$@"
+pnpm exec lint-staged
