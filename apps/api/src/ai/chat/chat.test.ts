@@ -48,6 +48,20 @@ describe('buildAuthorFacts', () => {
 });
 
 describe('answerChat', () => {
+  it('gives the model room to reason as well as answer (thinking counts toward the limit)', async () => {
+    // Regression: payout questions used ~1,400 output tokens and were cut off at 700, so every
+    // such question showed "assistant unavailable".
+    const input = chatInput('AUTH001', 'Why have I not got any payout yet?');
+    const pending = totalPending(input);
+    const provider = fakeProvider(() => ({
+      answer: `You have ${pending.display} pending in total across your books, Priya.`,
+      claims: [{ quote: pending.display, factIds: [pending.id] }],
+      ticketSuggestion: null,
+    }));
+    await answerChat(provider, 'm', input);
+    expect(provider.calls[0]?.maxTokens).toBeGreaterThanOrEqual(3000);
+  });
+
   it('returns a grounded answer that passes the fact check', async () => {
     const input = chatInput('AUTH001', 'How much royalty is pending?');
     const pending = totalPending(input);
