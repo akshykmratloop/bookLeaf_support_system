@@ -21,7 +21,8 @@ const linesOf = (transcript: unknown): TranscriptLine[] => {
 
 /**
  * The author's last connected call, if it can be continued: it ended less than
- * RESUME_WITHIN_MINUTES ago, something was said or drafted, and no ticket was sent from it.
+ * RESUME_WITHIN_MINUTES ago, the author said something or a draft was started, and no ticket
+ * was sent from it. A call that never got past the greeting is not worth continuing.
  */
 export async function findResumable(db: Tx, authorId: string, now: Date) {
   const last = await db.voiceSession.findFirst({
@@ -34,7 +35,8 @@ export async function findResumable(db: Tx, authorId: string, now: Date) {
   const draft = await db.ticketDraft.findUnique({ where: { voiceThreadId: threadOf(last) } });
   if (draft?.status === 'SUBMITTED') return null;
   const drafted = Boolean(draft && (draft.subject || draft.description || draft.category));
-  return linesOf(last.transcript).length > 0 || drafted ? last : null;
+  const authorSpoke = linesOf(last.transcript).some((l) => l.role === 'AUTHOR');
+  return authorSpoke || drafted ? last : null;
 }
 
 /** Every line of the thread's calls, oldest first, optionally leaving out one call. */

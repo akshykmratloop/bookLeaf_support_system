@@ -336,6 +336,20 @@ describe('voice: live ticket draft', () => {
     ]);
   });
 
+  it('offers nothing to continue when only the greeting was said', async () => {
+    const started = await startCall(arjun);
+    const c = connect(started.socketPath, arjun);
+    await c.waitFor('ready');
+    fake.emit({
+      type: 'transcript',
+      role: 'ASSISTANT',
+      text: 'Hi Arjun, this is BookLeaf support.',
+    });
+    c.ws.send(JSON.stringify({ type: 'hangup' }));
+    await c.closed;
+    expect((await call(h, 'GET', '/voice/calls/resumable', arjun)).json()).toBeNull();
+  });
+
   it('offers nothing to continue after an hour (and refuses resume: 409)', async () => {
     const last = await h.db.voiceSession.findFirstOrThrow({
       where: { author: { user: { email: EMAILS.arjun } } },
