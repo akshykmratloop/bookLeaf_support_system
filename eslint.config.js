@@ -124,6 +124,38 @@ export default tseslint.config(
       ],
     },
   },
+  // Size and shape limits (CLAUDE.md §3.4, §10): small files, short functions, shallow nesting.
+  {
+    files: ['apps/**/*.{ts,tsx}', 'packages/**/*.ts'],
+    rules: {
+      'max-lines': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': [
+        'error',
+        { max: 40, skipBlankLines: true, skipComments: true, IIFEs: true },
+      ],
+      complexity: ['error', 10],
+      'max-depth': ['error', 3],
+      'max-params': ['error', 4],
+      'max-nested-callbacks': ['error', 3],
+    },
+  },
+  {
+    // A React component returns its markup, so it gets the component limit instead.
+    files: ['apps/web/**/*.tsx'],
+    rules: {
+      'max-lines-per-function': ['error', { max: 150, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Tests group cases in describe/it callbacks; the file and depth limits still apply.
+    files: ['**/*.test.{ts,tsx}', 'apps/api/test/**/*.ts'],
+    rules: {
+      'max-lines-per-function': 'off',
+      'max-nested-callbacks': ['error', 4],
+      'max-params': ['error', 6],
+      'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
   {
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
