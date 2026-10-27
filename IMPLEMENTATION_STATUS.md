@@ -1,68 +1,65 @@
-# Implementation status — 27 Oct 2026, 07:30 IST
+# Implementation status — 28 Oct 2026 (end of the overnight QA mission)
 
-Core assignment (Phase 1) is built and verified locally. It is **not deployed** and **not pushed** (no remote yet).
-Chat (Phase 2) and voice (Phase 3) were not started, by decision. The QA pass (Phase QA) is queued for this morning.
+Branch **`feature/support-saas`** (worktree `bookleaf-support-saas`), HEAD at the commit that adds this file. It merges
+the pluggable support module and the multi-tenant SaaS platform, and it has been audited, fixed and verified.
+**Not merged into `main`, not pushed, not deployed.** `main` is unchanged at `969813a`.
+
+Full QA evidence: `docs/qa/final-report.md` (start here), then `requirements-matrix.md`, `repair-plan.md`,
+`security-report.md`, `ai-benchmark.md`, `baseline.md` and `browser-journeys.md`, all in `docs/qa/`.
 
 ## 1. Assignment requirements
 
-| Brief requirement | Status | Where | How it was checked |
-| --- | --- | --- | --- |
-| Email/password login; authors see only their own data | ✅ | `modules/auth`, repositories | Integration (RBAC, 404 on another author's data), browser |
-| My Books with all 10 fields | ✅ | `pages/author/BooksPage` | Browser (Kavita: in-production book shows "Set at publication", not ₹0) |
-| Submit ticket: book dropdown + General, subject, description, attachment UI | ✅ | `TicketForm` | Browser (ticket BL-1002 created through the form) |
-| My Tickets with status, original query, replies, near-real-time | ✅ | `TicketDetailPage`, SSE | Browser: admin reply appeared on the open author page without refresh |
-| Admin queue: filters (status, category, priority, date), urgent/oldest easy to spot | ✅ | `QueuePage` | Browser; integration (filters, cursor pagination) |
-| AI classification (6 categories) with admin override | ✅ | `ai/triage`, PATCH | Eval 26/26; integration (override survives AI re-run) |
-| AI priority (4 levels) with admin override | ✅ | `ai/triage` + rules floor | Eval 26/26; integration |
-| AI draft from query + Knowledge Base, editable, sent reply visible to author | ✅ | `ai/drafting`, `ReplyComposer` | Live drafts for Arjun and Kavita; browser; integration |
-| Status updates, internal notes (hidden from author), assign to self | ✅ | `modules/tickets`, `messages` | Integration + browser |
-| REST API: naming, auth middleware, RBAC, validation, meaningful errors | ✅ | `/api/v1`, RFC 7807 | Integration (401/403/404/409/415/422) |
-| API documentation | ✅ | Swagger at `/api/docs`, README table | Opened `/api/docs` (200) |
-| API key in env, never exposed | ✅ | `platform/env.ts` | Integration sentinel test; key not found in built bundles |
-| Graceful degradation when AI is down / rate-limited | ✅ | worker retries + rules/template fallback, outage switch | Integration (unavailable, bad key, outage switch) |
-| Cost awareness | ✅ | one KB section per prompt, stored drafts, `ai_runs` | Integration: opening a ticket makes no AI call |
-| Model choice justified | ✅ | README | — |
-| Seeded with the exact sample data | ✅ | `prisma/seed.ts` | Seed run: 10 authors, 18 books, 2 admins |
-| Live URL | ❌ | — | Needs a hosting account (see section 5) |
-| README + 1-page write-up | ✅ | `README.md`, `docs/write-up.md` | — |
+From `docs/qa/requirements-matrix.md` (30 requirements read from the assignment PDF):
 
-## 2. Tests and build (all run on this machine, 27 Oct)
+| Status | Count | Items |
+| --- | --- | --- |
+| ✅ Met | 27 | Logins and roles, My Books, ticket form, My Tickets with live updates, admin queue with filters and urgency order, AI category and priority with override, AI draft with knowledge base, statuses, notes, assignment, REST API and docs, keys in env, graceful degradation, cost awareness, model choice explained, seed data, Dockerfile, README |
+| 🟡 Partly | 1 | One-page write-up: `docs/write-up.md` is 761 words, more than a page. Left for you to trim, since it is your voice. |
+| ❌ Not met | 2 | Live URL and private repo. Both need your accounts (section 5). |
+
+## 2. Tests and build (one run on this machine, 28 Oct)
 
 | Check | Result |
 | --- | --- |
 | Typecheck (all packages) | ✅ pass |
-| ESLint (incl. architecture boundary rules) | ✅ pass |
+| ESLint (incl. file/function size and architecture rules) | ✅ pass |
 | Prettier format check | ✅ pass |
-| Unit tests (facts, checker, triage, drafting) | ✅ 45 / 45 |
-| Integration tests (real Postgres via testcontainers) | ✅ 48 / 48 (07:08 run, 10.7 s) |
-| Production build (web + API bundle) | ✅ pass |
-| Docker image | ✅ builds; container applied migrations, `/health` ok, SPA served |
-| Live AI triage eval (`pnpm eval`, 26 cases, Haiku) | ✅ 26/26 category, 26/26 priority (keyword fallback: 25/26, 23/26) — small, developer-written set |
-| Real-browser checks (ego-browser, Chromium) | ✅ author login, My Books, create ticket, live reply update, admin queue + workspace, fact-check blocking |
+| Production build (all apps) | ✅ pass |
+| API tests (real Postgres via testcontainers) | ✅ 436 / 436 (52 files) |
+| Web / host-demo / host-web tests | ✅ 74 / 74 · 28 / 28 · 4 / 4 |
+| react-doctor (`--fail-on error`) | ✅ exit 0 — web 79/100, host-web 82/100 (warnings only) |
+| Docker image | ✅ built; on an empty throwaway database it applied all 10 migrations, `/health` OK, app/admin/embed.js/API docs 200, security headers present |
+| Migrations on a throwaway database | ✅ `migrate deploy` + `migrate diff --exit-code` = 0 (no drift) |
+| Live AI triage eval (46 cases incl. Hinglish, Hindi, adversarial; Haiku) | ✅ category 45/46 (macro-F1 0.972), priority 46/46, ≈ $0.08 per 1,000 tickets |
+| Live AI draft eval (24 cases; Sonnet) | 🟡 10/24 pass the fact checker first time (was 4/24 before a prompt fix); the rest wait for a person to confirm a detail — by design nothing unverified reaches an author |
+| Real-browser journeys (Chromium, 420 and 1440 px, light and dark) | ✅ 6 journeys, no P0/P1 defects; 1 layout bug fixed |
+| Live voice call with a microphone | ⏳ not tested — needs you (section 5) |
 
-Not covered yet: automated SSE leak test, login rate-limit (429) test, database-outage recovery, concurrent workers,
-cross-browser runs, screenshots (the screenshot call timed out while the machine was out of memory). These are in Phase QA.
-
-Note: around 01:00–05:00 the machine was badly overloaded (swap nearly full, ~100 MB free RAM), so one integration
-run took about 15 minutes. That was the machine, not the code: the same suite later ran in 11 s.
+AI calls used tonight: 143 text-model calls (limit agreed: about 150). No live voice calls.
 
 ## 3. Git
 
-14 local commits on `main` (`1ff87bf` … this status update), conventional format with the Co-Authored-By trailer.
-**Nothing has been pushed:** there is no remote yet, as you asked. `.env` is not tracked.
+110 local commits on `feature/support-saas` ahead of `main`, conventional format with the Co-Authored-By trailer. Tonight's
+QA commits run from `4f9ddff` (brief saved) to the commit that adds this file. **Nothing has been pushed** and nothing is
+merged into `main`. `.env` files are untouched.
 
 ## 4. Optional chat and voice
 
-Not started — you chose "core only" for tonight. The designs and GO/NO-GO checks remain in `PLAN.md` §18.
+Built on this branch: the author assistant chat (with ticket drafts), voice calls inside the chat, the Hinglish voice
+persona, and per-workspace switches, limits, models and keys. Chat and voice are switched **off** by default for the
+BookLeaf workspace: turn them on in `/admin/assistant`. Voice is covered by tests with a fake voice provider only.
 
 ## 5. Blockers and actions for you
 
-1. **Create the private GitHub repo** and add the remote, then `git push -u origin main`
-   (gh is signed in as the company account `adminloopmethods`, so I did not create a repo there).
-2. **Deploy:** create a Railway (or Render/Fly) project with Postgres; set `DATABASE_URL`, `JWT_SECRET`,
-   `APP_ORIGIN` (the public URL), `ANTHROPIC_API_KEY`, `NODE_ENV=production`; deploy the Dockerfile; seed once.
-   Then add the URL to the README and run the PLAN §11 scenarios on it (TASKS MD.1, M5.1, M5.2).
-3. **Use your own Anthropic key for the live demo.** The key used tonight was copied from `voice_agent/.env` with your
-   permission; for a submission, a dedicated key is safer.
-4. Optional: `ego-browser upgrade` is available (I did not run it).
-5. **Phase QA** (your QA brief, `docs/qa-mission.md`) is next in `TASKS.md`, to run autonomously this morning.
+1. **Test a live call with your microphone.** On http://localhost:3400 (the BookLeaf dashboard running the
+   `feature/pluggable-support` build, which has the voice key) sign in as an author, open help, Ask, press the voice
+   button, allow the microphone, and speak Hinglish. The QA servers (3500–3700) have no AI or voice key. Check the warmth of the voice, the figures it says and the
+   ticket it drafts.
+2. **Create the private GitHub repo** and push (`git push -u origin feature/support-saas`). I did not create a repo or push.
+3. **Deploy:** a Railway (or Render/Fly) project with Postgres, the env vars in `.env.example`, the Dockerfile. The image
+   is verified locally. Then put the URL in the README.
+4. **Decide on the deferred design items** (details in `docs/qa/repair-plan.md`): login across workspaces and session
+   revocation (F-12), per-workspace ticket numbers (F-13), per-workspace embed paths (F-18), shared state before
+   running two instances (F-19).
+5. **Trim `docs/write-up.md`** to one page if the reviewers count pages strictly.
+6. **Review and merge** `feature/support-saas` into `main` when you are happy. I did not merge it.
