@@ -420,7 +420,7 @@ sequenceDiagram
     HS-->>HP: token (HS256, aud "support", ≤ 300 s)
     HP->>W: open /auth/host#t=TOKEN (fragment: never sent to a server)
     W->>API: POST /api/v1/auth/host {token}
-    API->>API: verify signature, audience, age ≤ 300 s
+    API->>API: verify signature, audience, age ≤ 300 s, token id not used before
     API->>HS: GET /support/customers/:sub (Bearer key)
     HS-->>API: name, email, items, facts, details
     API->>DB: upsert reference rows (user, author, books)
@@ -515,10 +515,11 @@ sequenceDiagram
 | --- | --- | --- |
 | Link | A button that opens `/auth/host#t=…` | Normal session cookie (`SameSite=Lax`) |
 | Widget | `<script src="…/embed.js" data-token-url="/support-token">` | With `HOST_ORIGINS` set: `frame-ancestors` only on `/embed`, cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned` |
-| Fastify plugin | `app.register(supportPlugin, { prefix: '/support', env })` | Everything under the prefix, encapsulated: headers, cookies, rate limits, errors, worker |
+| Fastify plugin | `app.register(supportPlugin, { prefix: '/support', env })` | Everything under the prefix, encapsulated: headers, cookies, rate limits, errors, worker. Under a prefix it serves the API only; the web app needs the root of an origin |
 
 The CSRF `Origin` check is the same in every mode, so a host page can frame support but cannot post
-to it.
+to it. The auth guard is registered inside the `/api/v1` scope, so it covers every API route wherever
+the plugin is mounted (`apps/api/test/plugin.int.test.ts` checks this under `/support`).
 
 ---
 

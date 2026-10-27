@@ -61,6 +61,7 @@ When a customer opens support, the host **server** makes a token signed with HS2
 | `sub` | The customer's id in the host (1–100 characters) |
 | `name`, `email` | Shown to support staff |
 | `aud` | Must be `"support"` |
+| `jti` | A new random id for every token (8–100 characters). Each token signs in **once** |
 | `iat`, `exp` | `exp` may be at most **300 seconds** after `iat` |
 
 ```ts
@@ -68,6 +69,7 @@ When a customer opens support, the host **server** makes a token signed with HS2
 const token = await new SignJWT({ name, email })
   .setProtectedHeader({ alg: 'HS256' })
   .setSubject(customerId)
+  .setJti(randomUUID()) // from node:crypto
   .setAudience('support')
   .setIssuedAt()
   .setExpirationTime('300s')
@@ -80,8 +82,11 @@ exchanges it at `POST /api/v1/auth/host` for its own session cookie.
 
 - A host token always signs in a **customer** (role `AUTHOR`). Support staff sign in on the support
   login page with a password, so a host can never create an admin.
-- A token that is expired, has the wrong audience, lives longer than 300 seconds, or belongs to an
-  email used by a staff account is refused (401 or 409).
+- A token is refused (401) when it is expired, has the wrong audience, lives longer than 300
+  seconds, or was already used. An email that belongs to a staff account is refused with 409.
+- Customer and item ids may use letters, digits and `. _ @ : -`, but may not be `.` or `..`. An item
+  already linked to another customer is never moved (409).
+- Used token ids are remembered in memory until they expire, because support runs as one instance.
 - On sign-in, support stores only a reference to the customer: the external id, name and email,
   plus each item's id and title. Everything else is read live (step 2b).
 
@@ -162,7 +167,9 @@ This is what host-demo's *Open support in a new tab* button does (`apps/host-dem
   - only `/embed` may be framed, and only by those origins;
   - `/embed.js` may be loaded from other sites;
   - the session cookie becomes `SameSite=None; Secure; Partitioned`, so it works inside the iframe
-    and is kept separate from other sites.
+    and is kept separate from other sites. This applies to every session on that deployment,
+    including staff. To keep staff on `SameSite=Lax`, run a second deployment for staff without
+    `HOST_ORIGINS`.
 - Writes are still protected by the `Origin` check, which does not depend on cookie settings.
 - If a browser blocks the cookie in the iframe, *open in a new tab* still works.
 
@@ -172,8 +179,12 @@ This is what host-demo's *Open support in a new tab* button does (`apps/host-dem
 import { loadEnv, supportPlugin } from '@bookleaf/api';
 
 await app.register(supportPlugin, { prefix: '/support', env: loadEnv() });
-// → /support/api/v1/…, /support/health, and the web app when WEB_DIST_DIR is set
+// → /support/api/v1/… and /support/health
 ```
+
+Under a prefix, the plugin serves the **API only**. The web app, the widget and the
+`/auth/host` link expect support at the root of an origin, so for those, mount the plugin with no
+prefix on its own host name (for example `support.example.com`), or run the standalone server.
 
 The plugin is encapsulated. Its security headers, cookies, rate limits, error format and routes stay
 under the prefix, and the host's own routes are untouched (`apps/api/test/plugin.int.test.ts`). It
