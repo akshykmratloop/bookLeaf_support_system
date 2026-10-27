@@ -121,4 +121,27 @@ describe('reply gate (checker at send time)', () => {
     await call(h, 'POST', `/tickets/${id}/messages`, admin, { body }, { 'idempotency-key': key });
     expect(await h.db.ticketMessage.count({ where: { ticketId: id, kind: 'REPLY' } })).toBe(1);
   });
+
+  it('an override replay that loses the race leaves no audit row for a reply never sent (F-15)', async () => {
+    const id = await newTicket();
+    const key = '7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
+    const send = () =>
+      call(
+        h,
+        'POST',
+        `/tickets/${id}/messages`,
+        admin,
+        {
+          body: 'Hi Priya, your royalty of ₹12,345 is on its way to your account. Warm regards, BookLeaf Author Support',
+          overrideReason: 'Confirmed with finance team today',
+        },
+        { 'idempotency-key': key },
+      );
+    await Promise.all([send(), send(), send()]);
+    expect(await h.db.ticketMessage.count({ where: { ticketId: id, kind: 'REPLY' } })).toBe(1);
+    const audits = await h.db.auditEvent.count({
+      where: { entityId: id, action: 'reply.check_override' },
+    });
+    expect(audits).toBe(1);
+  });
 });

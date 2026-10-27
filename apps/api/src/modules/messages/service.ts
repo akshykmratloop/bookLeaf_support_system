@@ -31,15 +31,20 @@ export async function checkReplyForTicket(
   return checkReply({ body, facts: input.facts, ignorePhrases: input.ignorePhrases });
 }
 
-/** Placeholders always block. Other blocking issues need a written override reason (audited). */
+type OverrideAudit = Prisma.AuditEventUncheckedCreateInput;
+
+/**
+ * Placeholders always block. Other blocking issues need a written override reason. Returns the
+ * audit row for an override, written in the same transaction as the reply (null: nothing to audit).
+ */
 async function gateReply(
   deps: TicketDeps,
   session: Session,
   ticket: Ticket,
   input: MessageInput,
-): Promise<void> {
+): Promise<OverrideAudit | null> {
   const result = await checkReplyForTicket(deps, ticket.id, input.body);
-  if (result.passed) return;
+  if (result.passed) return null;
   if (!canOverride(result))
     throw new CheckFailedError(
       'Fill in every [CONFIRM: …] placeholder and remove internal references before sending.',
@@ -50,16 +55,15 @@ async function gateReply(
       'This reply contains figures or wording that could not be verified. Fix them or give a reason to send anyway.',
       result,
     );
-  await deps.db.auditEvent.create({
-    data: {
-      actorId: session.userId,
-      entityType: 'ticket',
-      entityId: ticket.id,
-      action: 'reply.check_override',
-      reason: input.overrideReason,
-      after: { issues: result.issues } as unknown as Prisma.InputJsonValue,
-    },
-  });
+  return {
+    workspaceId: ticket.workspaceId,
+    actorId: session.userId,
+    entityType: 'ticket',
+    entityId: ticket.id,
+    action: 'reply.check_override',
+    reason: input.overrideReason,
+    after: { issues: result.issues } as unknown as Prisma.InputJsonValue,
+  };
 }
 
 async function findByKey(deps: TicketDeps, ticketId: string, key: string | null) {
@@ -122,8 +126,22 @@ export async function addAuthorMessage(
   return getAuthorTicket(deps, session, ticketId);
 }
 
-/** The first reply moves an open ticket to In progress and stops the first-response clock. */
-async function markReplied(tx: Prisma.TransactionClient, ticket: Ticket, now: Date) {
+interface SentReply {
+  ticket: Ticket;
+  now: Date;
+  messageId: string;
+  audit: OverrideAudit | null;
+}
+
+/**
+ * Inside the reply's transaction: the override audit, the status change (the first reply moves an
+ * open ticket to In progress and stops the first-response clock), and the webhook event.
+ */
+async function recordReply(
+  tx: Prisma.TransactionClient,
+  { ticket, now, messageId, audit }: SentReply,
+) {
+  if (audit) await tx.auditEvent.create({ data: audit });
   await tx.ticket.update({
     where: { id: ticket.id },
     data: {
@@ -131,6 +149,13 @@ async function markReplied(tx: Prisma.TransactionClient, ticket: Ticket, now: Da
       firstResponseAt: ticket.firstResponseAt ?? now,
       version: { increment: 1 },
     },
+  });
+  await queueTicketEvent(tx, {
+    workspaceId: ticket.workspaceId,
+    ticketId: ticket.id,
+    event: 'ticket.replied',
+    now,
+    messageId,
   });
 }
 
@@ -145,7 +170,7 @@ export async function addAdminMessage(
   const key = input.idempotencyKey;
   if (await findByKey(deps, ticketId, key)) return getAdminTicket(deps, session, ticketId);
   const kind = input.kind ?? 'REPLY';
-  if (kind === 'REPLY') await gateReply(deps, session, ticket, input);
+  const audit = kind === 'REPLY' ? await gateReply(deps, session, ticket, input) : null;
   const now = deps.clock.now();
   await writeOnce(() =>
     deps.db.$transaction(async (tx) => {
@@ -159,10 +184,7 @@ export async function addAdminMessage(
           createdAt: now,
         },
       });
-      if (kind !== 'REPLY') return;
-      await markReplied(tx, ticket, now);
-      const event = { ticketId, now, messageId: message.id, event: 'ticket.replied' as const };
-      await queueTicketEvent(tx, { ...event, workspaceId: ticket.workspaceId });
+      if (kind === 'REPLY') await recordReply(tx, { ticket, now, messageId: message.id, audit });
     }),
   );
   const authorVisible = kind === 'REPLY';
