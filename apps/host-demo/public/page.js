@@ -13,12 +13,24 @@ async function post(path, body) {
   return res.json();
 }
 
+// The support widget: one script tag, added once the author is signed in.
+function addSupportWidget() {
+  if (document.getElementById('support-widget')) return;
+  const tag = document.createElement('script');
+  tag.id = 'support-widget';
+  tag.src = `${supportUrl}/embed.js`;
+  tag.dataset.tokenUrl = '/support-token';
+  document.body.append(tag);
+}
+
 async function show() {
   const res = await fetch('/me');
   const signedIn = res.ok;
   $('login').hidden = signedIn;
   $('home').hidden = !signedIn;
-  if (signedIn) $('name').textContent = (await res.json()).name;
+  if (!signedIn) return;
+  $('name').textContent = (await res.json()).name;
+  addSupportWidget();
 }
 
 $('login').addEventListener('submit', async (e) => {
@@ -39,7 +51,7 @@ $('support').addEventListener('click', async () => {
 
 $('logout').addEventListener('click', async () => {
   await post('/logout');
-  await show();
+  location.reload(); // also removes the widget
 });
 
 void show();

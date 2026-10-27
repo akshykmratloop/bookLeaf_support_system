@@ -13,6 +13,7 @@ import { HistoryPage } from '../pages/author/HistoryPage';
 import { NewTicketPage } from '../pages/author/NewTicketPage';
 import { TicketDetailPage } from '../pages/author/TicketDetailPage';
 import { TicketsPage } from '../pages/author/TicketsPage';
+import { EmbedPage } from '../pages/embed/EmbedPage';
 import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
 import { AuthedLayout, HomeRedirect } from './AuthedLayout';
@@ -39,6 +40,7 @@ export function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/host" element={<HostSignInPage />} />
+            <Route path="/embed" element={<EmbedPage />} />
             <Route element={<AuthedLayout role="AUTHOR" />}>
               <Route path="/books" element={<BooksPage />} />
               <Route path="/tickets" element={<TicketsPage />} />

@@ -10,6 +10,7 @@ import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
 import { authGuard } from './platform/http/auth-guard.js';
 import { CSP } from './platform/http/csp.js';
 import { csrfGuard } from './platform/http/csrf.js';
+import { allowEmbedding } from './platform/http/embed.js';
 import { registerErrorHandler } from './platform/http/error-handler.js';
 import { healthRoutes } from './platform/http/health.js';
 import { registerSpa } from './platform/http/spa.js';
@@ -37,6 +38,7 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
   await app.register(helmet, { contentSecurityPolicy: { directives: CSP } });
+  allowEmbedding(app, c.env.HOST_ORIGINS);
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });

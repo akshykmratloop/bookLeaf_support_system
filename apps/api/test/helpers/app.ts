@@ -129,15 +129,26 @@ function passwordLogin(app: FastifyInstance, email: string, password?: string) {
   });
 }
 
-/** What the demo host's "Open support" button does: mint a hand-over token, exchange it. */
-async function hostLogin(app: FastifyInstance, email: string) {
+/** The hand-over token the demo host mints when this author opens support. */
+export async function hostTokenFor(email: string): Promise<string> {
   const account = findByEmail(HOST_AUTHORS, email);
   if (!account) throw new Error(`no demo author ${email}`);
-  const token = await mintSupportToken(account, HOST.signingSecret);
+  return mintSupportToken(account, HOST.signingSecret);
+}
+
+/** What the demo host's "Open support" button does: mint a hand-over token, exchange it. */
+async function hostLogin(app: FastifyInstance, email: string) {
+  const token = await hostTokenFor(email);
   return app.inject({ method: 'POST', url: '/api/v1/auth/host', payload: { token } });
 }
 
-export async function createHarness(opts: { voice?: boolean } = {}): Promise<Harness> {
+export interface HarnessOptions {
+  voice?: boolean;
+  /** Extra settings, e.g. HOST_ORIGINS for embed mode. */
+  env?: Record<string, string>;
+}
+
+export async function createHarness(opts: HarnessOptions = {}): Promise<Harness> {
   const { host, url: hostUrl } = await startHost();
   const env = loadEnv({
     NODE_ENV: 'test',
@@ -150,6 +161,7 @@ export async function createHarness(opts: { voice?: boolean } = {}): Promise<Har
     HOST_API_URL: hostUrl,
     HOST_API_KEY: HOST.apiKey,
     HOST_SIGNING_SECRET: HOST.signingSecret,
+    ...opts.env,
   });
   const db = createDb(env.DATABASE_URL);
   const clock = testClock(env.DATA_AS_OF);

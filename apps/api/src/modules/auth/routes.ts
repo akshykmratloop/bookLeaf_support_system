@@ -22,6 +22,8 @@ interface Opts {
   hostSignInUrl: string | null;
   ttlSeconds: number;
   secureCookies: boolean;
+  /** Embed mode: the cookie must also work inside the host's iframe. */
+  embedded: boolean;
 }
 
 const HOST_LIMIT = { max: 20, timeWindow: '1 minute' };
@@ -34,16 +36,20 @@ const LOGIN_LIMIT = {
     `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
 };
 
-const cookieFor = (secure: boolean) => ({
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure,
-  path: '/',
-});
+/**
+ * The session cookie. In embed mode it is a partitioned third-party cookie (SameSite=None;
+ * Secure; Partitioned), so it works in the host's iframe but is never shared across sites.
+ * Cross-site writes are still blocked by the Origin check (csrf.ts).
+ */
+const cookieFor = ({ secureCookies, embedded }: Pick<Opts, 'secureCookies' | 'embedded'>) =>
+  embedded
+    ? { httpOnly: true, sameSite: 'none' as const, secure: true, partitioned: true, path: '/' }
+    : { httpOnly: true, sameSite: 'lax' as const, secure: secureCookies, path: '/' };
 
 /** Signing in and out: the session lives in an httpOnly cookie. */
-function registerSignIn(app: RouteApp, { auth, ttlSeconds, secureCookies }: Opts) {
-  const cookie = cookieFor(secureCookies);
+function registerSignIn(app: RouteApp, opts: Opts) {
+  const { auth, ttlSeconds } = opts;
+  const cookie = cookieFor(opts);
 
   app.post(
     '/auth/login',
@@ -93,7 +99,7 @@ function registerMe(app: RouteApp) {
 
 /** Authors sign in on the host product, which hands them over with a short token. */
 function registerHostSignIn(app: RouteApp, opts: Opts) {
-  const cookie = cookieFor(opts.secureCookies);
+  const cookie = cookieFor(opts);
   app.post(
     '/auth/host',
     {
