@@ -6,6 +6,7 @@ import {
   LifeBuoy,
   LogOut,
   MessagesSquare,
+  History,
   Moon,
   PlusCircle,
   Sun,
@@ -36,11 +37,10 @@ const ADMIN_NAV: NavItem[] = [
     icon: <MessagesSquare size={16} aria-hidden />,
   },
 ];
-const ASSISTANT_NAV: NavItem = {
-  to: '/assistant',
-  label: 'Ask BookLeaf',
-  icon: <MessagesSquare size={16} aria-hidden />,
-};
+const ASSISTANT_NAV: NavItem[] = [
+  { to: '/assistant', label: 'Ask BookLeaf', icon: <MessagesSquare size={16} aria-hidden /> },
+  { to: '/history', label: 'History', icon: <History size={16} aria-hidden /> },
+];
 
 const LIVE_TEXT: Record<LiveState, string> = {
   connecting: 'Connecting…',
@@ -88,7 +88,11 @@ interface Props {
 export function AppShell({ user, live, onSignOut, showAssistant = false, children }: Props) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const nav =
-    user.role === 'ADMIN' ? ADMIN_NAV : showAssistant ? [...AUTHOR_NAV, ASSISTANT_NAV] : AUTHOR_NAV;
+    user.role === 'ADMIN'
+      ? ADMIN_NAV
+      : showAssistant
+        ? [...AUTHOR_NAV, ...ASSISTANT_NAV]
+        : AUTHOR_NAV;
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);

@@ -8,6 +8,8 @@ import { QueuePage } from '../pages/admin/QueuePage';
 import { TicketWorkspacePage } from '../pages/admin/TicketWorkspacePage';
 import { AssistantPage } from '../pages/author/AssistantPage';
 import { BooksPage } from '../pages/author/BooksPage';
+import { ConversationPage } from '../pages/author/ConversationPage';
+import { HistoryPage } from '../pages/author/HistoryPage';
 import { NewTicketPage } from '../pages/author/NewTicketPage';
 import { TicketDetailPage } from '../pages/author/TicketDetailPage';
 import { TicketsPage } from '../pages/author/TicketsPage';
@@ -41,6 +43,8 @@ export function App() {
               <Route path="/tickets/new" element={<NewTicketPage />} />
               <Route path="/tickets/:id" element={<TicketDetailPage />} />
               <Route path="/assistant" element={<AssistantPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/history/:kind/:id" element={<ConversationPage />} />
             </Route>
             <Route element={<AuthedLayout role="ADMIN" />}>
               <Route path="/admin" element={<QueuePage />} />
