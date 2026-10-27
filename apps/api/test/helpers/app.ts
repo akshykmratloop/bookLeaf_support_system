@@ -11,7 +11,7 @@ import { buildApp } from '../../src/app.js';
 import { createContainer, type Container } from '../../src/container.js';
 import type { Clock } from '../../src/platform/clock.js';
 import { createDb, type Db } from '../../src/platform/db.js';
-import { loadEnv } from '../../src/platform/env.js';
+import { loadEnv } from '../../src/config/index.js';
 
 export const ORIGIN = 'http://localhost:5173';
 export const AUTHOR_PASSWORD = 'Author@Test1';

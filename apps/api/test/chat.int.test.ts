@@ -41,6 +41,8 @@ beforeAll(async () => {
     h.login(EMAILS.kavita),
     h.login(EMAILS.admin),
   ]);
+  // The database is shared by every test file: start from the default switches (both off).
+  await h.db.assistantSettings.deleteMany();
 });
 afterAll(() => h.close());
 

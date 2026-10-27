@@ -2,7 +2,7 @@ import { buildApp } from './app.js';
 import { createWorker } from './ai/jobs/worker.js';
 import { createContainer } from './container.js';
 import { failInterruptedCalls } from './modules/voice/repository.js';
-import { loadEnv } from './platform/env.js';
+import { loadEnv } from './config/index.js';
 
 async function main(): Promise<void> {
   const env = loadEnv();

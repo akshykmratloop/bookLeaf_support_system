@@ -1,4 +1,4 @@
-import type { Env } from '../../platform/env.js';
+import type { Env } from '../../config/index.js';
 import { openAiVoiceProvider } from './openai/provider.js';
 import type { VoiceProvider } from './types.js';
 

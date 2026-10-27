@@ -1,5 +1,5 @@
 import { CHAT_MESSAGE_LIMITS } from '@bookleaf/shared';
-import type { Env } from '../../platform/env.js';
+import type { Env } from '../../config/index.js';
 
 /** Per-author usage limits for the assistant channels, read once from validated env. */
 export interface AssistantLimits {

@@ -15,7 +15,7 @@ import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
-import type { Env } from './platform/env.js';
+import type { Env } from './config/index.js';
 import { inMemoryEventBus, type EventBus } from './platform/event-bus.js';
 
 export interface ContainerOverrides {
