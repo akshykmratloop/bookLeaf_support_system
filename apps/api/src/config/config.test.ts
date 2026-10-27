@@ -5,6 +5,9 @@ const REQUIRED = {
   APP_ORIGIN: 'http://localhost:5173',
   DATABASE_URL: 'postgresql://u:p@localhost:5433/db',
   JWT_SECRET: 'x'.repeat(32),
+  HOST_API_URL: 'http://localhost:3200',
+  HOST_API_KEY: 'k'.repeat(24),
+  HOST_SIGNING_SECRET: 's'.repeat(32),
 };
 
 describe('loadEnv', () => {
@@ -32,5 +35,11 @@ describe('loadEnv', () => {
 
   it('refuses to start without the required settings', () => {
     expect(() => loadEnv({})).toThrow(/APP_ORIGIN/);
+  });
+
+  it('needs the host connection: customer data only comes from the host', () => {
+    const { HOST_API_URL: _url, ...withoutHost } = REQUIRED;
+    expect(() => loadEnv(withoutHost)).toThrow(/HOST_API_URL/);
+    expect(loadEnv(REQUIRED)).toMatchObject({ HOST_TIMEOUT_MS: 3000, HOST_CACHE_SECONDS: 60 });
   });
 });

@@ -1,5 +1,5 @@
 import type { Priority, TicketCategory } from '@bookleaf/shared';
-import type { BookRoyaltyStatus } from '../facts/index.js';
+import type { RoyaltyStatus } from '@bookleaf/shared';
 import {
   TRIAGE_PROMPT_VERSION,
   TRIAGE_SYSTEM,
@@ -15,7 +15,7 @@ export interface TriageInput {
   description: string;
   bookTitle: string | null;
   bookStage: string | null;
-  royaltyStatus: BookRoyaltyStatus | null;
+  royaltyStatus: RoyaltyStatus | null;
 }
 
 export interface TriageDecision {
@@ -36,7 +36,7 @@ export interface AiTriageRun {
 }
 
 /** Status labels only: triage does not need amounts. */
-const ROYALTY_RECORD: Record<BookRoyaltyStatus, string> = {
+const ROYALTY_RECORD: Record<RoyaltyStatus, string> = {
   NOTHING_PENDING: 'nothing pending on this book',
   BELOW_THRESHOLD:
     "author's total pending is below the payout threshold, so it rolls over to the next quarter (not overdue)",

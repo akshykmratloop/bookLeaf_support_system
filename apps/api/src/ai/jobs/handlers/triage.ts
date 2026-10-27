@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { buildFactsPack } from '../../facts/index.js';
+import { royaltySignals, stageOf } from '../../domain/signals.js';
 import { TRIAGE_PROMPT_VERSION } from '../../prompts/triage.v1.js';
 import {
   fallbackTriage,
@@ -7,26 +7,20 @@ import {
   type TriageDecision,
   type TriageInput,
 } from '../../triage/service.js';
-import { STAGE_LABELS } from '@bookleaf/shared';
 import { slaDueAt } from '../../../modules/tickets/sla.js';
 import { loadTicketContext, type TicketContext } from '../context.js';
 import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
 
-function triageInput(ctx: TicketContext, deps: JobDeps): TriageInput {
-  const { royalty } = buildFactsPack({
-    author: ctx.author,
-    bookId: ctx.book?.id ?? null,
-    text: '',
-    dataAsOf: deps.clock.dataAsOf(),
-  });
+function triageInput(ctx: TicketContext): TriageInput {
+  const bookId = ctx.book?.externalId ?? null;
   return {
     subject: ctx.ticket.subject,
     description: ctx.authorMessages.join('\n\n'),
     bookTitle: ctx.book?.title ?? null,
-    bookStage: ctx.book ? STAGE_LABELS[ctx.book.stage] : null,
-    royaltyStatus: royalty.bookStatus,
+    bookStage: bookId ? stageOf(ctx.facts, bookId) : null,
+    royaltyStatus: royaltySignals(ctx.facts, bookId).bookStatus,
   };
 }
 
@@ -70,7 +64,7 @@ async function applyDecision(
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
     const { provider, model } = await deps.ai.resolve('TRIAGE');
-    const ctx = await loadTicketContext(deps.db, job.ticketId);
+    const ctx = await loadTicketContext(deps, job.ticketId);
     const meta = {
       ticketId: job.ticketId,
       task: 'TRIAGE' as const,
@@ -79,12 +73,12 @@ export const triageHandler: JobHandler = {
       promptVersion: TRIAGE_PROMPT_VERSION,
     };
     const result = await loggedCall(deps, meta, () =>
-      runAiTriage(provider, model, triageInput(ctx, deps)),
+      runAiTriage(provider, model, triageInput(ctx)),
     );
     await applyDecision(job, deps, ctx, result.decision);
   },
   async fallback(job, deps) {
-    const ctx = await loadTicketContext(deps.db, job.ticketId);
-    await applyDecision(job, deps, ctx, fallbackTriage(triageInput(ctx, deps)));
+    const ctx = await loadTicketContext(deps, job.ticketId);
+    await applyDecision(job, deps, ctx, fallbackTriage(triageInput(ctx)));
   },
 };

@@ -1,14 +1,17 @@
 import { createAiRuntime, type AiRuntime } from './ai/jobs/runtime.js';
 import { buildProviderRegistry } from './ai/providers/registry.js';
 import type { LlmProvider } from './ai/providers/types.js';
+import { buildHostRecords } from './host/registry.js';
+import type { HostRecords } from './host/types.js';
 import { buildVoiceProvider } from './voice/providers/registry.js';
 import type { VoiceProvider } from './voice/providers/types.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
 import { limitsFromEnv } from './modules/assistant/limits.js';
 import { createAssistantService } from './modules/assistant/service.js';
+import { signInFromHost } from './modules/auth/host-login.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessionCodec } from './modules/auth/session.js';
-import { createBooksRepository } from './modules/books/repository.js';
+import { createBooksService } from './modules/books/service.js';
 import { createChatService } from './modules/chat/service.js';
 import { createConversationService } from './modules/conversations/service.js';
 import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
@@ -23,6 +26,8 @@ export interface ContainerOverrides {
   clock?: Clock;
   db?: Db;
   providers?: Map<string, LlmProvider>;
+  /** The host product's records; tests pass a real demo host or a fake. */
+  records?: HostRecords;
   /** null = no voice provider configured. */
   voiceProvider?: VoiceProvider | null;
 }
@@ -38,7 +43,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
   const voiceProvider =
     overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
-  const ticketDeps = { db, clock, events };
+  const records = overrides.records ?? buildHostRecords(env, () => clock.now().getTime());
+  const ticketDeps = { db, clock, events, records };
   return {
     env,
     clock,
@@ -46,6 +52,7 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     events,
     ai,
     sessions,
+    records,
     ticketDeps,
     limits: limitsFromEnv(env),
     voiceProvider,
@@ -80,7 +87,9 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   return {
     ...core,
     auth: createAuthService(core.db, core.sessions),
-    books: createBooksRepository(core.db),
+    signInFromHost: (token: string) =>
+      signInFromHost({ ...core, signingSecret: env.HOST_SIGNING_SECRET }, token),
+    books: createBooksService(core),
     conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),
     ...createAssistants(core),

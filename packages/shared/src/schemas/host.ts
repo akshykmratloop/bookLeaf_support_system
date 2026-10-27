@@ -23,11 +23,22 @@ export type HostTokenClaims = z.infer<typeof HostTokenClaimsSchema>;
 
 export const HostSignInRequestSchema = z.object({ token: z.string().min(20).max(4000) });
 
-/** Something the customer has with the host (for BookLeaf: a book), with its own facts. */
+/** A line shown to the customer as it is, e.g. { label: "Royalty pending", display: "₹3,570" }. */
+export const HostDetailSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  display: z.string().trim().min(1).max(300),
+});
+export type HostDetail = z.infer<typeof HostDetailSchema>;
+
+/**
+ * Something the customer has with the host (for BookLeaf: a book). `facts` are for the
+ * assistant (verified, with sources); `details` are what the customer sees on the page.
+ */
 export const HostItemSchema = z.object({
   id: externalId,
   title: z.string().trim().min(1).max(300),
   facts: z.array(FactSchema).max(200),
+  details: z.array(HostDetailSchema).max(30).default([]),
 });
 export type HostItem = z.infer<typeof HostItemSchema>;
 
@@ -39,5 +50,7 @@ export const HostCustomerSchema = z.object({
   items: z.array(HostItemSchema).max(100),
   /** Account-level facts (totals, policies). */
   facts: z.array(FactSchema).max(200),
+  /** Account-level lines to show the customer (e.g. totals). */
+  details: z.array(HostDetailSchema).max(30).default([]),
 });
 export type HostCustomer = z.infer<typeof HostCustomerSchema>;

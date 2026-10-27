@@ -1,55 +1,52 @@
-import type { Book } from '@prisma/client';
-import { toIsoDate } from '../../platform/clock.js';
+import type { Fact } from '@bookleaf/shared';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
-import type { BookRecord } from '../facts/index.js';
+import { customerOrNull, factsFor, RECORDS_UNAVAILABLE } from '../../host/facts.js';
+import type { HostRecords } from '../../host/types.js';
 
-const isoOrNull = (d: Date | null) => (d ? toIsoDate(d) : null);
-
-export function toBookRecord(b: Book): BookRecord {
-  return {
-    id: b.id,
-    externalId: b.externalId,
-    title: b.title,
-    isbn: b.isbn,
-    stage: b.stage,
-    publicationDate: isoOrNull(b.publicationDate),
-    mrpPaise: b.mrpPaise,
-    royaltyPerCopyPaise: b.royaltyPerCopyPaise,
-    copiesSold: b.copiesSold,
-    royaltyEarnedPaise: b.royaltyEarnedPaise,
-    royaltyPaidPaise: b.royaltyPaidPaise,
-    royaltyPendingPaise: b.royaltyPendingPaise,
-    lastPayoutDate: isoOrNull(b.lastPayoutDate),
-    printPartner: b.printPartner,
-    availableOn: b.availableOn,
-  };
+export interface ContextDeps {
+  db: Db;
+  records: HostRecords;
 }
 
-/** Everything an AI handler needs for one ticket, read in one query, scoped to the ticket's author. */
-export async function loadTicketContext(db: Db, ticketId: string) {
-  const ticket = await db.ticket.findUnique({
+const findTicket = (db: Db, ticketId: string) =>
+  db.ticket.findUnique({
     where: { id: ticketId },
     include: {
       author: { include: { user: true, books: { orderBy: { externalId: 'asc' } } } },
+      book: true,
       messages: { where: { kind: { in: ['AUTHOR', 'REPLY'] } }, orderBy: { createdAt: 'asc' } },
     },
   });
+
+/** The author's facts from the host, for the ticket's book (or the account when no book). */
+async function ticketFacts(deps: ContextDeps, authorId: string, bookId: string | null) {
+  const customer = await customerOrNull(deps.records, authorId);
+  return customer ? factsFor(customer, bookId) : [RECORDS_UNAVAILABLE];
+}
+
+/** Everything an AI handler needs for one ticket, scoped to the ticket's author. */
+export async function loadTicketContext(deps: ContextDeps, ticketId: string) {
+  const ticket = await findTicket(deps.db, ticketId);
   if (!ticket) throw new NotFoundError('Ticket');
-  const books = ticket.author.books.map(toBookRecord);
-  const author = {
-    id: ticket.author.id,
-    externalId: ticket.author.externalId,
-    name: ticket.author.user.name,
-    books,
-  };
-  const book = books.find((b) => b.id === ticket.bookId) ?? null;
+  const book = ticket.book
+    ? { externalId: ticket.book.externalId, title: ticket.book.title }
+    : null;
+  const facts: Fact[] = await ticketFacts(deps, ticket.author.externalId, book?.externalId ?? null);
   const authorMessages = [
     ticket.description,
     ...ticket.messages.filter((m) => m.kind === 'AUTHOR').map((m) => m.body),
   ];
   const lastReply = [...ticket.messages].reverse().find((m) => m.kind === 'REPLY')?.body ?? null;
-  return { ticket, author, book, authorMessages, lastReply };
+  return {
+    ticket,
+    authorName: ticket.author.user.name,
+    book,
+    bookTitles: ticket.author.books.map((b) => b.title),
+    facts,
+    authorMessages,
+    lastReply,
+  };
 }
 
 export type TicketContext = Awaited<ReturnType<typeof loadTicketContext>>;

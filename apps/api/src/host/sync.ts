@@ -1,0 +1,47 @@
+import type { Prisma } from '@prisma/client';
+import type { HostCustomer } from '@bookleaf/shared';
+import type { Db } from '../platform/db.js';
+import { ConflictError } from '../platform/errors.js';
+
+type Tx = Prisma.TransactionClient;
+
+export interface SyncedAuthor {
+  authorId: string;
+  userId: string;
+}
+
+const EMAIL_IN_USE = () =>
+  new ConflictError('EMAIL_IN_USE', 'This email already belongs to another account here.');
+
+async function upsertAuthor(tx: Tx, c: HostCustomer) {
+  const email = c.email.toLowerCase();
+  const existing = await tx.author.findUnique({ where: { externalId: c.id } });
+  const owner = await tx.user.findUnique({ where: { email } });
+  if (owner && owner.id !== existing?.userId) throw EMAIL_IN_USE();
+  if (existing) {
+    await tx.user.update({ where: { id: existing.userId }, data: { name: c.name, email } });
+    return { authorId: existing.id, userId: existing.userId };
+  }
+  const user = await tx.user.create({ data: { email, name: c.name, role: 'AUTHOR' } });
+  const author = await tx.author.create({ data: { externalId: c.id, userId: user.id } });
+  return { authorId: author.id, userId: user.id };
+}
+
+/**
+ * Keeps a small reference copy of the customer and their items (ids, names, titles) so
+ * tickets, chats and calls can point at them. Facts are never copied: they are read live.
+ */
+export async function syncCustomer(db: Db, c: HostCustomer): Promise<SyncedAuthor> {
+  return db.$transaction(async (tx) => {
+    const ids = await upsertAuthor(tx, c);
+    const { authorId } = ids;
+    for (const item of c.items) {
+      await tx.book.upsert({
+        where: { externalId: item.id },
+        update: { title: item.title, authorId },
+        create: { externalId: item.id, title: item.title, authorId },
+      });
+    }
+    return ids;
+  });
+}

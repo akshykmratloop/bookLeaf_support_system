@@ -56,6 +56,7 @@ export function bookProfileFacts(book: BookRecord): Fact[] {
   return [
     textFact(`${id}.title`, 'Book title', book.title, src('title')),
     textFact(`${id}.isbn`, `${book.title}: ISBN`, book.isbn, src('isbn')),
+    textFact(`${id}.genre`, `${book.title}: genre`, book.genre, src('genre')),
     statusFact(
       `${id}.stage`,
       `${book.title}: current stage`,

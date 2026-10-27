@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import type { EventBus } from '../../platform/event-bus.js';
+import type { HostRecords } from '../../host/types.js';
 import type { AiRuntime } from './runtime.js';
 
 export type JobKind = 'TRIAGE' | 'DRAFT';
@@ -20,6 +21,7 @@ export interface JobDeps {
   ai: AiRuntime;
   clock: Clock;
   events: EventBus;
+  records: HostRecords;
   log: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
 }
 

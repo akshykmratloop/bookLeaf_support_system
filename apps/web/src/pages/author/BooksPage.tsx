@@ -3,10 +3,9 @@ import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
-import { BooksTable } from '../../components/organisms/BooksTable';
+import { BookCards } from '../../components/organisms/BookCards';
 import { errorMessage } from '../../lib/api';
-import { money } from '../../lib/format';
-import { useBooks } from '../../lib/queries';
+import { useBookList } from '../../lib/queries';
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -19,14 +18,14 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 export function BooksPage() {
-  const books = useBooks();
-  const items = books.data ?? [];
-  const sum = (f: (b: (typeof items)[number]) => number) => items.reduce((s, b) => s + f(b), 0);
+  const books = useBookList();
+  const items = books.data?.items ?? [];
+  const account = books.data?.account ?? [];
   return (
     <>
       <PageHeader
         title="My Books"
-        subtitle="Sales and royalties for every book you publish with BookLeaf."
+        subtitle="Sales and royalties for every book you publish with BookLeaf. Royalties are paid quarterly within 45 days of quarter end, once your total pending reaches ₹1,000."
         actions={
           <Link
             to="/tickets/new"
@@ -46,21 +45,11 @@ export function BooksPage() {
       {items.length > 0 ? (
         <>
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat
-              label="Royalty earned"
-              value={money(sum((b) => b.royaltyEarnedPaise))}
-              note={`${items.length} book${items.length === 1 ? '' : 's'}`}
-            />
-            <Stat label="Royalty paid" value={money(sum((b) => b.royaltyPaidPaise))} />
-            <Stat
-              label="Royalty pending"
-              value={money(sum((b) => b.royaltyPendingPaise))}
-              note="Paid quarterly within 45 days of quarter end, once your total pending reaches ₹1,000."
-            />
+            {account.map((d) => (
+              <Stat key={d.label} label={d.label} value={d.display} />
+            ))}
           </div>
-          <Card>
-            <BooksTable books={items} />
-          </Card>
+          <BookCards books={items} />
         </>
       ) : null}
     </>

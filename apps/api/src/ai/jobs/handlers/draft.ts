@@ -8,9 +8,6 @@ import { isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
 
-const draftInput = (ctx: TicketContext, deps: JobDeps): DraftInput =>
-  draftInputFromContext(ctx, deps.clock.dataAsOf());
-
 /** One draft and everything it was written from. */
 interface DraftToSave {
   ctx: TicketContext;
@@ -54,8 +51,8 @@ async function saveDraft(job: ClaimedJob, deps: JobDeps, toSave: DraftToSave) {
 export const draftHandler: JobHandler = {
   async runAi(job, deps) {
     const { provider, model } = await deps.ai.resolve('DRAFT');
-    const ctx = await loadTicketContext(deps.db, job.ticketId);
-    const input = draftInput(ctx, deps);
+    const ctx = await loadTicketContext(deps, job.ticketId);
+    const input = draftInputFromContext(ctx);
     const meta = {
       ticketId: job.ticketId,
       task: 'DRAFT' as const,
@@ -67,8 +64,8 @@ export const draftHandler: JobHandler = {
     await saveDraft(job, deps, { ctx, input, draft: result.draft, provider: provider.id, model });
   },
   async fallback(job, deps) {
-    const ctx = await loadTicketContext(deps.db, job.ticketId);
-    const input = draftInput(ctx, deps);
+    const ctx = await loadTicketContext(deps, job.ticketId);
+    const input = draftInputFromContext(ctx);
     const draft = templateDraft(input);
     await saveDraft(job, deps, { ctx, input, draft, provider: null, model: null });
   },

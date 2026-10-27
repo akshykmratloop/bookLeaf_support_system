@@ -43,7 +43,7 @@ function nextPayout({ firstName, facts }: Ctx): Draft | null {
   const eligibility = find(facts, 'author.payout_eligibility');
   const threshold = find(facts, 'kb.payout_threshold');
   if (!deadline || !total || !eligibility || !threshold) return null;
-  const eligible = eligibility.display.startsWith('Eligible');
+  const eligible = eligibility.value === 'ELIGIBLE';
   const status = eligible
     ? `which is above the ${threshold.display} minimum, so it is due in that cycle`
     : `which is below the ${threshold.display} minimum, so it rolls over until your total reaches it`;

@@ -5,8 +5,9 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { sampleAuthor } from '../apps/api/test/fixtures/sample-authors.js';
-import { buildFactsPack } from '../apps/api/src/ai/facts/index.js';
+import { sampleCustomer } from '../apps/api/test/fixtures/host.js';
+import { factsFor } from '../apps/api/src/host/facts.js';
+import { royaltySignals, stageOf } from '../apps/api/src/ai/domain/signals.js';
 import { anthropicProvider } from '../apps/api/src/ai/providers/anthropic/provider.js';
 import { DEFAULT_AI_SETTINGS } from '../apps/api/src/ai/providers/catalog.js';
 import {
@@ -17,7 +18,6 @@ import {
 } from '../apps/api/src/ai/triage/service.js';
 import { renderReport, type CaseResult, type EvalCase } from './report.js';
 
-const DATA_AS_OF = new Date('2025-12-31T00:00:00Z');
 const root = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 function loadCases(): EvalCase[] {
@@ -27,21 +27,17 @@ function loadCases(): EvalCase[] {
     .map((l) => JSON.parse(l) as EvalCase);
 }
 
+/** The same input triage gets in production: the demo host's facts for the case's book. */
 function toInput(c: EvalCase): TriageInput {
-  const author = sampleAuthor(c.author);
-  const book = author.books.find((b) => b.id === c.book) ?? null;
-  const { royalty } = buildFactsPack({
-    author,
-    bookId: book?.id ?? null,
-    text: '',
-    dataAsOf: DATA_AS_OF,
-  });
+  const customer = sampleCustomer(c.author);
+  const book = customer.items.find((i) => i.id === c.book) ?? null;
+  const facts = factsFor(customer, book?.id ?? null);
   return {
     subject: c.subject,
     description: c.description,
     bookTitle: book?.title ?? null,
-    bookStage: book ? book.stage.replace(/_/g, ' ').toLowerCase() : null,
-    royaltyStatus: royalty.bookStatus,
+    bookStage: book ? stageOf(facts, book.id) : null,
+    royaltyStatus: royaltySignals(facts, book?.id ?? null).bookStatus,
   };
 }
 

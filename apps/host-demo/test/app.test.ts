@@ -76,3 +76,21 @@ describe('demo page', () => {
     expect(res.body).toContain('content="http://localhost:5173"');
   });
 });
+
+describe('display details', () => {
+  it('sends the ten book fields BookLeaf shows authors', async () => {
+    const c = HostCustomerSchema.parse((await customer('AUTH001')).json());
+    expect(c.items[0]?.details.map((d) => d.label)).toEqual([
+      'ISBN',
+      'Genre',
+      'Published',
+      'Status',
+      'MRP',
+      'Copies sold',
+      'Royalty earned',
+      'Royalty paid',
+      'Royalty pending',
+      'Last payout',
+    ]);
+  });
+});

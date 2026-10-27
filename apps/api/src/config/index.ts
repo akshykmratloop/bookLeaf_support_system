@@ -3,6 +3,7 @@ import { AiConfig } from './ai.js';
 import { AuthConfig } from './auth.js';
 import { ChatConfig } from './chat.js';
 import { DatabaseConfig } from './database.js';
+import { HostConfig } from './host.js';
 import { ServerConfig } from './server.js';
 import { VoiceConfig } from './voice.js';
 
@@ -14,6 +15,7 @@ const EnvSchema = z.object({
   ...AiConfig.shape,
   ...ChatConfig.shape,
   ...VoiceConfig.shape,
+  ...HostConfig.shape,
 });
 
 export type Env = z.infer<typeof EnvSchema>;

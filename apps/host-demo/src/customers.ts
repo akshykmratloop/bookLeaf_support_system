@@ -1,5 +1,6 @@
 import type { Fact, HostCustomer } from '@bookleaf/shared';
 import type { AuthorAccount } from './data/authors.js';
+import { accountDetails, bookDetails } from './details.js';
 import { buildFactsPack } from './facts/index.js';
 
 /**
@@ -16,7 +17,13 @@ export function toCustomer(account: AuthorAccount, dataAsOf: Date): HostCustomer
     id: author.externalId,
     name: author.name,
     email: account.email,
-    items: author.books.map((b) => ({ id: b.externalId, title: b.title, facts: bookFacts(b.id) })),
+    items: author.books.map((b) => ({
+      id: b.externalId,
+      title: b.title,
+      facts: bookFacts(b.id),
+      details: bookDetails(b),
+    })),
     facts: accountFacts,
+    details: accountDetails(author),
   };
 }

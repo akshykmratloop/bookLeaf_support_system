@@ -12,9 +12,15 @@ import { createContainer, type Container } from '../../src/container.js';
 import type { Clock } from '../../src/platform/clock.js';
 import { createDb, type Db } from '../../src/platform/db.js';
 import { loadEnv } from '../../src/config/index.js';
+import { buildHostApp, findByEmail, loadAuthors, mintSupportToken } from '@bookleaf/host-demo';
 
 export const ORIGIN = 'http://localhost:5173';
-export const AUTHOR_PASSWORD = 'Author@Test1';
+/** The demo host the support module is attached to in tests: a real HTTP server, not a mock. */
+export const HOST = {
+  apiKey: 'integration-test-host-api-key-123456',
+  signingSecret: 'integration-test-host-signing-secret-123456',
+};
+const HOST_AUTHORS = loadAuthors();
 export const ADMIN_PASSWORD = 'Admin@Test1';
 export const SENTINEL_KEY = 'sk-ant-SENTINEL-123';
 export const EMAILS = {
@@ -89,12 +95,50 @@ export interface Harness {
   aiCalls: StructuredRequest<unknown>[];
   /** Simulated speech-to-speech provider (null when created with { voice: false }). */
   voice: FakeVoiceProvider | null;
+  /** Admins sign in with a password; authors arrive from the host with a hand-over token. */
   login(email: string, password?: string): Promise<string>;
+  /** Base URL of the running demo host. */
+  hostUrl: string;
+  /** Stops the demo host, to test what happens when the product is down. */
+  stopHost(): Promise<void>;
   drain(max?: number): Promise<number>;
   close(): Promise<void>;
 }
 
+async function startHost() {
+  const host = await buildHostApp(
+    {
+      HOST_DEMO_PORT: 0,
+      SUPPORT_URL: ORIGIN,
+      HOST_API_KEY: HOST.apiKey,
+      HOST_SIGNING_SECRET: HOST.signingSecret,
+      DATA_AS_OF: '2025-12-31',
+      HOST_DEMO_PASSWORD: 'Author@Test1',
+    },
+    HOST_AUTHORS,
+  );
+  return { host, url: await host.listen({ port: 0, host: '127.0.0.1' }) };
+}
+
+function passwordLogin(app: FastifyInstance, email: string, password?: string) {
+  const pw = password ?? ADMIN_PASSWORD;
+  return app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/login',
+    payload: { email, password: pw },
+  });
+}
+
+/** What the demo host's "Open support" button does: mint a hand-over token, exchange it. */
+async function hostLogin(app: FastifyInstance, email: string) {
+  const account = findByEmail(HOST_AUTHORS, email);
+  if (!account) throw new Error(`no demo author ${email}`);
+  const token = await mintSupportToken(account, HOST.signingSecret);
+  return app.inject({ method: 'POST', url: '/api/v1/auth/host', payload: { token } });
+}
+
 export async function createHarness(opts: { voice?: boolean } = {}): Promise<Harness> {
+  const { host, url: hostUrl } = await startHost();
   const env = loadEnv({
     NODE_ENV: 'test',
     APP_ORIGIN: ORIGIN,
@@ -103,6 +147,9 @@ export async function createHarness(opts: { voice?: boolean } = {}): Promise<Har
     DATA_AS_OF: '2025-12-31',
     ANTHROPIC_API_KEY: SENTINEL_KEY,
     WORKER_ENABLED: 'false',
+    HOST_API_URL: hostUrl,
+    HOST_API_KEY: HOST.apiKey,
+    HOST_SIGNING_SECRET: HOST.signingSecret,
   });
   const db = createDb(env.DATABASE_URL);
   const clock = testClock(env.DATA_AS_OF);
@@ -119,7 +166,14 @@ export async function createHarness(opts: { voice?: boolean } = {}): Promise<Har
   await app.ready();
   const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
   const worker = createWorker(
-    { db, ai: container.ai, clock, events: container.events, log: silent },
+    {
+      db,
+      ai: container.ai,
+      clock,
+      events: container.events,
+      records: container.records,
+      log: silent,
+    },
     { pollMs: 10 },
   );
   return {
@@ -130,16 +184,14 @@ export async function createHarness(opts: { voice?: boolean } = {}): Promise<Har
     worker,
     aiCalls: provider.calls,
     voice,
+    hostUrl,
+    stopHost: () => host.close(),
     setAi: (h) => {
       handler = h;
     },
     async login(email, password) {
-      const pw = password ?? (email.endsWith('@bookleaf.demo') ? ADMIN_PASSWORD : AUTHOR_PASSWORD);
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/login',
-        payload: { email, password: pw },
-      });
+      const isAdmin = email.endsWith('@bookleaf.demo');
+      const res = isAdmin ? await passwordLogin(app, email, password) : await hostLogin(app, email);
       if (res.statusCode !== 200) throw new Error(`login failed for ${email}: ${res.statusCode}`);
       const cookie = res.cookies.find((c) => c.name === 'bl_session');
       if (!cookie) throw new Error('no session cookie');
@@ -152,6 +204,7 @@ export async function createHarness(opts: { voice?: boolean } = {}): Promise<Har
     },
     async close() {
       await app.close();
+      await host.close();
       await db.$disconnect();
     },
   };

@@ -1,5 +1,5 @@
 import type { Fact, TicketCategory } from '@bookleaf/shared';
-import type { RoyaltyAssessment } from '../facts/index.js';
+import type { RoyaltySignals } from '../domain/signals.js';
 
 export interface DraftBook {
   externalId: string;
@@ -11,7 +11,7 @@ export interface DraftInput {
   authorName: string;
   book: DraftBook | null;
   facts: readonly Fact[];
-  royalty: RoyaltyAssessment;
+  royalty: RoyaltySignals;
   subject: string;
   /** Original description first, then later author messages. */
   authorMessages: string[];

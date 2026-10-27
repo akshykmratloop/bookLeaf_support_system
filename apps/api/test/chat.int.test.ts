@@ -3,6 +3,7 @@ import type { AssistantSettings, ChatReply, ChatSession } from '@bookleaf/shared
 import { defaultHandler, NO_DRAFT } from './helpers/app.js';
 import { AUTHOR_CHANGED_TEXT, CONFIRM_FIRST_TEXT } from '../src/modules/chat/draft-turn.js';
 import type { StructuredRequest } from '../src/ai/providers/types.js';
+import { sampleCustomer } from './fixtures/host.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
 
 let h: Harness;
@@ -112,12 +113,13 @@ describe('admin control', () => {
 describe('grounded answers', () => {
   it('answers from the author records, shows the facts used and logs the AI run', async () => {
     const chat = await startChat(priya);
-    const fact = await h.db.book.findUniqueOrThrow({ where: { externalId: 'BK001' } });
-    const pending = `₹${(fact.royaltyPendingPaise / 100).toLocaleString('en-IN')}`;
+    // What the demo host sends for Priya's first book.
+    const book = sampleCustomer('AUTH001').items.find((i) => i.id === 'BK001');
+    const pending = book?.facts.find((f) => f.id === 'book.BK001.royalty_pending')?.display ?? '';
     h.setAi((req) =>
       req.task === 'CHAT'
         ? {
-            answer: `${fact.title} has ${pending} pending.`,
+            answer: `${book?.title ?? ''} has ${pending} pending.`,
             claims: [{ quote: pending, factIds: ['book.BK001.royalty_pending'] }],
             draft: NO_DRAFT,
           }

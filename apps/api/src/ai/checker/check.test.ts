@@ -1,16 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
-import { buildFactsPack } from '../facts/index.js';
+import { sampleCustomer } from '../../../test/fixtures/host.js';
+import { factsFor } from '../../host/facts.js';
 import { canOverride, checkReply } from './check.js';
 import { findDates, findDurations, findMoney } from './extract.js';
 
-const AS_OF = new Date('2025-12-31T00:00:00Z');
-const facts = buildFactsPack({
-  author: sampleAuthor('AUTH001'),
-  bookId: 'BK001',
-  text: '',
-  dataAsOf: AS_OF,
-}).facts;
+const facts = factsFor(sampleCustomer('AUTH001'), 'BK001');
 const codes = (body: string, extra: Parameters<typeof checkReply>[0] = { body, facts }) =>
   checkReply({ ...extra, body }).issues.map((i) => i.code);
 

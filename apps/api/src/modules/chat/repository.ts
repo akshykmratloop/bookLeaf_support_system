@@ -1,5 +1,3 @@
-import { toBookRecord } from '../../ai/jobs/context.js';
-import type { AuthorRecord } from '../../ai/facts/index.js';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 
@@ -40,18 +38,4 @@ export function authorMessagesSince(db: Db, authorId: string, since: Date): Prom
   return db.chatMessage.count({
     where: { role: 'AUTHOR', createdAt: { gte: since }, session: { authorId } },
   });
-}
-
-/** The signed-in author's own records, in the facts engine's input shape. */
-export async function loadAuthorRecord(db: Db, authorId: string): Promise<AuthorRecord> {
-  const a = await db.author.findUniqueOrThrow({
-    where: { id: authorId },
-    include: { user: true, books: { orderBy: { externalId: 'asc' } } },
-  });
-  return {
-    id: a.id,
-    externalId: a.externalId,
-    name: a.user.name,
-    books: a.books.map(toBookRecord),
-  };
 }

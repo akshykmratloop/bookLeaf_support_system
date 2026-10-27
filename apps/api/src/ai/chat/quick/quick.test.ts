@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { sampleAuthor } from '../../../../test/fixtures/sample-authors.js';
-import { buildAuthorFacts } from '../author-facts.js';
+import { sampleCustomer } from '../../../../test/fixtures/host.js';
+import { allFacts } from '../../../host/facts.js';
 import { quickAnswer } from './answers.js';
 import { detectQuickIntent } from './intents.js';
 
-const AS_OF = new Date('2025-12-31T00:00:00Z');
-
-function ctxFor(authorId: string, message: string) {
-  const author = sampleAuthor(authorId);
+function ctxFor(authorId: string, _message: string) {
+  const customer = sampleCustomer(authorId);
   return {
-    firstName: author.name.split(' ')[0] ?? author.name,
-    facts: buildAuthorFacts(author, message, AS_OF),
-    ignorePhrases: author.books.map((b) => b.title),
+    firstName: customer.name.split(' ')[0] ?? customer.name,
+    facts: allFacts(customer),
+    ignorePhrases: customer.items.map((i) => i.title),
   };
 }
 

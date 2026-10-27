@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { TicketDraft } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
+import type { HostRecords } from '../../host/types.js';
 import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
@@ -32,6 +33,7 @@ export async function threadDraft(db: Db, threadId: string): Promise<TicketDraft
 interface SetupDeps {
   db: Db;
   clock: Clock;
+  records: HostRecords;
   drafts: TicketDraftService;
 }
 
@@ -47,10 +49,5 @@ export async function contextFor(
   const draft = await deps.drafts.forThread(authorId, threadId);
   const earlier = recentLines(await threadLines(deps.db, threadId, callId));
   const thread = { draft, earlier, resumed: threadId !== call.id };
-  return buildCallContext(deps.db, {
-    authorId,
-    dataAsOf: deps.clock.dataAsOf(),
-    maxSeconds,
-    thread,
-  });
+  return buildCallContext(deps, { authorId, maxSeconds, thread });
 }

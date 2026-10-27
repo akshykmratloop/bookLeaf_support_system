@@ -1,9 +1,9 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { BookListSchema, BookSchema, IdParamSchema, ProblemSchema } from '@bookleaf/shared';
 import { sessionOf } from '../../platform/http/auth-guard.js';
-import type { BooksRepository } from './repository.js';
+import type { BooksService } from './service.js';
 
-export const booksRoutes: FastifyPluginAsyncZod<{ books: BooksRepository }> = async (
+export const booksRoutes: FastifyPluginAsyncZod<{ books: BooksService }> = async (
   app,
   { books },
 ) => {
@@ -16,7 +16,7 @@ export const booksRoutes: FastifyPluginAsyncZod<{ books: BooksRepository }> = as
         response: { 200: BookListSchema, 401: ProblemSchema },
       },
     },
-    async (req) => ({ items: await books.list(sessionOf(req)) }),
+    async (req) => books.list(sessionOf(req)),
   );
 
   app.get(

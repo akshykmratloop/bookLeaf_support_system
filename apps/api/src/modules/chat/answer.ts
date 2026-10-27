@@ -1,15 +1,14 @@
 import type { CheckResult, ChatAnswerSource, Fact, TicketDraft } from '@bookleaf/shared';
 import type { DraftAction } from '../../ai/chat/draft-action.js';
-import { buildAuthorFacts } from '../../ai/chat/author-facts.js';
 import { CHAT_PROMPT_VERSION } from '../../ai/chat/prompt.v1.js';
 import { quickAnswer } from '../../ai/chat/quick/answers.js';
 import { answerChat } from '../../ai/chat/service.js';
 import { recordRun } from '../../ai/jobs/runs.js';
 import { AiError } from '../../ai/providers/errors.js';
-import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import type { AssistantService, ChatAccess } from '../assistant/service.js';
-import { loadAuthorRecord } from './repository.js';
+import { loadAuthorView, type AuthorView } from '../../host/author.js';
+import type { HostRecords } from '../../host/types.js';
 
 export interface StoredAnswer {
   source: ChatAnswerSource;
@@ -27,7 +26,7 @@ export const UNAVAILABLE_TEXT =
 
 interface Deps {
   db: Db;
-  clock: Clock;
+  records: HostRecords;
   assistant: AssistantService;
 }
 
@@ -58,33 +57,11 @@ const factRefs = (ids: string[], facts: Fact[]) => {
   });
 };
 
-type AuthorRecord = Awaited<ReturnType<typeof loadAuthorRecord>>;
-
-interface TurnContext {
-  author: AuthorRecord;
-  facts: Fact[];
-  firstName: string;
-  ignorePhrases: string[];
-}
-
-/** Facts are picked from the recent topic too, so "is it on Flipkart?" keeps the book in view. */
-const topicText = (req: AnswerRequest) =>
-  [
-    ...req.history
-      .filter((m) => m.role === 'AUTHOR')
-      .slice(-2)
-      .map((m) => m.body),
-    req.message,
-  ].join(' ');
+type TurnContext = AuthorView & { ignorePhrases: string[] };
 
 async function loadTurn(deps: Deps, req: AnswerRequest): Promise<TurnContext> {
-  const author = await loadAuthorRecord(deps.db, req.authorId);
-  return {
-    author,
-    facts: buildAuthorFacts(author, topicText(req), deps.clock.dataAsOf()),
-    firstName: author.name.split(' ')[0] ?? author.name,
-    ignorePhrases: author.books.map((b) => b.title),
-  };
+  const author = await loadAuthorView(deps, req.authorId);
+  return { ...author, ignorePhrases: author.books.map((b) => b.title) };
 }
 
 /** Common questions answered from verified records in milliseconds; null means "ask the AI". */
@@ -109,7 +86,7 @@ async function runModel(
 ) {
   return answerChat(access.provider, access.model, {
     authorFirstName: turn.firstName,
-    books: turn.author.books.map((b) => ({ id: b.id, title: b.title })),
+    books: turn.books,
     facts: turn.facts,
     history: req.history,
     message: req.message,

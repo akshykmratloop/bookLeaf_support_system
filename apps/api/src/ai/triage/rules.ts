@@ -1,10 +1,10 @@
 import { PRIORITY_RANK, type Priority, type TicketCategory } from '@bookleaf/shared';
-import type { BookRoyaltyStatus } from '../facts/index.js';
+import type { RoyaltyStatus } from '@bookleaf/shared';
 
 export interface FloorInput {
   text: string;
   category: TicketCategory;
-  royaltyStatus: BookRoyaltyStatus | null;
+  royaltyStatus: RoyaltyStatus | null;
 }
 
 export interface PriorityFloor {

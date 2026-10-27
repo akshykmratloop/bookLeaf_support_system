@@ -146,7 +146,8 @@ enum AiRunOutcome {
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
-  passwordHash String   @map("password_hash")
+  /// Null for authors: they sign in through the host product, never with a password here.
+  passwordHash String?  @map("password_hash")
   name         String
   role         Role
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -163,9 +164,10 @@ model Author {
   id         String   @id @default(uuid()) @db.Uuid
   externalId String   @unique @map("external_id")
   userId     String   @unique @map("user_id") @db.Uuid
-  phone      String
-  city       String
-  joinedDate DateTime @map("joined_date") @db.Date
+  /// Host-owned details, no longer written (customer data is read from the host).
+  phone      String?
+  city       String?
+  joinedDate DateTime? @map("joined_date") @db.Date
 
   user          User           @relation(fields: [userId], references: [id])
   books         Book[]
@@ -182,19 +184,20 @@ model Book {
   externalId          String    @unique @map("external_id")
   authorId            String    @map("author_id") @db.Uuid
   title               String
-  isbn                String
-  genre               String
+  /// The columns below are host-owned and no longer written; facts are read from the host.
+  isbn                String?
+  genre               String?
   publicationDate     DateTime? @map("publication_date") @db.Date
-  stage               BookStage
+  stage               BookStage?
   mrpPaise            Int?      @map("mrp_paise")
   royaltyPerCopyPaise Int?      @map("royalty_per_copy_paise")
-  copiesSold          Int       @map("copies_sold")
-  royaltyEarnedPaise  Int       @map("royalty_earned_paise")
-  royaltyPaidPaise    Int       @map("royalty_paid_paise")
-  royaltyPendingPaise Int       @map("royalty_pending_paise")
+  copiesSold          Int?      @map("copies_sold")
+  royaltyEarnedPaise  Int?      @map("royalty_earned_paise")
+  royaltyPaidPaise    Int?      @map("royalty_paid_paise")
+  royaltyPendingPaise Int?      @map("royalty_pending_paise")
   lastPayoutDate      DateTime? @map("last_payout_date") @db.Date
   printPartner        String?   @map("print_partner")
-  availableOn         String[]  @map("available_on")
+  availableOn         String[]  @default([]) @map("available_on")
 
   author       Author        @relation(fields: [authorId], references: [id])
   tickets      Ticket[]

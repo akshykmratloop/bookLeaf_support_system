@@ -1,23 +1,22 @@
 import { buildApp } from './app.js';
 import { createWorker } from './ai/jobs/worker.js';
-import { createContainer } from './container.js';
+import type { FastifyBaseLogger } from 'fastify';
+import { createContainer, type Container } from './container.js';
 import { failInterruptedCalls } from './modules/voice/repository.js';
 import { loadEnv } from './config/index.js';
+
+/** The background worker that runs triage and reply drafts. */
+const workerFor = (c: Container, log: FastifyBaseLogger) =>
+  createWorker(
+    { db: c.db, ai: c.ai, clock: c.clock, events: c.events, records: c.records, log },
+    { pollMs: c.env.WORKER_POLL_MS },
+  );
 
 async function main(): Promise<void> {
   const env = loadEnv();
   const container = createContainer(env);
   const app = await buildApp(container);
-  const worker = createWorker(
-    {
-      db: container.db,
-      ai: container.ai,
-      clock: container.clock,
-      events: container.events,
-      log: app.log,
-    },
-    { pollMs: env.WORKER_POLL_MS },
-  );
+  const worker = workerFor(container, app.log);
 
   let stopping = false;
   const shutdown = async (signal: string) => {

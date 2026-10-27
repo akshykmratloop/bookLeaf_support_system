@@ -97,6 +97,8 @@ async function registerDocs(app: App) {
 async function registerRoutes(api: App, c: Container) {
   await api.register(authRoutes, {
     auth: c.auth,
+    signInFromHost: c.signInFromHost,
+    hostSignInUrl: c.env.HOST_SIGN_IN_URL ?? null,
     ttlSeconds: c.sessions.ttlSeconds,
     secureCookies: c.env.NODE_ENV === 'production',
   });

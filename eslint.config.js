@@ -42,7 +42,13 @@ export default tseslint.config(
   },
   {
     files: ['apps/api/src/**/*.ts'],
-    ignores: ['apps/api/src/ai/providers/anthropic/**'],
+    ignores: [
+      'apps/api/src/ai/providers/anthropic/**',
+      'apps/api/src/host/registry.ts',
+      'apps/api/src/host/http/**',
+      'apps/api/src/host/fake/**',
+      'apps/api/src/**/*.test.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -58,6 +64,11 @@ export default tseslint.config(
               group: ['**/providers/openai/*'],
               message:
                 'Voice vendors are reached only through voice/providers/registry.ts and types.ts.',
+            },
+            {
+              group: ['@bookleaf/host-demo', '**/host/http/*', '**/host/fake/*'],
+              message:
+                'The host product is reached only through host/types.ts (HostRecords) and host/registry.ts.',
             },
           ],
         },

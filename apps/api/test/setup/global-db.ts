@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import type { TestProject } from 'vitest/node';
@@ -12,13 +11,12 @@ declare module 'vitest' {
   }
 }
 
-export const TEST_AUTHOR_PASSWORD = 'Author@Test1';
 export const TEST_ADMIN_PASSWORD = 'Admin@Test1';
 
 const apiRoot = fileURLToPath(new URL('../../', import.meta.url));
 let container: StartedPostgreSqlContainer | undefined;
 
-/** Real Postgres per test run: migrations from the repo, then the provided dataset. */
+/** Real Postgres per test run: migrations from the repo, then the support team's admins. */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   container = await new PostgreSqlContainer('postgres:16-alpine').start();
   const url = container.getConnectionUri();
@@ -28,13 +26,8 @@ export default async function setup(project: TestProject): Promise<() => Promise
     stdio: 'pipe',
   });
   const db = createDb(url);
-  const data: unknown = JSON.parse(
-    readFileSync(`${apiRoot}prisma/seed-data/bookleaf_sample_data.json`, 'utf8'),
-  );
-  await seedCore(db, data, {
-    authorPassword: TEST_AUTHOR_PASSWORD,
-    adminPassword: TEST_ADMIN_PASSWORD,
-  });
+  // Admins only: authors and books come from the demo host when each test signs them in.
+  await seedCore(db, TEST_ADMIN_PASSWORD);
   await db.$disconnect();
   project.provide('databaseUrl', url);
   return async () => {

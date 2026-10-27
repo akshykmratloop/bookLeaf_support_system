@@ -1,27 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
+import { booksOf, sampleCustomer } from '../../../test/fixtures/host.js';
+import { allFacts } from '../../host/facts.js';
 import { AiAuthError, AiUnavailableError } from '../providers/errors.js';
 import { fakeProvider } from '../providers/fake/provider.js';
-import { buildAuthorFacts } from './author-facts.js';
 import { TICKET_CATEGORIES } from '@bookleaf/shared';
 import { CHAT_SYSTEM, chatContext, chatUserMessage, splitHistory } from './prompt.v1.js';
 import { answerChat, SAFE_FALLBACK_TEXT } from './service.js';
 
 const NO_DRAFT = { action: 'none', category: null, bookId: null, subject: null, description: null };
 
-const AS_OF = new Date('2025-12-31T00:00:00Z');
-
 function chatInput(authorId: string, message: string) {
-  const author = sampleAuthor(authorId);
-  const facts = buildAuthorFacts(author, message, AS_OF);
+  const customer = sampleCustomer(authorId);
   return {
-    authorFirstName: author.name.split(' ')[0] ?? author.name,
-    books: author.books.map((b) => ({ id: b.id, title: b.title })),
-    facts,
+    authorFirstName: customer.name.split(' ')[0] ?? customer.name,
+    books: booksOf(customer),
+    facts: allFacts(customer),
     history: [],
     message,
     draft: null,
-    ignorePhrases: author.books.map((b) => b.title),
+    ignorePhrases: customer.items.map((i) => i.title),
   };
 }
 
@@ -31,19 +28,19 @@ const totalPending = (input: ReturnType<typeof chatInput>) => {
   return fact;
 };
 
-describe('buildAuthorFacts', () => {
+describe('allFacts', () => {
   it('covers every book of the author once, with unique fact ids', () => {
     const input = chatInput('AUTH001', 'hello');
     const ids = input.facts.map((f) => f.id);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const book of sampleAuthor('AUTH001').books) {
-      expect(ids).toContain(`book.${book.externalId}.royalty_pending`);
+    for (const book of sampleCustomer('AUTH001').items) {
+      expect(ids).toContain(`book.${book.id}.royalty_pending`);
     }
   });
 
   it("never includes another author's books", () => {
-    const own = sampleAuthor('AUTH001').books.map((b) => b.externalId);
-    const other = sampleAuthor('AUTH009').books.map((b) => b.externalId);
+    const own = sampleCustomer('AUTH001').items.map((b) => b.id);
+    const other = sampleCustomer('AUTH009').items.map((b) => b.id);
     const ids = chatInput('AUTH001', 'hello').facts.map((f) => f.id);
     expect(other.some((x) => !own.includes(x) && ids.some((id) => id.includes(`.${x}.`)))).toBe(
       false,
@@ -133,7 +130,7 @@ describe('answerChat', () => {
 
   it("cleans draft text and drops a book that is not the author's own", async () => {
     const input = chatInput('AUTH001', 'My book is missing on Flipkart');
-    const foreignBook = sampleAuthor('AUTH009').books[0]?.id ?? 'x';
+    const foreignBook = sampleCustomer('AUTH009').items[0]?.id ?? 'x';
     const provider = fakeProvider(() => ({
       answer: 'I can raise this with the team so they can check the listing for you.',
       claims: [],

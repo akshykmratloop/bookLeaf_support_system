@@ -5,6 +5,7 @@ import { homeFor } from '../app/AuthedLayout';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
 import { Input } from '../components/atoms/Input';
+import { AuthorSignInNote } from '../components/molecules/AuthorSignInNote';
 import { DemoAccounts } from '../components/molecules/DemoAccounts';
 import { Field } from '../components/molecules/Field';
 import { useMe } from '../lib/queries';
@@ -32,9 +33,10 @@ export function LoginPage() {
           <img src="/favicon.svg" alt="" className="h-8 w-8" />
           <div>
             <h1 className="font-serif text-[20px] font-semibold">BookLeaf Author Support</h1>
-            <p className="text-[12.5px] text-ink-3">Sign in to your account</p>
+            <p className="text-[12.5px] text-ink-3">Support team sign-in</p>
           </div>
         </div>
+        <AuthorSignInNote />
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <Field id="email" label="Email">
             <Input

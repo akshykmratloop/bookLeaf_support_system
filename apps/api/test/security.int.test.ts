@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  ADMIN_PASSWORD,
   call,
   createHarness,
   createTicket,
@@ -65,8 +66,8 @@ describe('API key never leaves the server', () => {
 describe('session cookie', () => {
   it('is httpOnly and SameSite=Lax; logout clears it', async () => {
     const res = await call(h, 'POST', '/auth/login', undefined, {
-      email: EMAILS.kavita,
-      password: 'Author@Test1',
+      email: EMAILS.admin,
+      password: ADMIN_PASSWORD,
     });
     const cookie = res.cookies.find((c) => c.name === 'bl_session');
     expect(cookie?.httpOnly).toBe(true);

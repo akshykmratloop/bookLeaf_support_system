@@ -8,6 +8,7 @@ import type {
   AuthorTicket,
   AuthorTicketListItem,
   Book,
+  BookList,
   CheckResult,
   Draft,
 } from '@bookleaf/shared';
@@ -35,11 +36,14 @@ export const useMe = () =>
     staleTime: 60_000,
   });
 
+const fetchBooks = () => api<BookList>('/books');
+
+/** The author's books with the host's details, plus account totals (the books page). */
+export const useBookList = () => useQuery({ queryKey: keys.books, queryFn: fetchBooks });
+
+/** Just the books, for pickers (same request, same cache). */
 export const useBooks = () =>
-  useQuery({
-    queryKey: keys.books,
-    queryFn: () => api<{ items: Book[] }>('/books').then((r) => r.items),
-  });
+  useQuery({ queryKey: keys.books, queryFn: fetchBooks, select: (r): Book[] => r.items });
 
 function toQuery(filters: Record<string, string>): string {
   const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ''));

@@ -6,6 +6,7 @@ export interface BookRecord {
   externalId: string;
   title: string;
   isbn: string;
+  genre: string;
   stage: BookStage;
   publicationDate: string | null;
   mrpPaise: number | null;

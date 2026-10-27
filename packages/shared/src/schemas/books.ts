@@ -1,26 +1,21 @@
 import { z } from 'zod';
-import { BOOK_STAGES } from '../enums.js';
 
-/** Money is always integer paise; null means "unknown / not set", never zero. */
+import { HostDetailSchema } from './host.js';
+
+/** A book as the support module knows it: our reference id plus the host's live details. */
 export const BookSchema = z.object({
   id: z.uuid(),
   externalId: z.string(),
   title: z.string(),
-  isbn: z.string(),
-  genre: z.string(),
-  publicationDate: z.iso.date().nullable(),
-  stage: z.enum(BOOK_STAGES),
-  mrpPaise: z.int().nullable(),
-  royaltyPerCopyPaise: z.int().nullable(),
-  copiesSold: z.int(),
-  royaltyEarnedPaise: z.int(),
-  royaltyPaidPaise: z.int(),
-  royaltyPendingPaise: z.int(),
-  lastPayoutDate: z.iso.date().nullable(),
-  printPartner: z.string().nullable(),
-  availableOn: z.array(z.string()),
   authorName: z.string(),
+  /** What the host shows about the book. Empty while the host is unavailable, and for admins. */
+  details: z.array(HostDetailSchema),
 });
 export type Book = z.infer<typeof BookSchema>;
 
-export const BookListSchema = z.object({ items: z.array(BookSchema) });
+export const BookListSchema = z.object({
+  items: z.array(BookSchema),
+  /** Account-level lines from the host (e.g. total royalty pending). */
+  account: z.array(HostDetailSchema),
+});
+export type BookList = z.infer<typeof BookListSchema>;

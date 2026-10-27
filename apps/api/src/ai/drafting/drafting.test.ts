@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { TicketCategory } from '@bookleaf/shared';
-import { sampleAuthor } from '../../../test/fixtures/sample-authors.js';
-import { buildFactsPack } from '../facts/index.js';
+import { sampleCustomer } from '../../../test/fixtures/host.js';
+import { factsFor } from '../../host/facts.js';
+import { royaltySignals } from '../domain/signals.js';
 import { kbSectionsFor } from '../prompts/kb.js';
 import { fakeProvider } from '../providers/fake/provider.js';
 import { runAiDraft, templateDraft } from './service.js';
 import type { DraftInput } from './types.js';
-
-const AS_OF = new Date('2025-12-31T00:00:00Z');
 
 function draftInput(
   authorId: string,
@@ -15,19 +14,19 @@ function draftInput(
   category: TicketCategory,
   text = 'Please help',
 ): DraftInput {
-  const author = sampleAuthor(authorId);
-  const { facts, royalty } = buildFactsPack({ author, bookId, text, dataAsOf: AS_OF });
-  const book = author.books.find((b) => b.id === bookId) ?? null;
+  const customer = sampleCustomer(authorId);
+  const facts = factsFor(customer, bookId);
+  const book = customer.items.find((i) => i.id === bookId) ?? null;
   return {
     category,
-    authorName: author.name,
-    book: book ? { externalId: book.externalId, title: book.title } : null,
+    authorName: customer.name,
+    book: book ? { externalId: book.id, title: book.title } : null,
     facts,
-    royalty,
+    royalty: royaltySignals(facts, bookId),
     subject: 'Question',
     authorMessages: [text],
     lastTeamReply: null,
-    ignorePhrases: author.books.map((b) => b.title),
+    ignorePhrases: customer.items.map((i) => i.title),
   };
 }
 

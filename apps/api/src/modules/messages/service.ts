@@ -26,10 +26,7 @@ export async function checkReplyForTicket(
   ticketId: string,
   body: string,
 ): Promise<CheckResult> {
-  const input = draftInputFromContext(
-    await loadTicketContext(deps.db, ticketId),
-    deps.clock.dataAsOf(),
-  );
+  const input = draftInputFromContext(await loadTicketContext(deps, ticketId));
   return checkReply({ body, facts: input.facts, ignorePhrases: input.ignorePhrases });
 }
 

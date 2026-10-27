@@ -28,16 +28,19 @@ function royaltyWords({ facts, book }: DraftInput): RoyaltyWords {
 
 function nothingPendingText(input: DraftInput, w: RoyaltyWords): string {
   const others =
-    input.royalty.authorTotalPendingPaise > 0
+    (input.royalty.authorTotalPendingPaise ?? 0) > 0
       ? ` You do have ${w.total} pending across your other books, due in the payout cycle that closes by ${w.deadline}.`
       : '';
   return `${w.title} has no royalty pending at the moment.${others}`;
 }
 
 function totalOnlyText(input: DraftInput, w: RoyaltyWords): string {
+  const total = `Your total pending royalty across your books is ${w.total}`;
+  if (input.royalty.payoutEligible === null)
+    return `${total}. [CONFIRM: is it above the payout minimum?]`;
   return input.royalty.payoutEligible
-    ? `Your total pending royalty across your books is ${w.total}, due in the payout cycle that closes by ${w.deadline}.`
-    : `Your total pending royalty across your books is ${w.total}, below the ₹1,000 minimum payout, so it rolls over to the next quarter.`;
+    ? `${total}, due in the payout cycle that closes by ${w.deadline}.`
+    : `${total}, below the ₹1,000 minimum payout, so it rolls over to the next quarter.`;
 }
 
 function royaltyParagraph(input: DraftInput): string {
