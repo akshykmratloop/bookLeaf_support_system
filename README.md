@@ -8,6 +8,44 @@ Base. A person always reviews and sends the reply.
 - **API docs:** `/api/docs` (Swagger UI, generated from the same schemas that validate requests)
 - **Write-up:** [docs/write-up.md](docs/write-up.md) · **Architecture:** [docs/architecture.md](docs/architecture.md) · **AI evaluation:** [docs/eval-results.md](docs/eval-results.md)
 
+## Quick start
+
+Requirements: **Node 22+**, **pnpm** (`npm install -g pnpm`) and **Docker Desktop** (running).
+
+```bash
+npm run local
+```
+
+That one command does everything, and is safe to run again:
+
+1. Checks Node, pnpm and Docker.
+2. Creates `.env` from `.env.example` with fresh random secrets. If `.env` already exists, it only
+   adds missing settings and never changes your values.
+3. Installs packages, starts Postgres in Docker, applies migrations and seeds the demo data.
+4. Starts both apps and prints the links and demo logins.
+
+| Open | URL | Sign in with |
+| --- | --- | --- |
+| Web app (authors and staff) | http://localhost:5173 | `priya.sharma@email.com` / `Author@BookLeaf1` (author) · `admin@bookleaf.demo` / `Admin@BookLeaf1` (staff) |
+| API docs (Swagger) | http://localhost:3000/api/docs | — |
+
+AI keys are optional. Add `ANTHROPIC_API_KEY` to `.env` to turn on AI triage and drafts; without it the app uses its rule-based fallback.
+
+Stop the apps with `Ctrl+C`, and the database with `npm run local:stop`.
+
+## Branches
+
+| Branch | What it contains |
+| --- | --- |
+| `main` | The full product: every feature below, combined and tested |
+| **`core`** | The assignment only: author portal, admin portal, AI triage and drafts, REST API (this branch) |
+| `feature/chat` | `core` + an AI chat assistant grounded in the author's records |
+| `feature/voice` | `feature/chat` + an in-house voice call that fills in a ticket live |
+| `feature/pluggable-support` | `feature/voice` split into BookLeaf's product + a support module it attaches |
+| `feature/saas-platform` | Multi-company SaaS foundation: sign-up, workspaces, connectors, API keys |
+
+Every branch starts with the same command: `npm run local`.
+
 ## Demo logins
 
 All seeded authors share one password, and both admins share another.
@@ -36,15 +74,15 @@ These are demo-only credentials set by `SEED_*_PASSWORD`; change them for any re
 5. *AI Settings* → turn on **Simulate an AI outage** → raise another ticket. It is still created, classified by rules
    ("Auto-fallback"), and gets a template draft. Turn it off afterwards.
 
-## Run locally
+## Running it another way
 
-Requirements: Node 22+, pnpm 12 (`corepack enable`), Docker (for Postgres).
+`npm run local` is all you need. These are the steps it runs, if you prefer to do them by hand:
 
 ```bash
-cp .env.example .env            # then set JWT_SECRET; ANTHROPIC_API_KEY is optional
+cp .env.example .env            # then replace each replace-with-... value
 pnpm install
 pnpm db:up                       # Postgres 16 on localhost:5433
-pnpm db:migrate                  # prisma migrate deploy
+pnpm db:migrate                  # prisma migrate deploy (export the .env values first)
 pnpm db:seed                     # sample data + demo admins (safe to re-run)
 pnpm dev                         # API on :3000, web on :5173 (proxies /api)
 ```
@@ -184,7 +222,7 @@ CSP; input sanitised (HTML and control characters stripped, NFC) at the boundary
 - API keys come only from env. A production version would keep per-tenant keys in a secret manager.
 - The evaluation set is small and written by the developer; a larger, independently labelled set is next.
 - No email notifications, attachment upload or full-text search.
-- Planned later phases (separate, feature-flagged): an AI chat for authors and voice support — see `PLAN.md` §18.
+- Planned later phases (separate, feature-flagged): an AI chat for authors and voice support — see [`docs/project/PLAN.md`](docs/project/PLAN.md) §18.
 
 ## Deployment
 
