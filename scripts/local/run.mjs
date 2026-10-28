@@ -10,6 +10,8 @@ import { ensureEnvFile } from './env.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MIN_NODE_MAJOR = 22;
 const IS_WINDOWS = process.platform === 'win32';
+const DB_WAIT_ATTEMPTS = 60;
+const DB_WAIT_INTERVAL_MS = 1000;
 
 function fail(message) {
   console.error(`\n✖ ${message}\n`);
@@ -33,6 +35,20 @@ function run(cmd, args, what) {
   });
   if (result.status !== 0)
     fail(`${what} failed. Fix the error above, then run \`npm run local\` again.`);
+}
+
+/**
+ * On first start Postgres runs a temporary socket-only server while it initialises, so "healthy"
+ * is not enough. Checking over TCP waits for the real server.
+ */
+function waitForDatabase() {
+  const check = ['compose', 'exec', '-T', 'db', 'pg_isready', '-h', '127.0.0.1'];
+  for (let attempt = 0; attempt < DB_WAIT_ATTEMPTS; attempt += 1) {
+    const result = spawnSync('docker', check, { cwd: ROOT, stdio: 'ignore', shell: IS_WINDOWS });
+    if (result.status === 0) return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DB_WAIT_INTERVAL_MS);
+  }
+  fail('Postgres did not accept connections in time. Check `docker compose logs db`.');
 }
 
 /** pnpm runs the workspace; fall back to corepack (bundled with Node) when it is not installed. */
@@ -61,6 +77,9 @@ function prepareEnv() {
   else if (added.length > 0) console.log(`  Added missing settings to .env: ${added.join(', ')}`);
   else console.log('  .env is complete. Existing values are never changed.');
   process.loadEnvFile(resolve(ROOT, '.env'));
+  // Point the web dev servers at the ports .env chose, so custom ports work without extra settings.
+  process.env.API_PROXY_TARGET ??= `http://localhost:${process.env.PORT ?? '3000'}`;
+  process.env.HOST_PROXY_TARGET ??= `http://localhost:${process.env.HOST_DEMO_PORT ?? '3200'}`;
 }
 
 function printReady() {
@@ -82,7 +101,12 @@ function main() {
   step('Installing packages');
   run(pnpm, [...pnpmArgs, 'install', '--frozen-lockfile'], 'Installing packages');
   step('Starting Postgres in Docker');
-  run('docker', ['compose', 'up', '-d', '--wait', 'db'], 'Starting Postgres');
+  run(
+    'docker',
+    ['compose', 'up', '-d', '--wait', 'db'],
+    'Starting Postgres (if port 5433 is already in use, stop the other database first)',
+  );
+  waitForDatabase();
   for (const script of SETUP_SCRIPTS) {
     step(`Running ${script}`);
     run(pnpm, [...pnpmArgs, script], script);
