@@ -17,6 +17,45 @@ BookLeaf's product.
 - **AI evaluation:** [docs/eval-results.md](docs/eval-results.md)
 - **API docs:** `/api/docs` (Swagger, generated from the same Zod schemas that validate requests)
 
+## Quick start
+
+Requirements: **Node 22+**, **pnpm** (`npm install -g pnpm`) and **Docker Desktop** (running).
+
+```bash
+npm run local
+```
+
+That one command does everything, and is safe to run again:
+
+1. Checks Node, pnpm and Docker.
+2. Creates `.env` from `.env.example` with fresh random secrets. If `.env` already exists, it only
+   adds missing settings and never changes your values.
+3. Installs packages, starts Postgres in Docker, applies migrations and seeds the demo data.
+4. Starts all four apps and prints the links and demo logins.
+
+| Open | URL | Sign in with |
+| --- | --- | --- |
+| BookLeaf author dashboard (start here) | http://localhost:5174 | `priya.sharma@email.com` / `Author@BookLeaf1` |
+| Support app (staff) | http://localhost:5173/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
+| API docs (Swagger) | http://localhost:3000/api/docs | — |
+
+AI keys are optional. Add `ANTHROPIC_API_KEY` (AI triage, drafts, chat) and `OPENAI_API_KEY` (voice) to `.env` to turn them on; without them the app uses its rule-based fallback.
+
+Stop the apps with `Ctrl+C`, and the database with `npm run local:stop`.
+
+## Branches
+
+| Branch | What it contains |
+| --- | --- |
+| `main` | The full product: every feature below, combined and tested |
+| `core` | The assignment only: author portal, admin portal, AI triage and drafts, REST API |
+| `feature/chat` | `core` + an AI chat assistant grounded in the author's records |
+| `feature/voice` | `feature/chat` + an in-house voice call that fills in a ticket live |
+| **`feature/pluggable-support`** | `feature/voice` split into BookLeaf's product + a support module it attaches (this branch) |
+| `feature/saas-platform` | Multi-company SaaS foundation: sign-up, workspaces, connectors, API keys |
+
+Every branch starts with the same command: `npm run local`.
+
 ## Repository
 
 ```text
@@ -27,15 +66,15 @@ apps/host-web/    the BookLeaf author dashboard (React). host-demo serves its bu
 packages/shared/  Zod contracts used by all of them, including the host contract
 ```
 
-## Run locally
+## Running it another way
 
-Requirements: Node 22+, pnpm 12 (`corepack enable`), Docker (for Postgres).
+`npm run local` is all you need. These are the steps it runs, if you prefer to do them by hand:
 
 ```bash
-cp .env.example .env    # set JWT_SECRET, HOST_API_KEY, HOST_SIGNING_SECRET (openssl rand -base64 48)
+cp .env.example .env    # then replace each replace-with-... value (openssl rand -base64 48)
 pnpm install
 pnpm db:up              # Postgres 16 on localhost:5433 (docker compose)
-pnpm db:migrate         # prisma migrate deploy
+pnpm db:migrate         # prisma migrate deploy (export the .env values first)
 pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
 pnpm dev                # runs the four apps below in watch mode
 ```

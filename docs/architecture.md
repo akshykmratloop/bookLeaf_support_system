@@ -1,7 +1,7 @@
 # Architecture — BookLeaf Support
 
 How the support module is built, and how it attaches to a host product. Diagrams are Mermaid
-(they render on GitHub and in VS Code's Markdown preview). Decisions and their reasons: `PLAN.md`.
+(they render on GitHub and in VS Code's Markdown preview). Decisions and their reasons: [`project/PLAN.md`](project/PLAN.md).
 The host's side of the contract: [`integration.md`](integration.md).
 
 ---

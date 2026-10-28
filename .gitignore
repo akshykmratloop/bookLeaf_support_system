@@ -26,3 +26,6 @@ docs/internal/
 graphify-out/
 .claude/settings.local.json
 *.log
+
+# multi-session coordination notes — local only, never pushed
+SHARED_PLAN.md

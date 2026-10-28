@@ -11,7 +11,7 @@
 - [ ] No secrets in code, logs or responses
 - [ ] UI change? Checked in light and dark, at phone and desktop widths, with the keyboard
 - [ ] React change? `npx react-doctor@latest . --fail-on error --offline` reports no errors
-- [ ] Docs updated (README, `docs/`, `TASKS.md`)
+- [ ] Docs updated (README, `docs/`, `docs/project/TASKS.md`)
 
 ## How to test
 
