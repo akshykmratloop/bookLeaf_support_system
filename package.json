@@ -7,6 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "local": "node scripts/local/run.mjs",
+    "local:stop": "docker compose stop db",
     "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web --filter @bookleaf/host-demo dev",
     "build": "pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build",
     "start": "pnpm --filter @bookleaf/api start",
