@@ -1,7 +1,7 @@
 # Architecture — BookLeaf Author Support Portal
 
 > Planned design (not yet implemented). Mermaid diagrams render on GitHub and in VS Code's Markdown
-> preview. Reasons and trade-offs: `PLAN.md`.
+> preview. Reasons and trade-offs: [`project/PLAN.md`](project/PLAN.md).
 
 ---
 
