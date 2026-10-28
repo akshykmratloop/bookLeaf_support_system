@@ -1,7 +1,7 @@
 # QA mission — final report
 
 Branch `feature/support-saas`, 28 Oct 2026. The mission brief is in `docs/qa/mission-brief.md`; the overall status is in
-`IMPLEMENTATION_STATUS.md`.
+`docs/project/IMPLEMENTATION_STATUS.md`.
 
 ## Outcome
 

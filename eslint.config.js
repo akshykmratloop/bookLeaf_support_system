@@ -4,7 +4,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 /**
- * Lint rules, including the architecture boundaries from PLAN.md §5.2:
+ * Lint rules, including the architecture boundaries from docs/project/PLAN.md §5.2:
  * - the Anthropic SDK is imported only inside its provider adapter;
  * - route files never touch Prisma; AI and service code never imports Fastify at runtime;
  * - the API reads the time only through platform/clock.ts.
@@ -32,7 +32,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/**/*.ts', 'apps/host-demo/**/*.ts', 'eval/**/*.ts'],
+    files: ['apps/api/**/*.ts', 'apps/host-demo/**/*.ts', 'eval/**/*.ts', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
   {

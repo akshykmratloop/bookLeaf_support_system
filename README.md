@@ -15,7 +15,48 @@ BookLeaf's product.
 - **How it is built:** [docs/architecture.md](docs/architecture.md)
 - **Approach and trade-offs:** [docs/write-up.md](docs/write-up.md)
 - **AI evaluation:** [docs/eval-results.md](docs/eval-results.md)
+- **All documents:** [docs/README.md](docs/README.md)
 - **API docs:** `/api/docs` (Swagger, generated from the same Zod schemas that validate requests)
+
+## Quick start
+
+Requirements: **Node 22+**, **pnpm** (`npm install -g pnpm`) and **Docker Desktop** (running).
+
+```bash
+npm run local
+```
+
+That one command does everything, and is safe to run again:
+
+1. Checks Node, pnpm and Docker.
+2. Creates `.env` from `.env.example` with fresh random secrets. If `.env` already exists, it only
+   adds missing settings and never changes your values.
+3. Installs packages, starts Postgres in Docker, applies migrations and seeds the demo data.
+4. Starts all four apps and prints the links and demo logins.
+
+| Open | URL | Sign in with |
+| --- | --- | --- |
+| BookLeaf author dashboard (start here) | http://localhost:5174 | `priya.sharma@email.com` / `Author@BookLeaf1` |
+| Support app (staff) | http://localhost:5173/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
+| API docs (Swagger) | http://localhost:3000/api/docs | — |
+
+AI keys are optional. Add `ANTHROPIC_API_KEY` (AI triage, drafts, chat) and `OPENAI_API_KEY`
+(voice) to `.env` to turn them on; without them the app uses its rule-based fallback.
+
+Stop the apps with `Ctrl+C`, and the database with `npm run local:stop`.
+
+## Branches
+
+| Branch | What it contains |
+| --- | --- |
+| **`main`** | The full product: everything below, combined and tested (this branch) |
+| `core` | The assignment only: author portal, admin portal, AI triage and drafts, REST API |
+| `feature/chat` | `core` + an AI chat assistant grounded in the author's records |
+| `feature/voice` | `feature/chat` + an in-house voice call that fills in a ticket live |
+| `feature/pluggable-support` | `feature/voice` split into BookLeaf's product + a support module it attaches |
+| `feature/saas-platform` | Multi-company SaaS foundation: sign-up, workspaces, connectors, API keys |
+
+Every branch starts with the same command: `npm run local`.
 
 ## Repository
 
@@ -27,20 +68,20 @@ apps/host-web/    the BookLeaf author dashboard (React). host-demo serves its bu
 packages/shared/  Zod contracts used by all of them, including the host contract
 ```
 
-## Run locally
+## Running it another way
 
-Requirements: Node 22+, pnpm 12 (`corepack enable`), Docker (for Postgres).
+`npm run local` is all you need. These are the steps it runs, if you prefer to do them by hand:
 
 ```bash
-cp .env.example .env    # set JWT_SECRET, HOST_API_KEY, HOST_SIGNING_SECRET (openssl rand -base64 48)
+cp .env.example .env    # then replace each replace-with-... value (openssl rand -base64 48)
 pnpm install
 pnpm db:up              # Postgres 16 on localhost:5433 (docker compose)
-pnpm db:migrate         # prisma migrate deploy
+pnpm db:migrate         # prisma migrate deploy (export the .env values first)
 pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
-pnpm dev                # runs the four apps below in watch mode
+pnpm dev                # runs the four apps in watch mode
 ```
 
-### Ports
+### Production-style run (ports 3300 and 3400)
 
 | What | Port | Notes |
 | --- | --- | --- |
@@ -71,6 +112,8 @@ and open BookLeaf at http://localhost:5174.
 
 | Script | What it does |
 | --- | --- |
+| `npm run local` | One command: setup, database, migrations, seed, and all four apps |
+| `npm run local:stop` | Stops the Postgres container (data is kept) |
 | `pnpm dev` | API, support web, host demo and dashboard in watch mode |
 | `pnpm build` | Builds the support web app, then the API |
 | `pnpm start` | Starts the built API (and the web app it serves) |
@@ -114,10 +157,10 @@ These are documented demo values for local use only. Change them for any real de
 
 | Who | Where to sign in | Email | Password |
 | --- | --- | --- | --- |
-| Priya Sharma (author) | BookLeaf dashboard, http://localhost:3400 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
+| Priya Sharma (author) | BookLeaf dashboard, http://localhost:5174 (`npm run local`) or :3400 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
 | Arjun Malhotra (author) | BookLeaf dashboard | `arjun.malhotra@email.com` | same |
 | Kavita Deshmukh (author) | BookLeaf dashboard | `kavita.deshmukh@email.com` | same |
-| Neha Verma (support staff, admin) | support app, http://localhost:3300/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
+| Neha Verma (support staff, admin) | support app, http://localhost:5173/login (`npm run local`) or :3300/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
 | Karan Mehta (support staff) | support app | `ops2@bookleaf.demo` | same |
 
 Authors sign in to the **BookLeaf dashboard**, not to the support app. Every author in
