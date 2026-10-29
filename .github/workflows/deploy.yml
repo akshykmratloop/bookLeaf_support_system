@@ -1,0 +1,131 @@
+# Deploy the demo: backends to the AWS box, frontends to Vercel.
+#
+# A push to main deploys only when a commit message in that push contains a flag:
+#   -deploy      backends and frontends
+#   -deploy-be   backends only (apps/api + apps/host-demo on AWS)
+#   -deploy-fe   frontends only (apps/web + apps/host-web on Vercel)
+# Or run it by hand: Actions → Deploy → Run workflow → target.
+# Full runbook: docs/deploy.md.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        options: [both, backend, frontend]
+        default: both
+
+# One deploy at a time, never cancelled half-way (a half-applied migration is worse than a wait).
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC to AWS: no stored AWS keys
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      be: ${{ steps.flags.outputs.be }}
+      fe: ${{ steps.flags.outputs.fe }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: flags
+        env:
+          EVENT: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: deploy/ci/gate.sh
+
+  verify:
+    needs: gate
+    if: needs.gate.outputs.be == 'true' || needs.gate.outputs.fe == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  backend:
+    needs: [gate, verify]
+    if: needs.gate.outputs.be == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      INSTANCE_ID: ${{ vars.BOOKLEAF_INSTANCE_ID }}
+      RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }}
+      SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload this commit as a release
+        run: |
+          git archive --format=tar.gz -o release.tar.gz "$SHA"
+          aws s3 cp --only-show-errors release.tar.gz "s3://$RELEASE_BUCKET/releases/$SHA.tar.gz"
+      - name: Wait for the box to be reachable
+        run: deploy/ci/wait-box.sh
+      - name: Build and start on the box
+        run: deploy/ci/run-on-box.sh "/usr/local/bin/bookleaf-deploy $SHA"
+      - name: Smoke test
+        env:
+          API_HOST: ${{ vars.API_HOST }}
+          HOST_API_HOST: ${{ vars.HOST_API_HOST }}
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 "https://$API_HOST/health"
+          curl -fsS --retry 5 --retry-delay 5 "https://$HOST_API_HOST/health"
+
+  frontend:
+    needs: [gate, verify, backend]
+    # Runs after the backend when both deploy; still runs when the backend was skipped.
+    if: >-
+      always() && needs.gate.outputs.fe == 'true' && needs.verify.result == 'success' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            package: '@bookleaf/web'
+            project: bookleaf-support-ak
+            url_var: WEB_URL
+            check: /api/v1/auth/options
+          - app: host-web
+            package: '@bookleaf/host-web'
+            project: bookleaf-authors
+            url_var: PORTAL_URL
+            check: /api/config
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE }}
+      API_HOST: ${{ vars.API_HOST }}
+      HOST_API_HOST: ${{ vars.HOST_API_HOST }}
+      PORTAL_URL: ${{ vars.PORTAL_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm --filter "${{ matrix.package }}" build
+      - name: Deploy to Vercel
+        run: deploy/ci/vercel-deploy.sh "${{ matrix.app }}" "${{ matrix.project }}"
+      - name: Smoke test
+        env:
+          SITE: ${{ vars[matrix.url_var] }}
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 -o /dev/null "$SITE/"
+          curl -fsS --retry 5 --retry-delay 5 "$SITE${{ matrix.check }}"

@@ -4,9 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The deploy workflow runs these exact checks first; nothing deploys on red.
+  workflow_call:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # When called from deploy.yml this must not share (and cancel) the push run's group.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
