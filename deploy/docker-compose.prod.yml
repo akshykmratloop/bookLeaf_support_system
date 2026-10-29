@@ -1,0 +1,81 @@
+# The demo box: two backends, Postgres, Redis and Caddy (HTTPS) on one small server.
+# Started by deploy/up.sh with:  docker compose -f deploy/docker-compose.prod.yml --env-file <env> up -d
+# Every value comes from the env file rendered from AWS Secrets Manager (never committed).
+name: bookleaf
+
+x-app: &app
+  restart: unless-stopped
+  env_file: ${BOOKLEAF_ENV_FILE:?set BOOKLEAF_ENV_FILE to the rendered env file}
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bookleaf
+      POSTGRES_DB: bookleaf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U bookleaf']
+      interval: 5s
+      retries: 20
+    mem_limit: 384m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no', '--maxmemory', '64mb']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 20
+    mem_limit: 96m
+
+  api:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    image: bookleaf-api:latest
+    environment:
+      DATABASE_URL: postgresql://bookleaf:${POSTGRES_PASSWORD}@postgres:5432/bookleaf
+      REDIS_URL: redis://redis:6379
+      HOST_API_URL: http://host-demo:3200
+      PORT: '3000'
+      HOST: 0.0.0.0
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      host-demo: { condition: service_started }
+    mem_limit: 512m
+
+  host-demo:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile.host-demo }
+    image: bookleaf-host-demo:latest
+    environment:
+      HOST_DEMO_PORT: '3200'
+    ports: ['127.0.0.1:3200:3200']
+    mem_limit: 256m
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      API_HOST: ${API_HOST:?}
+      HOST_API_HOST: ${HOST_API_HOST:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

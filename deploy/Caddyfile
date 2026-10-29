@@ -1,0 +1,19 @@
+# HTTPS for both backends. Hostnames are <name>.<ip-with-dashes>.sslip.io (free DNS that points
+# at the box's Elastic IP), so Let's Encrypt can issue certificates without a custom domain.
+# Certificates live in the caddy_data volume and survive redeploys.
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_HOST} {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+{$HOST_API_HOST} {
+	encode gzip
+	# The customer-data endpoint is for the support API only (it calls host-demo internally).
+	@internal path /support/*
+	respond @internal 404
+	reverse_proxy 127.0.0.1:3200
+}
