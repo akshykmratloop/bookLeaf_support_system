@@ -19,6 +19,11 @@ const ConfigSchema = z.object({
     .default(fileURLToPath(new URL('../../host-web/dist', import.meta.url))),
   /** Password for every demo author account. */
   HOST_DEMO_PASSWORD: z.string().min(8).default('Author@BookLeaf1'),
+  /** Session cookie only over HTTPS. On when deployed behind TLS; off for plain-HTTP local runs. */
+  HOST_SECURE_COOKIES: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type HostConfig = z.infer<typeof ConfigSchema>;

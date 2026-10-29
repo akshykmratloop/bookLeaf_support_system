@@ -120,6 +120,7 @@ async function startHost() {
       DATA_AS_OF: '2025-12-31',
       HOST_DEMO_PASSWORD: 'Author@Test1',
       HOST_WEB_DIST: '/nonexistent/host-web-dist',
+      HOST_SECURE_COOKIES: false,
     },
     HOST_AUTHORS,
   );

@@ -21,6 +21,8 @@ export async function buildHostApp(
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   await app.register(cookie);
+  // Liveness for the deploy check and the proxy; no data, no sign-in.
+  app.get('/health', async () => ({ status: 'ok' }));
   await app.register(customerRoutes, {
     authors,
     apiKey: config.HOST_API_KEY,
@@ -30,6 +32,7 @@ export async function buildHostApp(
     authors,
     password: config.HOST_DEMO_PASSWORD,
     signingSecret: config.HOST_SIGNING_SECRET,
+    secureCookies: config.HOST_SECURE_COOKIES,
   });
   await app.register(dashboardRoutes, {
     authors,

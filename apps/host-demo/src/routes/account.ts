@@ -15,6 +15,8 @@ interface Options {
   authors: AuthorAccount[];
   password: string;
   signingSecret: string;
+  /** Mark the session cookie Secure (HTTPS only). */
+  secureCookies: boolean;
 }
 
 const signedInAccount = (req: Parameters<typeof accountOf>[0], o: Options) =>
@@ -26,7 +28,12 @@ function registerLogin(app: RouteApp, o: Options) {
     if (!account || !sameSecret(req.body.password, o.password))
       return reply.status(401).send({ error: 'Wrong email or password' });
     const session = await signHostSession(account.record.externalId, o.signingSecret);
-    reply.setCookie(SESSION_COOKIE, session, { httpOnly: true, sameSite: 'strict', path: '/' });
+    reply.setCookie(SESSION_COOKIE, session, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: o.secureCookies,
+      path: '/',
+    });
     return { name: account.record.name };
   });
   app.post('/logout', async (_req, reply) => {

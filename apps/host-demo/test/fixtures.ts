@@ -12,6 +12,7 @@ export const TEST_CONFIG: HostConfig = {
   DATA_AS_OF: '2025-12-31',
   HOST_DEMO_PASSWORD: 'Author@Test1',
   HOST_WEB_DIST: '/nonexistent/host-web-dist',
+  HOST_SECURE_COOKIES: false,
 };
 
 /** One sample author as the facts engine reads it (book ids are BK001…). */
