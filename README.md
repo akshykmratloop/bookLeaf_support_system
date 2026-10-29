@@ -18,6 +18,17 @@ BookLeaf's product.
 - **All documents:** [docs/README.md](docs/README.md)
 - **API docs:** `/api/docs` (Swagger, generated from the same Zod schemas that validate requests)
 
+## Live demo
+
+| What | Link | Sign in with |
+| --- | --- | --- |
+| BookLeaf author dashboard (with the Help widget) | https://bookleaf-authors.vercel.app | `priya.sharma@email.com` / `Author@BookLeaf1` |
+| Support app (staff) | https://bookleaf-support-ak.vercel.app/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
+| API docs (Swagger) | https://bookleaf-support-ak.vercel.app/api/docs | none |
+
+Frontends run on Vercel and the two backends on one small AWS server. How it is deployed, and how
+to redeploy with `-deploy` in a commit message: [docs/deploy.md](docs/deploy.md).
+
 ## Quick start
 
 Requirements: **Node 22+**, **pnpm** (`npm install -g pnpm`) and **Docker Desktop** (running).
@@ -66,6 +77,8 @@ apps/web/         the support web app (React): staff admin, the author screens u
 apps/host-demo/   a stand-in BookLeaf product server: authors, books, royalty facts, login, dashboard API
 apps/host-web/    the BookLeaf author dashboard (React). host-demo serves its built files
 packages/shared/  Zod contracts used by all of them, including the host contract
+deploy/          production images, Compose stack, Caddy, Vercel settings and CI deploy scripts
+infra/           Terraform for the AWS demo server, plus apply / destroy scripts
 ```
 
 ## Running it another way
@@ -347,7 +360,9 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 
 ## Deployment
 
-Two services plus Postgres: support (this image) and the host product. Support needs
+The live demo's setup (AWS + Vercel, Terraform, the `-deploy` flags, teardown) is in
+[docs/deploy.md](docs/deploy.md). For any other host: two services plus Postgres, support
+(`deploy/Dockerfile.api`) and the host product (`deploy/Dockerfile.host-demo`). Support needs
 `DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings,
-`NODE_ENV=production`, and optionally the AI keys. Seed staff accounts once with
-`SEED_ADMIN_PASSWORD=… pnpm db:seed`.
+`SECRETS_MASTER_KEY`, `NODE_ENV=production`, and optionally the AI keys. Seed staff accounts once
+with `SEED_ADMIN_PASSWORD=… pnpm db:seed`.

@@ -9,6 +9,7 @@ Start with the [project README](../README.md) for setup (`npm run local`) and th
 | [write-up.md](write-up.md) | Approach, priorities, trade-offs, and how this becomes a production system |
 | [architecture.md](architecture.md) | How the system is built: apps, modules, data flow, diagrams |
 | [integration.md](integration.md) | How to attach the support module to a product (host contract, widget, webhooks) |
+| [deploy.md](deploy.md) | The live demo: AWS + Vercel setup, `-deploy` flags, checking the server, teardown |
 | [saas/PLAN.md](saas/PLAN.md) | Multi-company SaaS design: workspaces, connectors, data model, roadmap |
 | [eval-results.md](eval-results.md) | AI triage accuracy and cost on the evaluation set |
 
