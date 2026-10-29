@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Deploy one commit to this box. Called by GitHub Actions through SSM:
+#   bookleaf-deploy <40-char commit sha>
+# CI has already uploaded s3://$RELEASE_BUCKET/releases/<sha>.tar.gz (git archive of the commit).
+set -euo pipefail
+. /etc/bookleaf/project.env
+
+SHA=${1:?usage: bookleaf-deploy <commit sha>}
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "not a full commit sha: $SHA" >&2; exit 2; }
+
+ROOT=/opt/bookleaf
+KEEP_RELEASES=3
+mkdir -p "$ROOT/releases" /var/log/bookleaf
+exec > >(tee -a /var/log/bookleaf/deploy.log) 2>&1
+
+# One deploy at a time; a second one waits up to 30 minutes, then gives up.
+exec 9>/run/lock/bookleaf-deploy.lock
+flock -w 1800 9 || { echo "another deploy is still running" >&2; exit 1; }
+
+echo "=== deploy $SHA $(date -u +%FT%TZ)"
+DIR="$ROOT/releases/$SHA"
+if [ ! -d "$DIR" ]; then
+  TMP="$(mktemp -d)"
+  aws s3 cp --region "$AWS_REGION" --only-show-errors \
+    "s3://$RELEASE_BUCKET/releases/$SHA.tar.gz" "$TMP/release.tar.gz"
+  mkdir -p "$DIR.partial"
+  tar -xzf "$TMP/release.tar.gz" -C "$DIR.partial"
+  rm -rf "$TMP"
+  mv "$DIR.partial" "$DIR"
+fi
+
+/usr/local/bin/bookleaf-load-env
+ln -sfn "$DIR" "$ROOT/current"
+"$ROOT/current/deploy/up.sh" "$ROOT/.env.prod"
+
+# Keep the newest few releases for a quick look back; images and volumes are shared.
+# Touch first so a rollback to an old release is never the one pruned.
+touch "$DIR"
+ls -1dt "$ROOT"/releases/*/ | tail -n +$((KEEP_RELEASES + 1)) | xargs -r rm -rf
+echo "=== deployed $SHA $(date -u +%FT%TZ)"

@@ -1,0 +1,7 @@
+[Unit]
+Description=Prune old Docker build cache and images
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/bookleaf-prune

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Render /opt/bookleaf/.env.prod from this box's Secrets Manager secret.
+# Runs at every boot (bookleaf-env.service) and at the start of every deploy.
+# The instance role can read only this one secret.
+set -euo pipefail
+. /etc/bookleaf/project.env
+
+OUT=/opt/bookleaf/.env.prod
+# Keys that may legitimately be empty (no AI key = rule-based fallback, voice off).
+MAY_BE_EMPTY='^(ANTHROPIC_API_KEY|OPENAI_API_KEY|SECRETS_MASTER_KEY_PREVIOUS)$'
+
+log() { echo "[bookleaf-load-env] $*"; }
+
+SECRET_JSON="$(aws secretsmanager get-secret-value --region "$AWS_REGION" \
+  --secret-id "$SECRET_ID" --query SecretString --output text)"
+
+# The file is read both by `docker compose --env-file` and by `.` in up.sh, so every value must
+# be one plain line with no shell or quoting characters. Refuse anything else instead of
+# writing a half-broken env.
+BAD="$(echo "$SECRET_JSON" | jq -r --arg ok '^[A-Za-z0-9_./:@,+=-]*$' \
+  'to_entries[] | select((.value | tostring | test($ok)) | not) | .key')"
+if [ -n "$BAD" ]; then
+  log "FATAL: these keys hold characters the env file cannot carry safely:"
+  echo "$BAD" | sed 's/^/  - /' >&2
+  exit 1
+fi
+
+EMPTY="$(echo "$SECRET_JSON" | jq -r 'to_entries[] | select(.value == "") | .key' \
+  | grep -vE "$MAY_BE_EMPTY" || true)"
+if [ -n "$EMPTY" ]; then
+  log "FATAL: these required keys are empty:"
+  echo "$EMPTY" | sed 's/^/  - /' >&2
+  exit 1
+fi
+
+TMP="$OUT.tmp"
+( umask 077; echo "$SECRET_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value)"' > "$TMP" )
+mv "$TMP" "$OUT"
+chmod 600 "$OUT"
+log "rendered $OUT ($(wc -l < "$OUT") keys)"

@@ -1,0 +1,13 @@
+[Unit]
+Description=Render the BookLeaf env file from AWS Secrets Manager
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/bookleaf-load-env
+
+[Install]
+WantedBy=multi-user.target

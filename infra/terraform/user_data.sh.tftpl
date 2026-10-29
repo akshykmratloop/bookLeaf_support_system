@@ -1,0 +1,85 @@
+#!/bin/bash
+# First-boot setup for the BookLeaf demo box (Ubuntu 24.04 arm64). Runs once.
+# Adapted from loop-qa-infra's ec2-instance bootstrap: no data volume, no CloudWatch agent.
+set -euxo pipefail
+exec > >(tee /var/log/bookleaf-bootstrap.log) 2>&1
+echo "=== bookleaf bootstrap $(date -u +%FT%TZ)"
+
+export DEBIAN_FRONTEND=noninteractive
+ARCH="$(dpkg --print-architecture)"
+
+apt-get update -y
+apt-get install -y ca-certificates curl gnupg unzip jq gzip
+
+# ── Swap: Docker builds of a pnpm monorepo need more than 2 GB of RAM ───────
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# ── AWS CLI v2 ───────────────────────────────────────────────────────────────
+if ! command -v aws >/dev/null; then
+  case "$ARCH" in
+    amd64) AWSZIP="awscli-exe-linux-x86_64.zip" ;;
+    arm64) AWSZIP="awscli-exe-linux-aarch64.zip" ;;
+  esac
+  curl -fsSL "https://awscli.amazonaws.com/$AWSZIP" -o /tmp/awscliv2.zip
+  unzip -q /tmp/awscliv2.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscliv2.zip
+fi
+
+# ── Docker CE + compose plugin ───────────────────────────────────────────────
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  > /etc/apt/sources.list.d/docker.list
+apt-get update -y
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+usermod -aG docker ubuntu
+
+cat > /etc/docker/daemon.json <<'JSON'
+{
+  "builder": { "gc": { "enabled": true, "defaultReservedSpace": "4GB" } },
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "3" }
+}
+JSON
+systemctl restart docker
+
+# ── Project identity ─────────────────────────────────────────────────────────
+mkdir -p /etc/bookleaf /opt/bookleaf/releases /opt/bookleaf/backups /var/log/bookleaf
+cat > /etc/bookleaf/project.env <<'BLEOF_PENV'
+${project_env}
+BLEOF_PENV
+chmod 0644 /etc/bookleaf/project.env
+
+# ── Helper commands (plain text, quoted heredocs: nothing is expanded) ──────
+cat > /usr/local/bin/bookleaf-load-env <<'BLEOF_LOADENV'
+${load_env_sh}
+BLEOF_LOADENV
+cat > /usr/local/bin/bookleaf-deploy <<'BLEOF_DEPLOY'
+${deploy_sh}
+BLEOF_DEPLOY
+cat > /usr/local/bin/bookleaf-prune <<'BLEOF_PRUNE'
+${prune_sh}
+BLEOF_PRUNE
+chmod 0755 /usr/local/bin/bookleaf-*
+
+# ── systemd units ────────────────────────────────────────────────────────────
+cat > /etc/systemd/system/bookleaf-env.service <<'BLEOF_ENVUNIT'
+${env_unit}
+BLEOF_ENVUNIT
+cat > /etc/systemd/system/bookleaf-prune.service <<'BLEOF_PRUNEUNIT'
+${prune_unit}
+BLEOF_PRUNEUNIT
+cat > /etc/systemd/system/bookleaf-prune.timer <<'BLEOF_PRUNETIMER'
+${prune_timer}
+BLEOF_PRUNETIMER
+
+systemctl daemon-reload
+systemctl enable --now bookleaf-env.service bookleaf-prune.timer
+
+echo "=== bookleaf bootstrap complete $(date -u +%FT%TZ)"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Daily: drop old build cache and unused images so the 20 GB disk never fills.
+set -euo pipefail
+docker builder prune -af --filter 'until=72h' >/dev/null
+docker image prune -af --filter 'until=72h' >/dev/null
+echo "[bookleaf-prune] $(df -h / | awk 'NR==2 {print $4 " free on /"}')"

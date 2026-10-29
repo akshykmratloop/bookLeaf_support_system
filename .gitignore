@@ -29,3 +29,9 @@ graphify-out/
 
 # multi-session coordination notes — local only, never pushed
 SHARED_PLAN.md
+
+# Terraform (state lives in S3; never commit local working files)
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
