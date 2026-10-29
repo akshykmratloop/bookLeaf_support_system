@@ -27,6 +27,16 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...REQUIRED, OPENAI_API_KEY: '' }).OPENAI_API_KEY).toBeUndefined();
   });
 
+  it('reads the public call-socket origin (wss only); empty means the page host', () => {
+    expect(loadEnv({ ...REQUIRED, PUBLIC_API_WS_ORIGIN: '' }).PUBLIC_API_WS_ORIGIN).toBeUndefined();
+    expect(
+      loadEnv({ ...REQUIRED, PUBLIC_API_WS_ORIGIN: 'wss://api.example.com/' }).PUBLIC_API_WS_ORIGIN,
+    ).toBe('wss://api.example.com');
+    expect(() => loadEnv({ ...REQUIRED, PUBLIC_API_WS_ORIGIN: 'https://api.example.com' })).toThrow(
+      /PUBLIC_API_WS_ORIGIN/,
+    );
+  });
+
   it('names every bad setting in one error', () => {
     expect(() => loadEnv({ ...REQUIRED, JWT_SECRET: 'short', PORT: '0' })).toThrow(
       /JWT_SECRET.*PORT|PORT.*JWT_SECRET/,

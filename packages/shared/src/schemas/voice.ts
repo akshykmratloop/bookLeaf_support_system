@@ -31,6 +31,11 @@ export type TranscriptLine = z.infer<typeof TranscriptLineSchema>;
 export const StartVoiceCallSchema = z.object({
   id: z.uuid(),
   socketPath: z.string(),
+  /**
+   * Set when the web app is served from another site than the API: open this absolute URL (it
+   * carries a 60-second, one-time ticket) instead of `socketPath` on the page's own host.
+   */
+  socketUrl: z.string().optional(),
   maxSeconds: z.int(),
   connectWithinSeconds: z.int(),
 });

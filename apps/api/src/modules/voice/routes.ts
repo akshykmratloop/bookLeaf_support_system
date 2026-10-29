@@ -11,12 +11,9 @@ import {
   StartVoiceCallSchema,
   VoiceCallSchema,
 } from '@bookleaf/shared';
-import { ForbiddenError } from '../../platform/errors.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
 import { idempotencyKey } from '../../platform/http/idempotency.js';
-import type { VoiceProvider } from '../../voice/providers/types.js';
-import { bridgeCall } from './gateway.js';
-import type { VoiceService } from './service.js';
+import { registerStreamRoute, type StreamOpts } from './stream-route.js';
 
 const AUTHOR = { roles: ['AUTHOR'] as const };
 const ADMIN = { roles: ['ADMIN'] as const };
@@ -31,12 +28,9 @@ const errors = {
   503: ProblemSchema,
 };
 
-interface Opts {
-  voice: VoiceService;
-  /** The workspace's speech provider; null when it has none. */
-  voiceFor: (workspaceId: string) => Promise<VoiceProvider | null>;
-  appOrigin: string;
-  now: () => Date;
+interface Opts extends StreamOpts {
+  /** Public wss:// origin of this API when the web app is on another site (PUBLIC_API_WS_ORIGIN). */
+  publicWsOrigin: string | null;
 }
 
 /** Starting a call is limited per signed-in user, after the auth guard has run. */
@@ -48,7 +42,7 @@ const START_LIMIT = {
 };
 
 /** Starting a call, or continuing the last one. */
-function registerStartRoutes(app: RouteApp, { voice }: Opts) {
+function registerStartRoutes(app: RouteApp, { voice, tickets, publicWsOrigin }: Opts) {
   app.post(
     '/voice/calls',
     {
@@ -61,13 +55,17 @@ function registerStartRoutes(app: RouteApp, { voice }: Opts) {
         response: { 201: StartVoiceCallSchema, ...errors },
       },
     },
-    async (req, reply) =>
-      reply.status(201).send(
-        await voice.start(sessionOf(req), {
-          resume: req.body?.resume ?? false,
-          chatSessionId: req.body?.chatSessionId,
-        }),
-      ),
+    async (req, reply) => {
+      const session = sessionOf(req);
+      const started = await voice.start(session, {
+        resume: req.body?.resume ?? false,
+        chatSessionId: req.body?.chatSessionId,
+      });
+      if (!publicWsOrigin) return reply.status(201).send(started);
+      const ticket = await tickets.issue(session, started.id);
+      const socketUrl = `${publicWsOrigin}${started.socketPath}?ticket=${encodeURIComponent(ticket)}`;
+      return reply.status(201).send({ ...started, socketUrl });
+    },
   );
 
   app.get(
@@ -138,41 +136,6 @@ function registerAdminRoutes(app: RouteApp, { voice }: Opts) {
       },
     },
     async (req) => voice.adminGet(sessionOf(req), req.params.id),
-  );
-}
-
-/** The live call: browser audio bridged to the speech provider. */
-function registerStreamRoute(app: RouteApp, opts: Opts) {
-  const { voice } = opts;
-  // Same normalisation as the CSRF guard, so a trailing slash in APP_ORIGIN cannot break calls.
-  const allowedOrigin = new URL(opts.appOrigin).origin;
-
-  app.get(
-    '/voice/calls/:id/stream',
-    {
-      websocket: true,
-      config: AUTHOR,
-      schema: { hide: true, params: Params },
-      // Browsers send cookies on cross-site WebSocket upgrades, so the Origin must be ours.
-      preValidation: async (req) => {
-        if (req.headers.origin !== allowedOrigin)
-          throw new ForbiddenError('Calls must start from the BookLeaf portal');
-      },
-    },
-    async (socket, req) => {
-      const session = sessionOf(req);
-      const provider = await opts.voiceFor(session.workspaceId);
-      if (!provider) {
-        socket.close(4503, 'voice unavailable');
-        return;
-      }
-      void bridgeCall(socket, session, req.params.id, {
-        voice,
-        provider,
-        log: req.log,
-        now: opts.now,
-      });
-    },
   );
 }
 

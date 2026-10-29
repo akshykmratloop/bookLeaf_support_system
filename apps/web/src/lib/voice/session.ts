@@ -75,7 +75,7 @@ export class VoiceCallSession {
     if (gen !== this.generation || !this.mic) return this.cleanup();
     this.player = new PcmPlayer(this.mic.ctx);
     this.set({ phase: 'connecting', callId: call.id });
-    this.openSocket(call.socketPath);
+    this.openSocket(call);
   }
 
   hangup(): void {
@@ -104,9 +104,12 @@ export class VoiceCallSession {
     this.releaseNow();
   }
 
-  private openSocket(path: string) {
+  /** The server's absolute URL (API on another site, with a ticket), else the path on this host. */
+  private openSocket(call: Pick<StartVoiceCall, 'socketPath' | 'socketUrl'>) {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${scheme}://${window.location.host}${path}`);
+    const ws = new WebSocket(
+      call.socketUrl ?? `${scheme}://${window.location.host}${call.socketPath}`,
+    );
     ws.binaryType = 'arraybuffer';
     ws.onmessage = (e: MessageEvent<ArrayBuffer | string>) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);
