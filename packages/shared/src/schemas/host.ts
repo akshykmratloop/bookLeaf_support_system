@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { AuthUserSchema } from './auth.js';
 import { FactSchema } from './facts.js';
+import { WorkspaceSlugRefSchema } from './workspaces.js';
 
 /**
  * The contract between the support module and the product it is attached to (the "host").
@@ -29,7 +31,22 @@ export const HostTokenClaimsSchema = z.object({
 });
 export type HostTokenClaims = z.infer<typeof HostTokenClaimsSchema>;
 
-export const HostSignInRequestSchema = z.object({ token: z.string().min(20).max(4000) });
+export const HostSignInRequestSchema = z.object({
+  token: z.string().min(20).max(4000),
+  /**
+   * The workspace whose widget page asks (`/embed/<slug>`). When given, the token must be for
+   * that workspace, so one workspace's page can never sign a user into another (F-18).
+   */
+  workspace: WorkspaceSlugRefSchema.optional(),
+});
+export type HostSignInRequest = z.infer<typeof HostSignInRequestSchema>;
+
+/** The new session's user, and the workspace whose widget they belong in. */
+export const HostSignInResponseSchema = z.object({
+  user: AuthUserSchema,
+  workspace: z.object({ slug: z.string() }),
+});
+export type HostSignInResponse = z.infer<typeof HostSignInResponseSchema>;
 
 /** A line shown to the customer as it is, e.g. { label: "Royalty pending", display: "₹3,570" }. */
 export const HostDetailSchema = z.object({

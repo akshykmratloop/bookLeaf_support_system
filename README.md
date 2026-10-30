@@ -73,7 +73,7 @@ Every branch starts with the same command: `npm run local`.
 
 ```text
 apps/api/         the support module: tickets, AI, chat, voice, history (Fastify + Prisma)
-apps/web/         the support web app (React): staff admin, the author screens under /embed, and public/embed.js
+apps/web/         the support web app (React): staff admin, the author screens under /embed/<slug>, and public/embed.js
 apps/host-demo/   a stand-in BookLeaf product server: authors, books, royalty facts, login, dashboard API
 apps/host-web/    the BookLeaf author dashboard (React). host-demo serves its built files
 packages/shared/  Zod contracts used by all of them, including the host contract
@@ -152,7 +152,7 @@ stored in the repo. The ones you will most likely change:
 | `VOICE_MODEL` | `gpt-realtime-2.1` | Speech model |
 | `VOICE_MAX_CALL_SECONDS` | `300` | Longest call. Allowed range 30 to 300 |
 | `VOICE_CALLS_PER_HOUR` · `VOICE_CALLS_PER_DAY` | `5` · `10` | Calls per author |
-| `HOST_ORIGINS` | empty | Page origins allowed to frame the widget. Empty turns embed mode off |
+| `HOST_ORIGINS` | empty | Page origins allowed to frame the default workspace's (BookLeaf's) widget, `/embed/bookleaf`. Empty turns embed mode off |
 | `EMBED_ENABLED` | `false` | Embed mode for the origins each workspace saves in its settings screen, without `HOST_ORIGINS` |
 | `SEED_ADMIN_PASSWORD` · `HOST_DEMO_PASSWORD` | demo values below | Demo passwords for staff and for the host demo's authors |
 
@@ -198,7 +198,9 @@ opens a panel. It has four tabs:
 The panel can be expanded to full screen inside the page. It follows the dashboard's light or dark
 theme. There is no separate "My Books" page in the support app any more: books and royalty figures
 are on the BookLeaf dashboard itself. (The old addresses `/books`, `/assistant`, `/tickets` and
-`/history` redirect to the matching `/embed` screen.)
+`/history` redirect to the matching screen under `/embed/bookleaf`.) Every workspace has its own
+widget address, `/embed/<slug>`, which only that workspace's allowed origins may frame; the old
+shared `/embed` redirects to `/embed/bookleaf` (F-18).
 
 **Message limit.** One conversation allows `CHAT_MAX_TURNS_PER_SESSION` author messages (default
 30). Typed and spoken messages both use up the limit. When it is reached, the chat box turns into a

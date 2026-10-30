@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadEnv } from '../src/config/index.js';
 import {
@@ -11,23 +14,108 @@ import {
 } from './helpers/app.js';
 
 const HOST_PAGE = 'http://localhost:3200';
+const ACME_PAGE = 'https://app.acme-frame.example';
+const PAGE = '<!doctype html><title>support</title>';
+const ACME = {
+  workspaceName: 'Acme Frames',
+  slug: 'acme-frame',
+  ownerName: 'Ada Owner',
+  email: 'ada@acme-frame.example',
+  password: 'Correct-Horse-42',
+};
+
+/** A stand-in web build, so the API serves the widget page itself (as in production). */
+function webBuild(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'embed-web-'));
+  writeFileSync(join(dir, 'index.html'), PAGE);
+  writeFileSync(join(dir, 'embed.js'), '(() => {})();');
+  return dir;
+}
+
+/** Saves a workspace's allowed origins from its settings screen. */
+async function saveOrigins(h: Harness, cookie: string, allowedOrigins: string[]) {
+  const { settings } = (await call(h, 'GET', '/workspace/settings', cookie)).json<{
+    settings: { version: number };
+  }>();
+  return call(h, 'PUT', '/workspace/settings', cookie, {
+    version: settings.version,
+    allowedOrigins,
+  });
+}
+
 let h: Harness;
+let web: string;
+const get = (url: string) => h.app.inject({ method: 'GET', url });
+const csp = async (url: string) => String((await get(url)).headers['content-security-policy']);
 
 beforeAll(async () => {
-  h = await createHarness({ env: { HOST_ORIGINS: `${HOST_PAGE}/, https://app.example.com` } });
+  web = webBuild();
+  h = await createHarness({
+    env: {
+      HOST_ORIGINS: `${HOST_PAGE}/, https://app.example.com`,
+      WEB_DIST_DIR: web,
+      SIGNUPS_PER_HOUR: '10',
+      PUBLIC_API_WS_ORIGIN: 'wss://api.example.com',
+    },
+  });
+  await deleteWorkspace(h.db, ACME.slug);
+  await call(h, 'POST', '/signup', undefined, ACME);
+  const acme = await h.login(ACME.email, ACME.password);
+  expect((await saveOrigins(h, acme, [ACME_PAGE])).statusCode).toBe(200);
 });
-afterAll(() => h.close());
+afterAll(async () => {
+  await deleteWorkspace(h.db, ACME.slug);
+  await h.close();
+  rmSync(web, { recursive: true, force: true });
+});
 
-const csp = async (url: string) =>
-  String((await h.app.inject({ method: 'GET', url })).headers['content-security-policy']);
-
-describe('embed mode (HOST_ORIGINS set)', () => {
-  it('lets only the configured host origins frame the widget page', async () => {
-    expect(await csp('/embed')).toContain(`frame-ancestors ${HOST_PAGE} https://app.example.com`);
-    // In-frame pages of the author app (tickets, history) may be framed too.
-    expect(await csp('/embed/tickets/123')).toContain(`frame-ancestors ${HOST_PAGE}`);
-    const res = await h.app.inject({ method: 'GET', url: '/embed' });
+describe('one widget address per workspace (/embed/<slug>, F-18)', () => {
+  it("serves the widget page with only that workspace's origins in frame-ancestors", async () => {
+    const res = await get('/embed/bookleaf');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe(PAGE);
+    expect(res.headers['cache-control']).toBe('no-cache');
     expect(res.headers['x-frame-options']).toBeUndefined();
+    expect(await csp('/embed/bookleaf')).toContain(
+      `frame-ancestors ${HOST_PAGE} https://app.example.com;`,
+    );
+    // In-frame pages of the author app (tickets, history) get the same rule.
+    expect(await csp('/embed/bookleaf/tickets/123')).toContain(`frame-ancestors ${HOST_PAGE}`);
+  });
+
+  it('lets the BookLeaf origin frame /embed/bookleaf but not another workspace', async () => {
+    const acme = await csp(`/embed/${ACME.slug}`);
+    expect(acme).toContain(`frame-ancestors ${ACME_PAGE};`);
+    expect(acme).not.toContain(HOST_PAGE);
+    expect(await csp('/embed/bookleaf')).not.toContain(ACME_PAGE);
+    expect(await csp(`/embed/${ACME.slug}/history`)).not.toContain(HOST_PAGE);
+  });
+
+  it('answers 404 for a workspace that does not exist', async () => {
+    for (const url of ['/embed/no-such-workspace', '/embed/no-such-workspace/tickets']) {
+      expect((await get(url)).statusCode).toBe(404);
+    }
+  });
+
+  it('sends the old /embed address (and its in-app pages) to BookLeaf, keeping the query', async () => {
+    const cases: [string, string][] = [
+      ['/embed', '/embed/bookleaf'],
+      ['/embed?x=1', '/embed/bookleaf?x=1'],
+      ['/embed/tickets/123', '/embed/bookleaf/tickets/123'],
+      ['/embed/ask', '/embed/bookleaf/ask'],
+      ['/embed/history/chat/abc', '/embed/bookleaf/history/chat/abc'],
+      // Encoded characters stay encoded: nothing can be smuggled into the Location header.
+      ['/embed/tickets/a%0d%0ab', '/embed/bookleaf/tickets/a%0d%0ab'],
+    ];
+    for (const [from, to] of cases) {
+      const res = await get(from);
+      expect(res.statusCode, from).toBe(302);
+      expect(res.headers.location, from).toBe(to);
+    }
+  });
+
+  it("lets the page reach the API's own WebSocket address for voice (behind a proxy)", async () => {
+    expect(await csp('/embed/bookleaf')).toContain("connect-src 'self' wss://api.example.com");
   });
 
   it('keeps every other page unframeable', async () => {
@@ -37,15 +125,37 @@ describe('embed mode (HOST_ORIGINS set)', () => {
   });
 
   it('lets host pages load the widget script, and nothing else', async () => {
-    const corp = async (url: string) =>
-      (await h.app.inject({ method: 'GET', url })).headers['cross-origin-resource-policy'];
+    const corp = async (url: string) => (await get(url)).headers['cross-origin-resource-policy'];
     expect(await corp('/embed.js')).toBe('cross-origin');
     expect(await corp('/login')).toBe('same-origin');
+  });
+});
+
+describe('host sign-in inside a workspace widget', () => {
+  it("refuses a host token for another workspace than the widget's address (403)", async () => {
+    // A token without `iss` belongs to the default workspace (BookLeaf).
+    const token = await hostTokenFor(EMAILS.kavita);
+    const wrong = await call(h, 'POST', '/auth/host', undefined, { token, workspace: ACME.slug });
+    expect(wrong.statusCode).toBe(403);
+    expect(wrong.cookies.find((c) => c.name === 'bl_session')).toBeUndefined();
+    // The refused try did not use the token up: the right widget can still exchange it.
+    const right = await call(h, 'POST', '/auth/host', undefined, { token, workspace: 'bookleaf' });
+    expect(right.statusCode).toBe(200);
+    expect(right.json<{ workspace: { slug: string } }>().workspace.slug).toBe('bookleaf');
+  });
+
+  it("tells a full-page sign-in which workspace's widget to open", async () => {
+    const res = await call(h, 'POST', '/auth/host', undefined, {
+      token: await hostTokenFor(EMAILS.kavita),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ workspace: { slug: string } }>().workspace.slug).toBe('bookleaf');
   });
 
   it('issues a partitioned cookie that works inside the iframe', async () => {
     const res = await call(h, 'POST', '/auth/host', undefined, {
       token: await hostTokenFor(EMAILS.kavita),
+      workspace: 'bookleaf',
     });
     const cookie = res.cookies.find((c) => c.name === 'bl_session');
     expect(cookie).toMatchObject({ sameSite: 'None', secure: true, httpOnly: true });
@@ -53,18 +163,10 @@ describe('embed mode (HOST_ORIGINS set)', () => {
   });
 
   it('still refuses cross-site writes: the Origin check does not rely on SameSite', async () => {
-    const res = await h.app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/logout',
-      headers: { origin: HOST_PAGE },
-    });
-    expect(res.statusCode).toBe(403);
-    const own = await h.app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/logout',
-      headers: { origin: ORIGIN },
-    });
-    expect(own.statusCode).toBe(204);
+    const logout = (origin: string) =>
+      h.app.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { origin } });
+    expect((await logout(HOST_PAGE)).statusCode).toBe(403);
+    expect((await logout(ORIGIN)).statusCode).toBe(204);
   });
 });
 
@@ -86,28 +188,20 @@ describe('HOST_ORIGINS setting', () => {
 
 describe("embed mode for a workspace's own origins (EMBED_ENABLED, no HOST_ORIGINS)", () => {
   const OWNER = {
+    ...ACME,
     workspaceName: 'Acme Embeds',
     slug: 'acme-embed',
-    ownerName: 'Ada Owner',
     email: 'ada@acme-embed.example',
-    password: 'Correct-Horse-42',
   };
+  const page = `/embed/${OWNER.slug}`;
   let w: Harness;
   let acme: string;
   const cspOf = async (url: string) =>
     String((await w.app.inject({ method: 'GET', url })).headers['content-security-policy']);
-  const save = async (allowedOrigins: string[]) => {
-    const { settings } = (await call(w, 'GET', '/workspace/settings', acme)).json<{
-      settings: { version: number };
-    }>();
-    return call(w, 'PUT', '/workspace/settings', acme, {
-      version: settings.version,
-      allowedOrigins,
-    });
-  };
 
   beforeAll(async () => {
-    w = await createHarness({ env: { EMBED_ENABLED: 'true' } });
+    w = await createHarness({ env: { EMBED_ENABLED: 'true', WEB_DIST_DIR: web } });
+    await deleteWorkspace(w.db, OWNER.slug);
     await call(w, 'POST', '/signup', undefined, OWNER);
     acme = await w.login(OWNER.email, OWNER.password);
   });
@@ -116,18 +210,20 @@ describe("embed mode for a workspace's own origins (EMBED_ENABLED, no HOST_ORIGI
     await w.close();
   });
 
-  it('lets an origin saved in the settings screen frame the widget page', async () => {
-    expect(await cspOf('/embed')).toContain("frame-ancestors 'none'");
-    expect((await save(['https://App.Acme.example/dashboard?x=1'])).statusCode).toBe(200);
-    expect(await cspOf('/embed')).toContain('frame-ancestors https://app.acme.example');
+  it("lets an origin saved in the settings screen frame that workspace's widget page", async () => {
+    expect(await cspOf(page)).toContain("frame-ancestors 'none'");
+    const saved = await saveOrigins(w, acme, ['https://App.Acme.example/dashboard?x=1']);
+    expect(saved.statusCode).toBe(200);
+    expect(await cspOf(page)).toContain('frame-ancestors https://app.acme.example');
+    // Another workspace's setting does not open up BookLeaf's widget page.
+    expect(await cspOf('/embed/bookleaf')).toContain("frame-ancestors 'none'");
     expect(await cspOf('/login')).toContain("frame-ancestors 'none'");
   });
 
   it('refuses anything but a web origin, so no one can add a rule to the header (422)', async () => {
     for (const bad of ['javascript:a; script-src *', 'data:,x;y', 'ftp://files.acme.example']) {
-      const res = await save([bad]);
-      expect(res.statusCode).toBe(422);
+      expect((await saveOrigins(w, acme, [bad])).statusCode).toBe(422);
     }
-    expect(await cspOf('/embed')).not.toContain('script-src *');
+    expect(await cspOf(page)).not.toContain('script-src *');
   });
 });

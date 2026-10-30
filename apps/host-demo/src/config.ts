@@ -6,6 +6,11 @@ const ConfigSchema = z.object({
   HOST_DEMO_PORT: z.coerce.number().int().min(1).max(65535).default(3200),
   /** Where the support module runs; the demo page links to it and loads its widget. */
   SUPPORT_URL: z.url().default('http://localhost:3100'),
+  /** BookLeaf's workspace in the support module: the widget opens `/embed/<this>`. */
+  SUPPORT_WORKSPACE: z
+    .string()
+    .regex(/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/, 'must be a workspace address name')
+    .default('bookleaf'),
   /** The support module sends this as a Bearer token to read customer data. */
   HOST_API_KEY: z.string().min(24, 'HOST_API_KEY must be at least 24 characters'),
   /** Signs the hand-over tokens the support module accepts. */

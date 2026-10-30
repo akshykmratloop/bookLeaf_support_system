@@ -9,7 +9,7 @@ import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
 import { DiscardDraftButton } from '../molecules/DiscardDraftButton';
 import { DraftFields } from '../molecules/DraftFields';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 
 interface Props {
   draft: TicketDraft | null;
@@ -43,6 +43,7 @@ function Empty({ onStart, isStarting }: Pick<Props, 'onStart' | 'isStarting'>) {
 }
 
 function SentNote({ ticket }: { ticket: NonNullable<TicketDraft['ticket']> }) {
+  const authorPaths = useAuthorPaths();
   return (
     <p className="flex items-start gap-2 rounded-control bg-success-bg p-3 text-[13px] text-success">
       <CheckCircle2 size={16} aria-hidden className="mt-0.5 shrink-0" />

@@ -8,8 +8,29 @@ import { cleanText } from '../sanitize.js';
 export const WORKSPACE_ROLES = ['OWNER', 'ADMIN', 'AGENT'] as const;
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
+/** The default workspace (BookLeaf). The old shared `/embed` address leads to its widget. */
+export const DEFAULT_WORKSPACE_SLUG = 'bookleaf';
+
+/**
+ * Pages of the author app under the old shared address (`/embed/tickets/…`, before F-18 gave
+ * every workspace its own `/embed/<slug>`). They redirect to BookLeaf's, so they cannot be slugs.
+ */
+export const LEGACY_EMBED_SECTIONS = ['ask', 'tickets', 'history'] as const;
+
 /** Reserved words that cannot be used as a workspace slug (they clash with routes or confuse). */
-export const RESERVED_SLUGS = ['admin', 'api', 'app', 'auth', 'embed', 'login', 'signup', 'www'];
+export const RESERVED_SLUGS: readonly string[] = [
+  'admin',
+  'api',
+  'app',
+  'auth',
+  'embed',
+  'login',
+  'signup',
+  'www',
+  ...LEGACY_EMBED_SECTIONS,
+];
+
+const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 export const WorkspaceSlugSchema = z
   .string()
@@ -17,8 +38,17 @@ export const WorkspaceSlugSchema = z
   .toLowerCase()
   .min(3)
   .max(40)
-  .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, 'Use lowercase letters, digits and hyphens')
+  .regex(SLUG_PATTERN, 'Use lowercase letters, digits and hyphens')
   .refine((s) => !RESERVED_SLUGS.includes(s), 'This name is reserved');
+
+/** A slug that names an existing workspace, e.g. in a widget address (`/embed/<slug>`). */
+export const WorkspaceSlugRefSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1)
+  .max(40)
+  .regex(SLUG_PATTERN, 'not a workspace address');
 
 /** Strong password floor (CLAUDE.md §6): 12–128 characters with letters and digits. */
 export const PasswordSchema = z

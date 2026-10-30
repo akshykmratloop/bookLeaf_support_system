@@ -7,7 +7,7 @@ import { Tabs } from '../../components/atoms/Tabs';
 import { EmptyState, ErrorState } from '../../components/molecules/States';
 import { TicketCard } from '../../components/molecules/TicketCard';
 import { TicketCardFixture } from '../../components/molecules/TicketCardFixture';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 import { useAuthorTickets } from '../../lib/queries';
 import {
   countByTab,
@@ -17,14 +17,17 @@ import {
   type TicketTab,
 } from '../../lib/ticketFilters';
 
-const newTicketLink = (
-  <Link
-    to={authorPaths.newTicket}
-    className="inline-flex h-10 items-center gap-2 rounded-full bg-brand px-4 text-[13px] font-semibold text-white shadow-soft hover:bg-brand-strong"
-  >
-    <PlusCircle size={16} aria-hidden /> New ticket
-  </Link>
-);
+function NewTicketLink() {
+  const authorPaths = useAuthorPaths();
+  return (
+    <Link
+      to={authorPaths.newTicket}
+      className="inline-flex h-10 items-center gap-2 rounded-full bg-brand px-4 text-[13px] font-semibold text-white shadow-soft hover:bg-brand-strong"
+    >
+      <PlusCircle size={16} aria-hidden /> New ticket
+    </Link>
+  );
+}
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -67,7 +70,7 @@ export function TicketsPage() {
             Replies from the team appear here as they arrive.
           </p>
         </div>
-        {newTicketLink}
+        <NewTicketLink />
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Tabs
@@ -87,7 +90,7 @@ export function TicketsPage() {
               <EmptyState
                 title={search ? 'No tickets match your search' : 'Nothing here yet'}
                 body={search ? 'Try other words, or clear the search.' : EMPTY_TEXT[tab]}
-                action={tab === 'ALL' && !search ? newTicketLink : undefined}
+                action={tab === 'ALL' && !search ? <NewTicketLink /> : undefined}
               />
             </Card>
           ) : (

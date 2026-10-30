@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { conversationPath, kindOf, outcomeOf } from './conversations';
+import { kindOf, outcomeOf } from './conversations';
 
 const ID = '00000000-0000-4000-8000-000000000001';
 
 describe('conversation helpers', () => {
-  it('builds a link for each kind and reads it back', () => {
-    expect(conversationPath({ kind: 'CHAT', id: ID })).toBe(`/embed/history/chat/${ID}`);
-    expect(conversationPath({ kind: 'CALL', id: ID })).toBe(`/embed/history/call/${ID}`);
+  it('reads the kind back from the link segment', () => {
     expect(kindOf('chat')).toBe('CHAT');
     expect(kindOf('call')).toBe('CALL');
     expect(kindOf('tickets')).toBeNull();

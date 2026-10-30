@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
-    "bones": "boneyard-js build http://127.0.0.1:5199/embed/tickets --cdp 9333 --out ./src/bones --breakpoints 375,768,1280 --no-scan --force"
+    "bones": "boneyard-js build http://127.0.0.1:5199/embed/bookleaf/tickets --cdp 9333 --out ./src/bones --breakpoints 375,768,1280 --no-scan --force"
   },
   "dependencies": {
     "@bookleaf/shared": "workspace:*",

@@ -8,10 +8,10 @@ import { useHostSignIn } from '../lib/useHostSignIn';
 /** Where the host product sends an author: `/auth/host#t=<hand-over token>`. */
 export function HostSignInPage() {
   const navigate = useNavigate();
-  const { user, error } = useHostSignIn();
+  const { user, workspaceSlug, error } = useHostSignIn();
   useEffect(() => {
-    if (user) navigate(homeFor(user), { replace: true });
-  }, [user, navigate]);
+    if (user && workspaceSlug) navigate(homeFor(user, workspaceSlug), { replace: true });
+  }, [user, workspaceSlug, navigate]);
   return (
     <div className="grid h-full place-items-center p-4">
       <Card className="w-full max-w-[420px] p-7">

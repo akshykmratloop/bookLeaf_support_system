@@ -3,13 +3,14 @@ import { BookOpen } from 'lucide-react';
 import { Link } from 'react-router';
 import { categoryStyle, channelStyle } from '../../lib/categoryStyle';
 import { relative } from '../../lib/format';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 import { requesterStatus } from '../../lib/ticketStatus';
 import { Chip } from '../atoms/Chip';
 import { Pill } from '../atoms/Pill';
 
 /** One ticket in a list: what it is about, where it stands and who spoke last. */
 export function TicketCard({ ticket }: { ticket: AuthorTicketListItem }) {
+  const authorPaths = useAuthorPaths();
   const status = requesterStatus(ticket);
   const cat = categoryStyle(ticket.category);
   const channel = channelStyle(ticket.channel);

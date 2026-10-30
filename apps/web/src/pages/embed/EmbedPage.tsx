@@ -16,7 +16,7 @@ function EmbedHeader() {
 }
 
 /**
- * The support widget inside the host's iframe (`/embed#t=<hand-over token>`): no app shell,
+ * The support widget inside the host's iframe (`/embed/<slug>#t=<hand-over token>`): no app shell,
  * just the assistant. The page itself stays still; only the content area scrolls.
  */
 export function EmbedPage() {

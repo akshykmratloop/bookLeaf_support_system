@@ -573,7 +573,7 @@ sequenceDiagram
 | Way to attach | What the host adds | What support does |
 | --- | --- | --- |
 | Link | A button that opens `/auth/host#t=…` | Normal session cookie (`SameSite=Lax`) |
-| Widget | `<script src="…/embed.js" data-token-url="/support-token">` | With `HOST_ORIGINS` set: `frame-ancestors` only on `/embed` and `/embed/…`, cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned` |
+| Widget | `<script src="…/embed.js" data-workspace="bookleaf" data-token-url="/support-token">` | In embed mode: `frame-ancestors` only on `/embed/<slug>` and its pages, listing only that workspace's origins (`HOST_ORIGINS` counts for BookLeaf only; unknown slug 404; old `/embed` redirects to `/embed/bookleaf`), cross-origin resource policy only on `/embed.js`, cookie `SameSite=None; Secure; Partitioned`. The host token must be for the slug's workspace (else 403) |
 | Fastify plugin | `app.register(supportPlugin, { prefix: '/support', env })` | Everything under the prefix, encapsulated: headers, cookies, rate limits, errors, worker. Under a prefix it serves the API only; the web app needs the root of an origin |
 
 The CSRF `Origin` check is the same in every mode, so a host page can frame support but cannot post
@@ -594,10 +594,12 @@ the author said), the message count and the ticket it led to. `GET /conversation
 
 ## 17. Author screens in the widget (`apps/web`)
 
-The author side of the support app lives under `/embed` and is meant to be framed by the host. There
-is no standalone author app. Staff screens (`/login`, `/admin`, `/admin/ai`, `/admin/assistant`) are
-normal pages. Old author paths (`/books`, `/assistant`, `/tickets`, `/history`) redirect to the
-matching `/embed` screen. The books page was removed: books live on the host's own dashboard.
+The author side of the support app lives under `/embed/<workspace slug>` (one address per workspace,
+F-18) and is meant to be framed by the host. There is no standalone author app. Staff screens
+(`/login`, `/admin`, `/admin/ai`, `/admin/assistant`) are normal pages. Old author paths (`/books`,
+`/assistant`, `/tickets`, `/history`) and the old shared `/embed/…` addresses redirect to the
+matching screen under `/embed/bookleaf`. Links inside the app come from `useAuthorPaths()`
+(`apps/web/src/lib/paths.ts`), which reads the slug from the address. The books page was removed: books live on the host's own dashboard.
 
 The Ask screen is built from small parts:
 

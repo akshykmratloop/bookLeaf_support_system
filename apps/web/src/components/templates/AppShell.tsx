@@ -93,7 +93,7 @@ interface Props {
 
 /**
  * The staff dashboard's fixed frame: sidebar and header never move; only <main> scrolls.
- * Authors never see it: their app is /embed.
+ * Authors never see it: their app is /embed/<slug>.
  */
 export function AppShell({ user, live, onSignOut, children }: Props) {
   const [theme, setTheme] = useState<Theme>(readTheme);

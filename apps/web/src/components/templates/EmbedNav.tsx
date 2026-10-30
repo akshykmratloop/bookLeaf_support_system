@@ -1,6 +1,6 @@
 import { History, Home, LifeBuoy, MessageCircle, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths, type AuthorPaths } from '../../lib/paths';
 
 interface Item {
   to: string;
@@ -9,11 +9,11 @@ interface Item {
   end?: boolean;
 }
 
-const ITEMS: Item[] = [
-  { to: authorPaths.home, label: 'Home', Icon: Home, end: true },
-  { to: authorPaths.ask, label: 'Ask', Icon: MessageCircle },
-  { to: authorPaths.tickets, label: 'Tickets', Icon: LifeBuoy },
-  { to: authorPaths.history, label: 'History', Icon: History },
+const itemsFor = (paths: AuthorPaths): Item[] => [
+  { to: paths.home, label: 'Home', Icon: Home, end: true },
+  { to: paths.ask, label: 'Ask', Icon: MessageCircle },
+  { to: paths.tickets, label: 'Tickets', Icon: LifeBuoy },
+  { to: paths.history, label: 'History', Icon: History },
 ];
 
 const Badge = ({ count }: { count: number }) =>
@@ -28,12 +28,13 @@ const Badge = ({ count }: { count: number }) =>
 
 /** Tabs across the top in the small widget; a side rail when there is room. */
 export function EmbedNav({ awaiting, rail }: { awaiting: number; rail: boolean }) {
+  const authorPaths = useAuthorPaths();
   return (
     <nav
       aria-label="Help"
       className={rail ? 'flex flex-col gap-1' : 'flex gap-1 rounded-full bg-panel-2 p-1'}
     >
-      {ITEMS.map(({ to, label, Icon, end }) => (
+      {itemsFor(authorPaths).map(({ to, label, Icon, end }) => (
         <NavLink
           key={to}
           to={to}

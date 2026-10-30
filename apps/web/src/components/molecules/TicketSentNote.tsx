@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Card } from '../atoms/Card';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 
 /** "Ticket BL-1002 was sent from …": links to the ticket the conversation produced. */
 export function TicketSentNote({
@@ -12,6 +12,7 @@ export function TicketSentNote({
   /** The rest of the sentence, after the ticket number. */
   children: ReactNode;
 }) {
+  const authorPaths = useAuthorPaths();
   return (
     <Card className="p-3 text-[13px]">
       Ticket{' '}

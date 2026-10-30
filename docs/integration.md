@@ -20,13 +20,13 @@ flowchart LR
         hostApi["Host server"]
     end
     subgraph support["Support module"]
-        web["Support web app<br/>/auth/host · /embed"]
+        web["Support web app<br/>/auth/host · /embed/&lt;slug&gt;"]
         api["Support API<br/>/api/v1"]
         db[("Support database<br/>tickets, chats, calls")]
     end
     page -- "1 · POST /support-token (cookie)" --> hostApi
-    page -- "2 · open /auth/host#t=TOKEN<br/>or the widget iframe /embed#t=TOKEN" --> web
-    web -- "3 · POST /auth/host {token}" --> api
+    page -- "2 · open /auth/host#t=TOKEN<br/>or the widget iframe /embed/&lt;slug&gt;#t=TOKEN" --> web
+    web -- "3 · POST /auth/host {token, workspace}" --> api
     api -- "4 · GET /support/customers/:id<br/>Bearer HOST_API_KEY" --> hostApi
     api --> db
 ```
@@ -44,7 +44,7 @@ All settings live in `apps/api/src/config/host.ts` and are checked when the app 
 | `HOST_SIGNING_SECRET` | 32+ random characters | Shared HS256 secret for sign-in tokens |
 | `HOST_SIGN_IN_URL` | `https://app.example.com/login` | Where "Sign in" sends a customer who has no session |
 | `HOST_ORIGINS` | `https://app.example.com` | Turns on embed mode (see step 3b). Empty means off |
-| `EMBED_ENABLED` | `true` | Embed mode without `HOST_ORIGINS`: each workspace lists its own page origins under **Settings → Widget**. The widget page's `frame-ancestors` is the union of all of them plus `HOST_ORIGINS`. Only plain `http(s)://host[:port]` origins are accepted |
+| `EMBED_ENABLED` | `true` | Embed mode without `HOST_ORIGINS`: each workspace lists its own page origins under **Settings → Widget**. Each workspace's widget page (`/embed/<slug>`) sends only that workspace's origins in `frame-ancestors` (plus `HOST_ORIGINS` for the default workspace, BookLeaf). Only plain `http(s)://host[:port]` origins are accepted |
 | `HOST_TIMEOUT_MS` | `3000` | How long to wait for the host |
 | `HOST_CACHE_SECONDS` | `60` | How long one customer answer is reused |
 
@@ -162,16 +162,21 @@ link.
 ```html
 <script
   src="{SUPPORT_URL}/embed.js"
+  data-workspace="bookleaf"
   data-token-url="/support-token"
   data-theme="auto"
   defer
 ></script>
 ```
 
+Each workspace has its own widget address, `{SUPPORT_URL}/embed/<slug>` (the slug is the
+workspace's address name, chosen at signup). Only that workspace's allowed origins may frame it.
+
 **Tag attributes** (read at the top of `apps/web/public/embed.js`):
 
 | Attribute | Required | Default | What it does |
 | --- | --- | --- | --- |
+| `data-workspace` | yes (new tags) | none | Your workspace's slug, e.g. `bookleaf`. The frame opens `/embed/<slug>`. A value that is not a slug makes the script throw an error. Without it (tags written before F-18) the frame opens the old `/embed`, which redirects to the default workspace (BookLeaf) |
 | `data-token-url` | yes | none | An endpoint on **your** origin. It answers `POST` (with your session cookie) with `{ "token": "…" }`. Without it, the script throws an error |
 | `data-label` | no | `Help` | Text on the launcher button |
 | `data-title` | no | workspace brand name + "Help" | Title in the panel header. Without it, the panel shows the workspace's brand name (set in Settings → Widget), and the launcher takes the brand colour |
@@ -180,7 +185,8 @@ link.
 **What the script does**
 
 - It draws a launcher button (bottom right). Opening it asks `data-token-url` for a fresh token
-  and shows the support app in an iframe inside a panel, at `{SUPPORT_URL}/embed#t={token}&theme=…`.
+  and shows the support app in an iframe inside a panel, at
+  `{SUPPORT_URL}/embed/<slug>#t={token}&theme=…`.
   The iframe is allowed to use the microphone (`allow="microphone"`), which voice needs.
 - The panel header has **Expand** and **Close**. Expand makes the panel fill the page (with a
   margin of 24 px on wide screens, edge to edge on narrow ones) and dims the page behind it. The
@@ -192,8 +198,11 @@ link.
 
 **The token hand-over.** The token travels in the iframe address as `#t=…`, the URL fragment, so it
 is never sent to a server or logged. The support app reads it and exchanges it at
-`POST /api/v1/auth/host` for its own session cookie. A token works once (`jti`), so every time the
-panel opens, or the app asks to sign in again, the script fetches a new one.
+`POST /api/v1/auth/host` for its own session cookie, sending the slug from its own address
+(`{ token, workspace }`). The token's workspace (its `iss` claim; no `iss` means the default
+workspace) must be that slug, or the server refuses with **403** before the token is used up, so a
+token can never start a session inside another workspace's widget. A token works once (`jti`), so
+every time the panel opens, or the app asks to sign in again, the script fetches a new one.
 
 **Theme.** The frame follows the host page, in both directions of time:
 
@@ -212,7 +221,7 @@ panel opens, or the app asks to sign in again, the script fetches a new one.
 
 | `type` | Extra field | Meaning | What `embed.js` does |
 | --- | --- | --- | --- |
-| `bookleaf-support:reauth` | `path` | The session ran out | Fetches a new token and reloads the frame on `path`. `path` must look like `/embed` or `/embed/...`, else `/embed` is used. At most 3 times per minute, then it shows "Please close help and open it again." |
+| `bookleaf-support:reauth` | `path` | The session ran out | Fetches a new token and reloads the frame on `path`. `path` must be this workspace's page (`/embed/<slug>` or `/embed/<slug>/...`), else `/embed/<slug>` is used. At most 3 times per minute, then it shows "Please close help and open it again." |
 | `bookleaf-support:escape` | none | The user pressed `Esc` inside the frame | Steps back as above |
 | `bookleaf-support:expand` | none | Ask the host to go full screen | Calls `expand()` |
 | `bookleaf-support:close` | none | Ask the host to close the panel | Calls `close()` |
@@ -221,18 +230,28 @@ panel opens, or the app asks to sign in again, the script fetches a new one.
 origin (taken from the script's own `src`), and `event.source` is the frame's own window. Anything
 else is ignored. Only types that start with `bookleaf-support:` are read.
 
-**Screens inside the frame.** Only these paths may be framed, and only by `HOST_ORIGINS`:
+**Screens inside the frame.** Only these paths may be framed, and only by that workspace's origins
+(`HOST_ORIGINS` plus Settings → Widget for BookLeaf; Settings → Widget for any other workspace):
 
 | Path | Screen |
 | --- | --- |
-| `/embed` | Home |
-| `/embed/ask` | Ask: chat, with the voice button |
-| `/embed/tickets` · `/embed/tickets/new` · `/embed/tickets/:id` | Tickets, new ticket, one ticket |
-| `/embed/history` · `/embed/history/:kind/:id` | History, one past chat or call |
+| `/embed/<slug>` | Home |
+| `/embed/<slug>/ask` | Ask: chat, with the voice button |
+| `/embed/<slug>/tickets` · `…/tickets/new` · `…/tickets/:id` | Tickets, new ticket, one ticket |
+| `/embed/<slug>/history` · `…/history/:kind/:id` | History, one past chat or call |
+
+An unknown slug answers **404**. The old shared address keeps working: `/embed` redirects (302) to
+`/embed/bookleaf`, and `/embed/ask`, `/embed/tickets/…` and `/embed/history/…` to the same page
+under `/embed/bookleaf`. The browser keeps the `#t=…` token across the redirect. For that reason
+`ask`, `tickets` and `history` cannot be chosen as workspace slugs.
 
 **Server settings for the widget.** Set `HOST_ORIGINS` to your page origins (comma-separated). Then:
 
-- only `/embed` and the pages under it (`/embed/…`) may be framed, and only by those origins;
+- only `/embed/<slug>` and the pages under it may be framed, and only by that workspace's origins
+  (`HOST_ORIGINS` counts for the default workspace only);
+- the API serves the widget page itself (it needs the web build, `WEB_DIST_DIR`), because the
+  framing rule comes from the database. When the web app is hosted elsewhere (Vercel in the demo),
+  that host must forward `/embed` and `/embed/*` to the API; see [deploy.md](deploy.md);
 - `/embed.js` may be loaded from other sites, and is revalidated on every page load, so a new
   version reaches users without a hard refresh;
 - the session cookie becomes `SameSite=None; Secure; Partitioned`, so it works inside the iframe

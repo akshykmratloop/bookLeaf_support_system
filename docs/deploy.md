@@ -14,6 +14,24 @@ The browser only talks to the two `vercel.app` sites. Vercel forwards `/api/*` (
 need no cross-site setup. The one exception is a voice call: Vercel cannot forward WebSockets, so
 the browser connects straight to the API with a one-time ticket that is valid for 60 seconds.
 
+**The widget page comes from the API.** Each workspace has its own widget address,
+`/embed/<slug>`, and only that workspace's allowed origins may frame it (F-18). That rule is read
+from the database, so a static Vercel header cannot carry it. Instead:
+
+- Vercel forwards `/embed` and `/embed/*` to the API
+  ([`deploy/vercel/web.json.tpl`](../deploy/vercel/web.json.tpl)). The browser address stays on
+  `vercel.app`.
+- The API image carries the same web build (`WEB_DIST_DIR=/app/web`,
+  [`deploy/Dockerfile.api`](../deploy/Dockerfile.api)). For `/embed/<slug>` the API sends that
+  build's `index.html` with `frame-ancestors` set to the workspace's origins (plus `HOST_ORIGINS`
+  for BookLeaf). An unknown slug is a 404; the old `/embed` redirects to `/embed/bookleaf`.
+- Scripts, styles and images still come from Vercel. If the two builds differ (only one side was
+  deployed), the page may name an `/assets/…` file Vercel does not have; Vercel then forwards
+  `/assets/*` to the API, which has it. A file Vercel has is always served by Vercel first.
+- `/embed.js` is still a static Vercel file.
+- The API's page policy allows the voice WebSocket address (`PUBLIC_API_WS_ORIGIN`), because the
+  widget page now carries the API's full Content Security Policy.
+
 ## What runs on AWS
 
 Everything is in [`infra/terraform/`](../infra/terraform) (account `533063875346`, `ap-south-1`,
@@ -106,9 +124,6 @@ variables listed above.
 
 ## Notes for later
 
-- When the per-company widget address (`/embed/<slug>`) is built, its framing rule will come from
-  the database. `/embed` must then be forwarded to the API instead of served by Vercel, so the
-  API can send the right `frame-ancestors` header.
 - Redis is running but unused until the Redis-backed limits and queues are built.
 - The budget filter counts spend by the `Project` tag. Activate `Project` once as a cost
   allocation tag in AWS Billing so the budget can see it.

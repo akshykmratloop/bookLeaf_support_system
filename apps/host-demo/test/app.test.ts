@@ -71,9 +71,12 @@ describe('sign-in and hand-over to support', () => {
 });
 
 describe('web app', () => {
-  it('tells the dashboard where the support module is', async () => {
+  it("tells the dashboard where the support module is and BookLeaf's widget address", async () => {
     const res = await app.inject({ method: 'GET', url: '/api/config' });
-    expect(res.json()).toEqual({ supportUrl: 'http://localhost:5173' });
+    expect(res.json()).toEqual({
+      supportUrl: 'http://localhost:5173',
+      supportWorkspace: 'bookleaf',
+    });
   });
 
   it('explains how to build the dashboard when it is missing', async () => {

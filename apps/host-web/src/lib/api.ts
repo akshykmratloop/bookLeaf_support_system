@@ -27,7 +27,19 @@ async function call(path: string, init: RequestInit = {}): Promise<unknown> {
   return body;
 }
 
-const ConfigSchema = z.object({ supportUrl: z.url() });
+const ConfigSchema = z.object({
+  supportUrl: z.url(),
+  /**
+   * BookLeaf's workspace in the support module; the widget opens `/embed/<slug>`. Optional so
+   * an older server still works: without it the widget uses the old `/embed`, which leads to
+   * BookLeaf's.
+   */
+  supportWorkspace: z
+    .string()
+    .max(40)
+    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/)
+    .optional(),
+});
 
 /** Responses are checked at the boundary, never trusted as they are. */
 export const getDashboard = async (): Promise<Dashboard> =>

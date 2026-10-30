@@ -1,12 +1,13 @@
 import { ArrowUp, Sparkles } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 /** "Hi Priya" with a question box: typing here opens Ask with the question already sent. */
 export function HomeGreeting({ name, canAsk }: { name: string; canAsk: boolean }) {
+  const authorPaths = useAuthorPaths();
   const navigate = useNavigate();
   const [text, setText] = useState('');
   const submit = (e: FormEvent) => {

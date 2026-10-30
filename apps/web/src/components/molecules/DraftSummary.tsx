@@ -2,7 +2,7 @@ import { CATEGORY_LABELS, type TicketDraft } from '@bookleaf/shared';
 import { Link } from 'react-router';
 import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -15,6 +15,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 /** The ticket a past conversation prepared, read-only. */
 export function DraftSummary({ draft }: { draft: TicketDraft }) {
+  const authorPaths = useAuthorPaths();
   const sent = draft.ticket;
   return (
     <Card

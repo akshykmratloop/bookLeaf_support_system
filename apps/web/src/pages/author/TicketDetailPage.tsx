@@ -10,11 +10,12 @@ import { TicketConversation } from '../../components/organisms/TicketConversatio
 import { TicketInfoCard } from '../../components/organisms/TicketInfoCard';
 import { TicketReplyBox } from '../../components/organisms/TicketReplyBox';
 import { categoryStyle } from '../../lib/categoryStyle';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 import { useAuthorTicket } from '../../lib/queries';
 import { requesterStatus } from '../../lib/ticketStatus';
 
 export function TicketDetailPage() {
+  const authorPaths = useAuthorPaths();
   const { id = '' } = useParams();
   const ticket = useAuthorTicket(id);
   if (ticket.isPending) return <LoadingState label="Loading ticket…" />;

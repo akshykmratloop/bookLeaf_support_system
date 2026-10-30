@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgresql://bookleaf:${POSTGRES_PASSWORD}@postgres:5432/bookleaf
       REDIS_URL: redis://redis:6379
       HOST_API_URL: http://host-demo:3200
+      # The web build inside the image: the API serves the widget pages (/embed/<slug>, F-18).
+      WEB_DIST_DIR: /app/web
       PORT: '3000'
       HOST: 0.0.0.0
     ports: ['127.0.0.1:3000:3000']

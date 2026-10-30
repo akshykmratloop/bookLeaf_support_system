@@ -255,8 +255,8 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | --- | --- | --- | --- |
 | F-12.1 | Staff email unique across the platform (`users.login_email`); login by email + password only; signup refuses an email that already has an account (409) | ✅ | `6decb1d` |
 | F-12.2 | End sessions early: `users.session_version` checked on every request; bumped on logout, password change and removal from a workspace | ✅ | `700a107` |
-| F-13 | Ticket numbers per workspace (`next_ticket_number` from 1001, fixed platform-unique `ticket_prefix`, `@@unique([workspaceId, number])`) | ✅ | (this commit) |
-| F-18 | Per-workspace widget address `/embed/<slug>` with that workspace's own `frame-ancestors`; old `/embed` redirects | 🔄 | |
+| F-13 | Ticket numbers per workspace (`next_ticket_number` from 1001, fixed platform-unique `ticket_prefix`, `@@unique([workspaceId, number])`) | ✅ | `414fb28` |
+| F-18 | Per-workspace widget address `/embed/<slug>` with that workspace's own `frame-ancestors`; old `/embed` redirects; host token must match the slug; Vercel forwards `/embed` to the API | ✅ | (this commit) |
 | F-19 | Shared state on Redis (event bus, host-token replay cache, rate limits, config cache, per-ticket lock); `REDIS_URL` required in production | 🔄 | |
 | SM.1 | Pin `deepmerge-ts` ≥ 8.0.0 with a pnpm override (Prisma transitive advisory) | ✅ | `497c2d2` |
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |

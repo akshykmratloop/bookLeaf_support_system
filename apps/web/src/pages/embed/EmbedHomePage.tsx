@@ -8,12 +8,13 @@ import { TicketCard } from '../../components/molecules/TicketCard';
 import { HomeGreeting } from '../../components/organisms/HomeGreeting';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { useConversations } from '../../lib/conversations';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 import { useAuthorTickets } from '../../lib/queries';
 
 const RECENT = 3;
 
 function TicketsSection() {
+  const authorPaths = useAuthorPaths();
   const tickets = useAuthorTickets().data?.items ?? [];
   const waiting = tickets.filter((t) => t.awaitingYou).slice(0, RECENT);
   const recent = tickets.filter((t) => !t.awaitingYou).slice(0, RECENT);
@@ -45,6 +46,7 @@ function TicketsSection() {
 }
 
 function ConversationsSection() {
+  const authorPaths = useAuthorPaths();
   const items = useConversations().data?.pages[0]?.items.slice(0, RECENT) ?? [];
   if (items.length === 0) return null;
   return (
@@ -63,6 +65,7 @@ function ConversationsSection() {
 
 /** The widget's first screen: ask, act, and see what is waiting. */
 export function EmbedHomePage() {
+  const authorPaths = useAuthorPaths();
   const user = useOutletContext<AuthUser>();
   const chat = useAssistantAvailability().data?.chat.state;
   return (

@@ -1,8 +1,10 @@
 import type { Db } from '../../platform/db.js';
+import type { WidgetFraming } from '../../platform/http/embed.js';
+import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 
-/** Origins that may show the support widget in an iframe. */
-export interface EmbedOrigins {
-  list(): Promise<readonly string[]>;
+/** Origins that may show a workspace's support widget (`/embed/<slug>`) in an iframe. */
+export interface EmbedOrigins extends WidgetFraming {
+  /** Forget cached lists, e.g. after a workspace saves its allowed origins. */
   invalidate(): void;
 }
 
@@ -11,28 +13,36 @@ const CACHE_MS = 30_000;
 /** Only a plain web origin may reach the frame-ancestors header (nothing that adds a directive). */
 const SAFE_ORIGIN = /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/;
 
+const clean = (origins: readonly string[]): readonly string[] =>
+  [...new Set(origins)].filter((o) => SAFE_ORIGIN.test(o)).sort();
+
 /**
- * The env's host origins plus every workspace's allowed origins. One widget page serves every
- * workspace, so its frame-ancestors list is the union; each workspace still signs its own users in.
+ * Each workspace's widget page may be framed by that workspace's own allowed origins only, plus
+ * the env's HOST_ORIGINS for the default workspace (BookLeaf). Never the union of every
+ * tenant's origins (F-18). Lists are cached briefly; an unknown slug is never cached, so a
+ * workspace that has just signed up gets its page at once.
  */
 export function createEmbedOrigins(
   db: Db,
   envOrigins: readonly string[],
   now: () => Date,
 ): EmbedOrigins {
-  let cached: { list: readonly string[]; at: number } | null = null;
+  const cache = new Map<string, { list: readonly string[]; at: number }>();
   return {
-    async list() {
+    async originsFor(slug) {
       const t = now().getTime();
-      if (cached && t - cached.at < CACHE_MS) return cached.list;
-      const rows = await db.workspaceSettings.findMany({ select: { allowedOrigins: true } });
-      const all = new Set([...envOrigins, ...rows.flatMap((r) => r.allowedOrigins)]);
-      const list = [...all].filter((o) => SAFE_ORIGIN.test(o)).sort();
-      cached = { list, at: t };
+      const hit = cache.get(slug);
+      if (hit && t - hit.at < CACHE_MS) return hit.list;
+      const workspace = await db.workspace.findUnique({
+        where: { slug },
+        select: { id: true, settings: { select: { allowedOrigins: true } } },
+      });
+      if (!workspace) return null;
+      const own = workspace.settings?.allowedOrigins ?? [];
+      const list = clean(workspace.id === DEFAULT_WORKSPACE_ID ? [...envOrigins, ...own] : own);
+      cache.set(slug, { list, at: t });
       return list;
     },
-    invalidate: () => {
-      cached = null;
-    },
+    invalidate: () => cache.clear(),
   };
 }

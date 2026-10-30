@@ -1,8 +1,9 @@
 import type { ConversationSummary } from '@bookleaf/shared';
 import { ChevronRight, MessagesSquare, Phone } from 'lucide-react';
 import { Link } from 'react-router';
-import { conversationPath, outcomeOf } from '../../lib/conversations';
+import { outcomeOf } from '../../lib/conversations';
 import { relative } from '../../lib/format';
+import { useAuthorPaths } from '../../lib/paths';
 import { Pill } from '../atoms/Pill';
 
 const KIND = {
@@ -16,9 +17,10 @@ const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digi
 export function ConversationRow({ conversation: c }: { conversation: ConversationSummary }) {
   const kind = KIND[c.kind];
   const outcome = outcomeOf(c);
+  const paths = useAuthorPaths();
   return (
     <Link
-      to={conversationPath(c)}
+      to={paths.conversation(c.kind, c.id)}
       className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-panel-2"
     >
       <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-control ${kind.colors}`}>

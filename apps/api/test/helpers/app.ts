@@ -115,6 +115,7 @@ async function startHost() {
     {
       HOST_DEMO_PORT: 0,
       SUPPORT_URL: ORIGIN,
+      SUPPORT_WORKSPACE: 'bookleaf',
       HOST_API_KEY: HOST.apiKey,
       HOST_SIGNING_SECRET: HOST.signingSecret,
       DATA_AS_OF: '2025-12-31',

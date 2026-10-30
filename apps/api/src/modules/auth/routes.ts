@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   AuthUserSchema,
   HostSignInRequestSchema,
+  HostSignInResponseSchema,
   LoginRequestSchema,
   ProblemSchema,
   type AuthUser,
@@ -16,8 +17,14 @@ import { SESSION_COOKIE } from './session.js';
 
 interface Opts {
   auth: AuthService;
-  /** Exchanges a host hand-over token for a session (authors arriving from the product). */
-  signInFromHost: (token: string) => Promise<{ user: AuthUser; token: string }>;
+  /**
+   * Exchanges a host hand-over token for a session (authors arriving from the product). With a
+   * workspace slug (the widget page's), a token for another workspace is refused.
+   */
+  signInFromHost: (
+    token: string,
+    workspace?: string,
+  ) => Promise<{ user: AuthUser; token: string; workspaceSlug: string }>;
   /** Where authors sign in on the host product; the login page links there. */
   hostSignInUrl: string | null;
   ttlSeconds: number;
@@ -115,19 +122,27 @@ function registerHostSignIn(app: RouteApp, opts: Opts) {
         summary: 'Sign in with a hand-over token from the host product',
         body: HostSignInRequestSchema,
         response: {
-          200: z.object({ user: AuthUserSchema }),
+          200: HostSignInResponseSchema,
           401: ProblemSchema,
+          403: ProblemSchema,
           409: ProblemSchema,
           503: ProblemSchema,
         },
       },
     },
     async (req, reply) => {
-      const { user, token } = await opts.signInFromHost(req.body.token);
+      const { user, token, workspaceSlug } = await opts.signInFromHost(
+        req.body.token,
+        req.body.workspace,
+      );
       reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: opts.ttlSeconds });
-      return { user };
+      return { user, workspace: { slug: workspaceSlug } };
     },
   );
+}
+
+/** How authors sign in: the login page links to the host product. */
+function registerSignInOptions(app: RouteApp, opts: Opts) {
   app.get(
     '/auth/options',
     {
@@ -145,5 +160,6 @@ function registerHostSignIn(app: RouteApp, opts: Opts) {
 export const authRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
   registerSignIn(app, opts);
   registerHostSignIn(app, opts);
+  registerSignInOptions(app, opts);
   registerMe(app);
 };

@@ -3,6 +3,9 @@
   "cleanUrls": false,
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://${API_HOST}/api/:path*" },
+    { "source": "/embed", "destination": "https://${API_HOST}/embed" },
+    { "source": "/embed/:path*", "destination": "https://${API_HOST}/embed/:path*" },
+    { "source": "/assets/:path*", "destination": "https://${API_HOST}/assets/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -19,10 +22,6 @@
         { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
-    },
-    {
-      "source": "/embed(/.*)?",
-      "headers": [{ "key": "Content-Security-Policy", "value": "frame-ancestors ${PORTAL_URL}" }]
     },
     {
       "source": "/embed.js",

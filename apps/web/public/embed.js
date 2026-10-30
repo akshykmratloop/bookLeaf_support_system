@@ -1,8 +1,12 @@
 /**
  * BookLeaf support widget. A host product adds one tag to its pages:
  *
- *   <script src="https://support.example.com/embed.js" data-token-url="/support-token" defer></script>
+ *   <script src="https://support.example.com/embed.js" data-workspace="bookleaf"
+ *           data-token-url="/support-token" defer></script>
  *
+ * data-workspace  the workspace's address name (slug). The widget opens /embed/<slug>, which only
+ *                 that workspace's allowed origins may frame. Without it the old shared /embed
+ *                 address is used, which leads to the default workspace (BookLeaf).
  * data-token-url  host endpoint (same origin as the page, POST, cookies sent) that returns
  *                 { "token": "<hand-over token>" } for the signed-in user. Required.
  * data-label      launcher text. Default "Help".
@@ -24,6 +28,11 @@
   const supportUrl = new URL(script.src).origin;
   const tokenUrl = script.dataset.tokenUrl;
   if (!tokenUrl) throw new Error('BookLeaf support: add data-token-url to the embed.js tag.');
+  const workspace = script.dataset.workspace;
+  if (workspace !== undefined && !/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/.test(workspace))
+    throw new Error('BookLeaf support: data-workspace must be the workspace address name.');
+  /** The widget page of this workspace; the app's own pages live under it. */
+  const HOME = workspace ? `/embed/${workspace}` : '/embed';
   const label = script.dataset.label || 'Help';
   // An explicit data-title wins; otherwise the workspace's brand name arrives from the frame.
   let title = script.dataset.title || 'BookLeaf Help';
@@ -37,8 +46,12 @@
   const MAX_NAME = 60;
   const FONT = "'Avenir Next', Avenir, 'Nunito Sans', system-ui, sans-serif";
   const MSG = 'bookleaf-support:';
-  /** A frame path the app may ask to reopen after signing in again. */
-  const FRAME_PATH = /^\/embed(\/[\w\-/]*)?$/;
+  /** A frame path the app may ask to reopen after signing in again: this workspace's pages only. */
+  const PAGE_PATH = /^\/embed(\/[\w\-/]*)?$/;
+  const isOwnPage = (path) =>
+    typeof path === 'string' &&
+    PAGE_PATH.test(path) &&
+    (path === HOME || path.startsWith(`${HOME}/`));
   const REAUTH_LIMIT = 3; // per minute, so a broken session can never loop
 
   const ICONS = {
@@ -272,7 +285,7 @@
     document.body.append(state.panel);
     launcher.setAttribute('aria-expanded', 'true');
     setLauncher('close', 'Close');
-    await load('/embed');
+    await load(HOME);
   }
 
   function close() {
@@ -346,7 +359,7 @@
     if (state.reauths.length >= REAUTH_LIMIT)
       return showNote(new Error('Please close help and open it again.'));
     state.reauths.push(now);
-    void load(typeof path === 'string' && FRAME_PATH.test(path) ? path : '/embed');
+    void load(isOwnPage(path) ? path : HOME);
   }
 
   /** The workspace's colour and name; only a #rrggbb colour and plain text are accepted. */

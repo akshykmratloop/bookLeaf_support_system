@@ -1,6 +1,6 @@
 import type { AuthUser } from '@bookleaf/shared';
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { SignedOutNote } from '../../components/molecules/SignedOutNote';
 import { LoadingState } from '../../components/molecules/States';
 import { EmbedShell } from '../../components/templates/EmbedShell';
@@ -32,8 +32,8 @@ function Ready({ user }: { user: AuthUser }) {
 const asSentence = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
 
 /** Arrived with a hand-over token from the host (widget open, or a fresh sign-in). */
-function TokenGate() {
-  const { user, error } = useHostSignIn();
+function TokenGate({ workspace }: { workspace: string | undefined }) {
+  const { user, error } = useHostSignIn(workspace);
   if (error)
     return (
       <p role="alert" className="p-6 text-[13.5px]">
@@ -56,8 +56,12 @@ function SessionGate() {
   return <LoadingState label={missing ? 'Reconnecting…' : 'Opening help…'} />;
 }
 
-/** The author's support app: in the widget's frame, or full page when the host links to it. */
+/**
+ * One workspace's author app (`/embed/<slug>`): in the widget's frame, or full page when the host
+ * links to it. A hand-over token is exchanged for this workspace only.
+ */
 export function EmbedGate() {
+  const { workspace } = useParams();
   const [withToken] = useState(() => hasHandOverToken(window.location.hash));
-  return withToken ? <TokenGate /> : <SessionGate />;
+  return withToken ? <TokenGate workspace={workspace} /> : <SessionGate />;
 }

@@ -9,13 +9,19 @@ import { TranscriptList } from '../../components/molecules/TranscriptList';
 import { kindOf, useConversation } from '../../lib/conversations';
 import { shouldShowTicket } from '../../lib/ticketVisibility';
 import { dateTime } from '../../lib/format';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 
-const backLink = (
-  <Link to={authorPaths.history} className="inline-flex items-center gap-1 text-[13px] text-ink-2">
-    <ArrowLeft size={14} aria-hidden /> All conversations
-  </Link>
-);
+function BackLink() {
+  const authorPaths = useAuthorPaths();
+  return (
+    <Link
+      to={authorPaths.history}
+      className="inline-flex items-center gap-1 text-[13px] text-ink-2"
+    >
+      <ArrowLeft size={14} aria-hidden /> All conversations
+    </Link>
+  );
+}
 
 function Body({ conversation: c }: { conversation: ConversationDetail }) {
   return (
@@ -36,7 +42,7 @@ function Conversation({ kind, id }: { kind: ConversationKind; id: string }) {
   const subtitle = query.data ? `${dateTime(query.data.startedAt)} · read-only` : undefined;
   return (
     <>
-      <PageHeader title={title} subtitle={subtitle} actions={backLink} />
+      <PageHeader title={title} subtitle={subtitle} actions={<BackLink />} />
       {query.isPending ? <LoadingState label="Loading the conversation…" /> : null}
       {query.isError ? <ErrorState error={query.error} /> : null}
       {query.data ? <Body conversation={query.data} /> : null}
@@ -46,6 +52,7 @@ function Conversation({ kind, id }: { kind: ConversationKind; id: string }) {
 
 /** A past chat or call, read-only: every line in order and the ticket it prepared. */
 export function ConversationPage() {
+  const authorPaths = useAuthorPaths();
   const { kind: segment, id } = useParams();
   const kind = kindOf(segment);
   if (!kind || !id) return <Navigate to={authorPaths.history} replace />;

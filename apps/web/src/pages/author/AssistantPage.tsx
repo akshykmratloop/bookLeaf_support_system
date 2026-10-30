@@ -10,7 +10,7 @@ import { DraftSheet } from '../../components/organisms/DraftSheet';
 import { TicketDraftPanel } from '../../components/organisms/TicketDraftPanel';
 import { VoiceCallPanel } from '../../components/organisms/VoiceCallPanel';
 import { useAssistantAvailability } from '../../lib/assistant';
-import { authorPaths } from '../../lib/paths';
+import { useAuthorPaths } from '../../lib/paths';
 import { useCallInChat } from '../../lib/useCallInChat';
 import { useChatDraft } from '../../lib/useChatDraft';
 import { draftHasContent, shouldShowTicket } from '../../lib/ticketVisibility';
@@ -18,6 +18,7 @@ import { useMediaQuery, WIDE } from '../../lib/useMediaQuery';
 import { useVoiceCall, type VoiceCallControls } from '../../lib/voice/useVoiceCall';
 
 function Unavailable({ channel }: { channel: 'Chat' | 'Voice calls' }) {
+  const authorPaths = useAuthorPaths();
   return (
     <Card className="p-5 text-[13.5px]">
       <p className="font-semibold">

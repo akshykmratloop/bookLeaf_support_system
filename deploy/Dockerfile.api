@@ -1,18 +1,22 @@
-# The support API for the demo box (the web app is served by Vercel, so it is not built here).
-# Build from the repo root:  docker build -f deploy/Dockerfile.api -t bookleaf-api .
+# The support API for the demo box. Build from the repo root:
+#   docker build -f deploy/Dockerfile.api -t bookleaf-api .
+# Vercel serves the web app, but the API also carries the same web build (WEB_DIST_DIR): Vercel
+# forwards the widget pages (/embed/<slug>) here, so each one gets its own workspace's
+# frame-ancestors header from the database (F-18). Static files still come from Vercel.
 # Migrations run before the server starts (`prisma migrate deploy`, never `db push`).
 
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY . .
-RUN pnpm install --frozen-lockfile --filter "@bookleaf/api..."
-RUN pnpm --filter @bookleaf/api build
-RUN pnpm deploy --filter @bookleaf/api --prod --legacy /out && cp -r apps/api/dist /out/dist
+RUN pnpm install --frozen-lockfile --filter "@bookleaf/api..." --filter "@bookleaf/web..."
+RUN pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build
+RUN pnpm deploy --filter @bookleaf/api --prod --legacy /out && cp -r apps/api/dist /out/dist \
+  && cp -r apps/web/dist /out/web
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000
+ENV NODE_ENV=production PORT=3000 WEB_DIST_DIR=/app/web
 COPY --from=build /out /app
 RUN npx prisma generate
 USER node

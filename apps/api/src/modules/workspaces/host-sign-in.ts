@@ -1,9 +1,9 @@
 import type { AuthUser } from '@bookleaf/shared';
 import { decodeJwt } from 'jose';
 import type { Db } from '../../platform/db.js';
-import { UnauthorizedError } from '../../platform/errors.js';
+import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
 import { signInFromHost, type HostSignInDeps } from '../auth/host-login.js';
-import { DEFAULT_WORKSPACE_ID } from './constants.js';
+import { DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_SLUG } from './constants.js';
 
 /** Which workspace a host token is for, and the secret that signs that workspace's tokens. */
 export interface HostIssuer {
@@ -51,10 +51,27 @@ export async function resolveIssuer(router: HostSignInRouter, token: string): Pr
 
 type Base = Omit<HostSignInDeps, 'workspaceId' | 'signingSecret'>;
 
-/** Host sign-in for every workspace: pick the issuer, then run the one-workspace sign-in. */
+export interface HostSignInResult {
+  user: AuthUser;
+  token: string;
+  /** The workspace the user signed into: its widget lives at `/embed/<slug>`. */
+  workspaceSlug: string;
+}
+
+/** The workspace a token names (`iss`), or the default workspace for a token without one. */
+const tokenWorkspace = (token: string) => issuerSlug(token) ?? DEFAULT_WORKSPACE_SLUG;
+
+/**
+ * Host sign-in for every workspace: pick the issuer, then run the one-workspace sign-in. A widget
+ * page passes its own workspace (`/embed/<slug>`); a token for any other workspace is refused
+ * before it is checked or used up, so it cannot start a session inside the wrong widget (F-18).
+ */
 export function createHostSignIn(base: Base, router: HostSignInRouter) {
-  return async (token: string): Promise<{ user: AuthUser; token: string }> => {
+  return async (token: string, expectedSlug?: string): Promise<HostSignInResult> => {
+    const workspaceSlug = tokenWorkspace(token);
+    if (expectedSlug !== undefined && expectedSlug !== workspaceSlug)
+      throw new ForbiddenError('This sign-in is for a different workspace');
     const issuer = await resolveIssuer(router, token);
-    return signInFromHost({ ...base, ...issuer }, token);
+    return { ...(await signInFromHost({ ...base, ...issuer }, token)), workspaceSlug };
   };
 }

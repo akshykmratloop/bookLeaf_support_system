@@ -25,7 +25,7 @@ const OWNER = {
 const signup = (body: Record<string, unknown>) => call(h, 'POST', '/signup', undefined, body);
 
 beforeAll(async () => {
-  h = await createHarness();
+  h = await createHarness({ env: { SIGNUPS_PER_HOUR: '10' } });
   [kavita, bookleafAdmin] = await Promise.all([h.login(EMAILS.kavita), h.login(EMAILS.admin)]);
   const res = await createTicket(h, kavita, {
     bookId: await bookId(h, 'BK015'),
@@ -61,6 +61,8 @@ describe('self-serve signup', () => {
   it('refuses a taken slug (409) and a reserved or malformed one (422)', async () => {
     expect((await signup({ ...OWNER, email: 'other@acme.example' })).statusCode).toBe(409);
     expect((await signup({ ...OWNER, slug: 'admin' })).statusCode).toBe(422);
+    // An old widget address (/embed/tickets/…) leads to BookLeaf, so it is no slug (F-18).
+    expect((await signup({ ...OWNER, slug: 'tickets' })).statusCode).toBe(422);
     expect((await signup({ ...OWNER, slug: 'Bad Slug!' })).statusCode).toBe(422);
   });
 

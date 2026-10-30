@@ -1,7 +1,9 @@
+import { DEFAULT_WORKSPACE_SLUG, LEGACY_EMBED_SECTIONS } from '@bookleaf/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { ToastProvider } from '../components/molecules/Toast';
 import { isApiError } from '../lib/api';
+import { authorPathsFor, legacyAuthorPath } from '../lib/paths';
 import { AssistantPage } from '../pages/author/AssistantPage';
 import { ConversationPage } from '../pages/author/ConversationPage';
 import { HistoryPage } from '../pages/author/HistoryPage';
@@ -30,15 +32,35 @@ const queryClient = new QueryClient({
   },
 });
 
+const BOOKLEAF = authorPathsFor(DEFAULT_WORKSPACE_SLUG);
+
 /** Old author addresses (before the author app moved under /embed) keep working. */
 function ToAuthorApp({ to }: { to?: string }) {
   const { pathname, search } = useLocation();
-  return <Navigate to={to ?? `/embed${pathname}${search}`} replace />;
+  return <Navigate to={to ?? `${legacyAuthorPath(`/embed${pathname}`)}${search}`} replace />;
 }
 
-/** The author's whole support app: the widget's frame, or full page from the host. */
+/**
+ * The old shared widget address (`/embed`, `/embed/tickets/…`) opens BookLeaf's app. The hash
+ * is kept: it carries the host's hand-over token. In production the API redirects first.
+ */
+function ToDefaultWorkspace() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={`${legacyAuthorPath(pathname)}${search}${hash}`} replace />;
+}
+
+const legacyEmbedRoutes = (
+  <>
+    <Route path="/embed" element={<ToDefaultWorkspace />} />
+    {LEGACY_EMBED_SECTIONS.map((section) => (
+      <Route key={section} path={`/embed/${section}/*`} element={<ToDefaultWorkspace />} />
+    ))}
+  </>
+);
+
+/** One workspace's author app (`/embed/<slug>`): the widget's frame, or full page from the host. */
 const authorRoutes = (
-  <Route path="/embed" element={<EmbedGate />}>
+  <Route path="/embed/:workspace" element={<EmbedGate />}>
     <Route index element={<EmbedHomePage />} />
     <Route path="ask" element={<AssistantPage />} />
     <Route path="tickets" element={<TicketsPage />} />
@@ -51,8 +73,8 @@ const authorRoutes = (
 
 const oldAuthorRoutes = (
   <>
-    <Route path="/books" element={<ToAuthorApp to="/embed" />} />
-    <Route path="/assistant" element={<ToAuthorApp to="/embed/ask" />} />
+    <Route path="/books" element={<ToAuthorApp to={BOOKLEAF.home} />} />
+    <Route path="/assistant" element={<ToAuthorApp to={BOOKLEAF.ask} />} />
     <Route path="/tickets/*" element={<ToAuthorApp />} />
     <Route path="/history/*" element={<ToAuthorApp />} />
   </>
@@ -67,6 +89,7 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/host" element={<HostSignInPage />} />
+            {legacyEmbedRoutes}
             {authorRoutes}
             {oldAuthorRoutes}
             {adminRoutes}

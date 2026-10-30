@@ -31,7 +31,7 @@ function Shell({ user }: { user: AuthUser }) {
   );
 }
 
-/** Route guard for the staff dashboard: others are sent to their own home (authors: /embed). */
+/** Route guard for the staff dashboard: others are sent to their own home (authors: /embed/<slug>). */
 export function AuthedLayout({ role }: { role: Role }) {
   const me = useMe();
   if (me.isPending) return <LoadingState label="Signing you in…" />;

@@ -7,6 +7,7 @@ export const AUTHORS = loadAuthors();
 export const TEST_CONFIG: HostConfig = {
   HOST_DEMO_PORT: 0,
   SUPPORT_URL: 'http://localhost:5173',
+  SUPPORT_WORKSPACE: 'bookleaf',
   HOST_API_KEY: 'test-host-api-key-0123456789',
   HOST_SIGNING_SECRET: 'test-host-signing-secret-0123456789abcdef',
   DATA_AS_OF: '2025-12-31',

@@ -1,4 +1,4 @@
-import type { AuthUser } from '@bookleaf/shared';
+import type { HostSignInResponse } from '@bookleaf/shared';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 
@@ -9,9 +9,15 @@ export function takeHostToken(location: Pick<Location, 'hash' | 'pathname' | 'se
   return token;
 }
 
-/** Exchanges the host's hand-over token for a support session. */
-export const signInWithHostToken = (token: string) =>
-  api<{ user: AuthUser }>('/auth/host', { method: 'POST', body: { token } }).then((r) => r.user);
+/**
+ * Exchanges the host's hand-over token for a support session. A widget page names its own
+ * workspace (`/embed/<slug>`): the server refuses a token for any other workspace.
+ */
+export const signInWithHostToken = (token: string, workspace?: string) =>
+  api<HostSignInResponse>('/auth/host', {
+    method: 'POST',
+    body: workspace ? { token, workspace } : { token },
+  });
 
 export const useSignInOptions = () =>
   useQuery({
