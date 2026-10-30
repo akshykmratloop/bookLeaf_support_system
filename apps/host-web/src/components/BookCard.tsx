@@ -1,7 +1,7 @@
 import type { DashboardBook } from '@bookleaf/host-demo/dashboard';
 import { BookOpen, Store } from 'lucide-react';
 import { day, rupees } from '../lib/format';
-import { ROYALTY_STATUS } from '../lib/royaltyStatus';
+import { royaltyBadge } from '../lib/royaltyStatus';
 import { StageTrack } from './StageTrack';
 
 function Fact({
@@ -23,7 +23,7 @@ function Fact({
 
 /** One book with every field BookLeaf keeps for it. */
 export function BookCard({ book: b }: { book: DashboardBook }) {
-  const status = ROYALTY_STATUS[b.royaltyStatus];
+  const status = royaltyBadge(b);
   return (
     <article className="flex animate-rise flex-col gap-4 rounded-card border border-line bg-panel p-5 shadow-card">
       <header className="flex items-start gap-3">
