@@ -42,4 +42,4 @@ Rule followed for every fix: write a test that fails for the right reason first,
 | F-19 | P3 | In-memory, single-process state (host-token replay cache, rate limits, event bus, config cache) | Documented in `docs/architecture.md`; move to Postgres/Redis before running more than one instance. |
 | D2 | P3 | Invalid widget origin shows only a generic toast | Field-level error message in the settings form. |
 | D5–D8 | P3 | Small UI polish items from the browser run | See `docs/qa/browser-journeys.md`. |
-| Audit | — | `pnpm audit --prod`: 1 high (`deepmerge-ts` via prisma); dev-only: 2 critical (`tinypool` via vitest) | Upgrade when the upstream packages publish fixed versions; dev-only advisories do not ship. |
+| Audit | — | `pnpm audit --prod`: 1 high (`deepmerge-ts` via prisma); dev-only: 2 critical (`tinypool` via vitest) | **Production advisory fixed (2026-10-30):** pnpm override pins `deepmerge-ts` `>=8.0.0`; `pnpm audit --prod` is clean. Dev-only advisories do not ship. |

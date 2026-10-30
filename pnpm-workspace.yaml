@@ -10,3 +10,6 @@ allowBuilds:
   cpu-features: false
   ssh2: false
   protobufjs: false
+overrides:
+  # Prisma 6 pulls deepmerge-ts 7.x transitively (via @prisma/config); 7.x has a published advisory.
+  deepmerge-ts: '>=8.0.0'

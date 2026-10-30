@@ -36,8 +36,9 @@ run (`docs/qa/browser-journeys.md`) and a run of the production Docker image. No
 
 ## Dependencies (`pnpm audit`, 2026-10-28)
 
-- **Production:** 1 high, `deepmerge-ts` (pulled in by Prisma). Not upgraded in this run; re-check with the next Prisma
-  upgrade.
+- **Production:** 1 high, `deepmerge-ts` (pulled in by Prisma). **Fixed (2026-10-30):** a pnpm override in
+  `pnpm-workspace.yaml` pins `deepmerge-ts` to `>=8.0.0` (resolves to 8.0.2); `pnpm audit --prod` now reports no known
+  vulnerabilities.
 - **Development only:** 2 critical (`tinypool` via vitest) and 4 moderate. These do not ship in the image.
 
 ## Deferred (documented, not fixed)
