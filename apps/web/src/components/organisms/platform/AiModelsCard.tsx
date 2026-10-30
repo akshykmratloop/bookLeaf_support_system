@@ -2,13 +2,12 @@ import type { PlatformAiStatus, UpdatePlatformAiSettings } from '@bookleaf/share
 import { useState } from 'react';
 import { Button } from '../../atoms/Button';
 import { Card } from '../../atoms/Card';
-import { Input } from '../../atoms/Input';
 import { Dropdown } from '../../molecules/Dropdown';
 import { Field } from '../../molecules/Field';
 import { useToast } from '../../molecules/Toast';
 import { errorMessage } from '../../../lib/api';
 import { platformKeys, savePlatformAi } from '../../../lib/platform';
-import { modelOptions, providerOptions } from '../../../lib/platformAiOptions';
+import { modelOptions, providerOptions, voiceModelOptions } from '../../../lib/platformAiOptions';
 import { useApiMutation } from '../../../lib/queries';
 
 type Task = 'triageModel' | 'draftModel' | 'chatModel';
@@ -32,6 +31,7 @@ export function AiModelsCard({ status }: { status: PlatformAiStatus }) {
   const save = useApiMutation(savePlatformAi, [platformKeys.ai]);
   const aiProviders = status.providers.filter((p) => p.capability === 'AI');
   const models = aiProviders.find((p) => p.id === form.provider)?.models ?? [];
+  const voiceModels = status.providers.find((p) => p.capability === 'VOICE')?.models ?? [];
   const pickProvider = (provider: string) => {
     const first = aiProviders.find((p) => p.id === provider)?.models[0]?.id ?? '';
     setForm((f) => ({ ...f, provider, triageModel: first, draftModel: first, chatModel: first }));
@@ -80,15 +80,13 @@ export function AiModelsCard({ status }: { status: PlatformAiStatus }) {
         <Field
           id="pf-voiceModel"
           label="Voice model"
-          hint={`Empty uses the server default: ${status.defaultVoiceModel}`}
+          hint={`Server default: ${status.defaultVoiceModel}`}
         >
-          <Input
+          <Dropdown
             id="pf-voiceModel"
             value={form.voiceModel}
-            placeholder={status.defaultVoiceModel}
-            spellCheck={false}
-            aria-describedby="pf-voiceModel-hint"
-            onChange={(e) => setForm((f) => ({ ...f, voiceModel: e.target.value }))}
+            options={voiceModelOptions(voiceModels, status.defaultVoiceModel, form.voiceModel)}
+            onChange={(v) => setForm((f) => ({ ...f, voiceModel: v }))}
           />
         </Field>
       </div>

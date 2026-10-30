@@ -65,6 +65,14 @@ describe('platform AI settings (U-7)', () => {
     expect(JSON.stringify(s)).not.toContain(SENTINEL_KEY);
   });
 
+  it('lists the voice models so the console can offer a dropdown, not a free-text box', async () => {
+    const s = await status();
+    const voice = s.providers.find((p) => p.capability === 'VOICE' && p.id === 'openai');
+    const ids = voice?.models.map((m) => m.id) ?? [];
+    expect(ids).toEqual(expect.arrayContaining(['gpt-realtime', 'gpt-realtime-mini']));
+    expect(ids).toContain(s.defaultVoiceModel);
+  });
+
   it('chooses the models every customer runs on (allowlist, version-checked)', async () => {
     const bad = await savePlatformAi({ triageModel: 'gpt-9' });
     expect(bad.statusCode).toBe(422);

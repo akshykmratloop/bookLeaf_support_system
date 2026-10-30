@@ -1,3 +1,4 @@
+import { SECRET_INPUT_ATTRS } from '../../lib/secretInput';
 import { Input } from '../atoms/Input';
 import { Field } from '../molecules/Field';
 
@@ -22,8 +23,7 @@ export function SecretField({ id, label, stored, value, onChange, hint, error }:
       <Input
         id={id}
         type="password"
-        autoComplete="off"
-        spellCheck={false}
+        {...SECRET_INPUT_ATTRS}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={stored ? '••••••••' : ''}

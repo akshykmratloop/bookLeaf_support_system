@@ -11,6 +11,7 @@ import type { LlmProvider } from '../../ai/providers/types.js';
 import type { Clock } from '../../platform/clock.js';
 import type { Envelope } from '../../platform/crypto/envelope.js';
 import type { Db } from '../../platform/db.js';
+import { voiceModelsFor } from '../../voice/providers/registry.js';
 import type { PlanReader } from './plans.js';
 import type { PlatformProviders } from './providers.js';
 
@@ -68,7 +69,7 @@ function providerRows(deps: PlatformAiDeps, saved: PlatformProviderKey[]): Platf
       label: id === 'openai' ? 'OpenAI Realtime (voice)' : id,
       keySource: sourceOf(key, deps.envVoiceProvider === id),
       last4: key?.last4 ?? null,
-      models: [],
+      models: voiceModelsFor(id).map((m) => ({ id: m.id, label: m.label, tier: m.tier })),
     };
   });
   return [...ai, ...voice];

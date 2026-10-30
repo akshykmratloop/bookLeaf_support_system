@@ -1,10 +1,16 @@
 import type { Env } from '../../config/index.js';
+import { OPENAI_VOICE_MODELS, type VoiceModelInfo } from './openai/models.js';
 import { openAiVoiceProvider } from './openai/provider.js';
 import { OPENAI_VOICES } from './openai/voices.js';
 import type { VoiceProvider } from './types.js';
 
 /** Speech providers a super admin may save a key for in the console (U-7). */
 export const VOICE_PROVIDER_IDS: readonly string[] = ['openai'];
+
+/** The models a voice provider offers in the console; an unknown provider offers none. */
+export function voiceModelsFor(providerId: string): readonly VoiceModelInfo[] {
+  return providerId === 'openai' ? OPENAI_VOICE_MODELS : [];
+}
 
 /** Voices a workspace may choose when the platform itself has no voice provider. */
 export const ALL_VOICES: readonly string[] = OPENAI_VOICES;

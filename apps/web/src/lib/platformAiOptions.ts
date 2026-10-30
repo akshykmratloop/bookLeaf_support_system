@@ -19,3 +19,22 @@ export function providerOptions(providers: PlatformProvider[], current: string):
 export function modelOptions(models: PlatformProvider['models']): DropdownOption[] {
   return models.map((m) => ({ value: m.id, label: m.label, hint: m.tier }));
 }
+
+/**
+ * The voice model choices: "Server default" (empty value = the server's VOICE_MODEL), then the
+ * voice provider's models. A saved model missing from the list is kept so the setting still reads.
+ */
+export function voiceModelOptions(
+  models: PlatformProvider['models'],
+  defaultModel: string,
+  current: string,
+): DropdownOption[] {
+  const options: DropdownOption[] = [
+    { value: '', label: 'Server default', hint: defaultModel },
+    ...modelOptions(models),
+  ];
+  if (current !== '' && !models.some((m) => m.id === current)) {
+    options.push({ value: current, label: current, hint: 'saved earlier' });
+  }
+  return options;
+}
