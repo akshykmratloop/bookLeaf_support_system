@@ -134,7 +134,7 @@ function createIntegrations(core: Core) {
       envelope: core.envelope,
       ssrf: ssrfPolicyFromEnv(core.env),
     }),
-    serverApi: createServerApiService(core.db, (key) =>
+    serverApi: createServerApiService(core.ticketDeps, (key) =>
       verifyApiKey({ db: core.db, clock: core.clock }, key),
     ),
   };

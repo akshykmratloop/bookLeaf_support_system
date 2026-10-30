@@ -79,3 +79,6 @@ export const HostCustomerSchema = z.object({
   details: z.array(HostDetailSchema).max(30).default([]),
 });
 export type HostCustomer = z.infer<typeof HostCustomerSchema>;
+
+/** A customer or item id in the host, as the server API takes it. */
+export const HostIdSchema = externalId;

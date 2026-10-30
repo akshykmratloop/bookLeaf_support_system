@@ -5,6 +5,8 @@ import { AppError } from '../../platform/errors.js';
 export interface KeyGrant {
   workspaceId: string;
   scopes: string[];
+  /** The key's visible prefix (`blsk_…`), recorded on the changes it makes. */
+  prefix: string;
 }
 
 export type VerifyKey = (plainKey: string) => Promise<KeyGrant | null>;

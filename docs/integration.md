@@ -381,7 +381,7 @@ everything in **Workspace settings** (admin area) instead of env:
 | Product Connection | one to five data sources (URL template, format, key header, timeout, cache; steps 2b/2c), the API key, the HS256 signing secret, sign-in URL; a **Test** button calls every source for one customer | `GET/PUT /api/v1/workspace/connector` (`sources`, or the older `baseUrl`), `POST …/connector/test` |
 | Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer), where each is read (source + path), where name, email and the item list come from, and the same **Test** with raw answers and the mapped preview | `/api/v1/workspace/fields`, `PUT /api/v1/workspace/connector/mapping` |
 | Workspace Settings | how the AI writes (tone and brand voice, greeting, signature, language English / Hinglish / match the customer, reply length, formality, topics to avoid), chat and voice switches and limits (up to the plan), voice from the approved list, widget origins, branding (name, colour, https logo, launcher text, widget theme), nouns | `GET/PUT /api/v1/workspace/settings` |
-| API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
+| API Keys | server-to-server keys with the permissions you pick (Read only, Read & write, or single scopes), shown once, revocable | `/api/v1/workspace/api-keys` |
 | Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed` (up to 5); add, edit, switch on or off, delete; signing secret shown once, and again when rotated; test delivery; last 20 deliveries with a Retry button for a failed one | `/api/v1/workspace/webhooks` |
 
 **The AI behaviour settings are used by every AI job.** Triage gets the language and the topics to
@@ -428,17 +428,53 @@ The platform tables (`platform_admins`, `platform_settings`, `platform_provider_
 `workspace_plans`) grant nothing to the request role `bookleaf_app`; they are read and written
 only through the owner connection.
 
-**Server API (workspace API keys).** Your server reads its own tickets with a key that has the
-`tickets:read` scope: `Authorization: Bearer blsk_…`.
+**Server API (workspace API keys).** Your server calls the support API with a workspace key:
+`Authorization: Bearer blsk_…`. When you create a key (API Keys screen) you choose what it may do;
+every route checks the scope on the server and answers **403** (`API_KEY_SCOPE`) without it.
 
-| Route | Returns |
-| --- | --- |
-| `GET /api/v1/server/tickets?status=&updatedSince=&cursor=&limit=` | newest first, `limit` 1–200 (default 50), `nextCursor` for the next page |
-| `GET /api/v1/server/tickets/:id` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
+| Scope | Label on the API Keys screen | Allows |
+| --- | --- | --- |
+| `tickets:read` | Read tickets | list tickets, read one ticket and its conversation |
+| `customers:read` | Read customers | one customer's tickets by your customer id |
+| `tickets:write` | Create & update tickets | raise tickets, add customer messages, resolve / close / reopen |
 
-Tickets use your own ids: `customerId` is the customer id your product sends, and `itemId` is the
-item id (book), or `null` for account-level tickets. Errors: 401 for a missing, unknown or revoked
-key, 403 for a missing scope, 404 for another workspace's ticket. Limit: 120 requests per minute.
+Presets: **Read only** = `tickets:read` + `customers:read`; **Read & write** = both plus
+`tickets:write`. Keys made before this change keep the scopes they were created with.
+
+| Route | Scope | Does |
+| --- | --- | --- |
+| `GET /api/v1/server/tickets?status=&updatedSince=&cursor=&limit=` | `tickets:read` | newest first, `limit` 1–200 (default 50), `nextCursor` for the next page |
+| `GET /api/v1/server/tickets/:id` | `tickets:read` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
+| `GET /api/v1/server/customers/:customerId/tickets?status=&cursor=&limit=` | `customers:read` | the same page, for one customer only; 404 if support has no record of that customer |
+| `POST /api/v1/server/tickets` | `tickets:write` | raise a ticket for a customer: `{ "customerId", "subject" (5–150), "body" (20–4000), "itemId"? }`; 201 with the ticket, triage runs as usual |
+| `POST /api/v1/server/tickets/:id/messages` | `tickets:write` | a message from the customer: `{ "body" (1–4000) }`; 201 with the ticket |
+| `PATCH /api/v1/server/tickets/:id` | `tickets:write` | `{ "status": "RESOLVED" \| "CLOSED" \| "OPEN" }` (resolve, close, reopen); 200 with the ticket |
+
+```bash
+curl -X POST https://support.example.com/api/v1/server/tickets \
+  -H "Authorization: Bearer $SUPPORT_API_KEY" \
+  -H "Idempotency-Key: $(uuidgen)" -H "Content-Type: application/json" \
+  -d '{"customerId":"AUTH001","itemId":"BK001","subject":"Royalty statement question","body":"My statement for last quarter looks lower than expected."}'
+```
+
+- **Your own ids.** `customerId` is the customer id your product sends (the token's `sub`), and
+  `itemId` is the item id (book), or `null` / absent for an account-level ticket. A customer support
+  has not seen yet is read once from your customer endpoint (step 2b), like at sign-in; one your
+  product does not know is **404**, and **503** when your product cannot be reached. An item that is
+  not that customer's is **404**.
+- **Same rules as the widget and the staff app.** A new ticket gets the acknowledgement, triage and
+  draft like any other (source shown to staff as "Your server (API)"); a message is the customer's
+  own message; status changes follow the ticket status rules (a move they do not allow is **409**
+  `INVALID_TRANSITION`; moving to the status a ticket already has is a no-op). Live updates and
+  webhooks (`ticket.created`, `ticket.status_changed`) fire as usual.
+- **Retries.** Send an `Idempotency-Key` header (a UUID) on every POST and PATCH. The same key
+  again returns the first result and changes nothing (a repeated create answers 200 instead of 201);
+  reusing a create key for a different customer is **409** `IDEMPOTENCY_KEY_REUSED`. A key that is
+  not a UUID is **422**.
+- **Errors.** 401 for a missing, unknown or revoked key; 403 for a missing scope; 404 for another
+  workspace's ticket or customer; 409 as above; 422 for a body that fails validation; 429 over the
+  limit. **Limits** per calling address: 120 reads and 60 writes per minute.
+- The full contract (bodies, responses, error shapes) is in the API docs at `/api/docs` (tag `server`).
 
 **Webhooks.** Each event is saved in the same database transaction as the change (an outbox), then
 POSTed as JSON: `{ "id", "type", "createdAt", "data": { "ticket", "message"? } }`. Headers:

@@ -30,6 +30,7 @@ describe('categoryStyle', () => {
       'Ticket form',
       'Chat',
       'Call',
+      'Your server (API)',
     ]);
   });
 });

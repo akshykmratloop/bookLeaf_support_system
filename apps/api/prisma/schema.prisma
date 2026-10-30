@@ -100,6 +100,8 @@ enum TicketSource {
   PORTAL
   CHAT
   VOICE
+  /// Raised by the workspace's own server through the server API (U-11).
+  API
 }
 
 enum ChatRole {

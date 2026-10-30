@@ -4,14 +4,19 @@ import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { SERVER_TICKET_SELECT, toServerTicket } from '../webhooks/payload.js';
 
-/** Newest change first, then by id, so the cursor is stable while tickets keep changing. */
+/**
+ * Newest change first, then by id, so the cursor is stable while tickets keep changing.
+ * `authorId` narrows the page to one customer (GET /server/customers/:customerId/tickets).
+ */
 export async function listServerTickets(
   db: Db,
   workspaceId: string,
   q: ServerTicketQuery,
+  authorId?: string,
 ): Promise<{ items: ServerTicket[]; nextCursor: string | null }> {
   const where: Prisma.TicketWhereInput = {
     workspaceId,
+    ...(authorId ? { authorId } : {}),
     ...(q.status ? { status: q.status } : {}),
     ...(q.updatedSince ? { updatedAt: { gte: new Date(q.updatedSince) } } : {}),
   };

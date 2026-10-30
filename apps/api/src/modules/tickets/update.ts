@@ -13,7 +13,12 @@ import { queueTicketEvent } from '../webhooks/outbox.js';
 
 type Current = Awaited<ReturnType<typeof findTicketOrThrow>>;
 
-function statusChange(current: Current, input: UpdateTicketRequest, now: Date) {
+/** The staff status rules; the server API (U-11) changes status through this too. */
+export function statusChange(
+  current: Pick<Current, 'status'>,
+  input: Pick<UpdateTicketRequest, 'status'>,
+  now: Date,
+) {
   if (!input.status || input.status === current.status) return {};
   assertTransition(current.status, input.status);
   const closed = input.status === 'RESOLVED' || input.status === 'CLOSED';

@@ -282,6 +282,14 @@ together on one branch. S.8 and S.9 above are part of this pass.
 
 ---
 
+## U-11 + U-8 — API key permissions and API keys page · branch `feature/u11` (30 Oct)
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| U-11 + U-8 | API key permissions chosen by the admin (presets Read only / Read & write, or single scopes) and every scope real: `customers:read` → `GET /server/customers/:customerId/tickets`; `tickets:write` → `POST /server/tickets`, `POST /server/tickets/:id/messages`, `PATCH /server/tickets/:id` (resolve / close / reopen through the ticket status rules), Idempotency-Key, 60 writes/min, webhooks as usual; new ticket source `API` (migration `20261031020000_ticket_source_api`). API keys page redesigned: aligned name + button, permission picker, readable scope labels, status pill, dates, copyable prefix, revoked keys in a collapsed group | ✅ | (this commit) |
+
+---
+
 ## P2 — Polish (lowest priority: only after Phase 2/3 are done or NO-GO)
 
 | # | Task | Status |

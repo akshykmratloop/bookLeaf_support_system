@@ -117,6 +117,10 @@ Not cookie routes. They are marked `public` so the cookie guard skips them, and 
 | --- | --- | --- | --- |
 | GET | `/server/tickets` | API key (`blsk_`) | 120 per minute |
 | GET | `/server/tickets/{id}` | API key (`blsk_`) | 120 per minute |
+| GET | `/server/customers/{customerId}/tickets` | API key (`customers:read`) | 120 per minute |
+| POST | `/server/tickets` | API key (`tickets:write`), Idempotency-Key | 60 per minute |
+| POST | `/server/tickets/{id}/messages` | API key (`tickets:write`), Idempotency-Key | 60 per minute |
+| PATCH | `/server/tickets/{id}` | API key (`tickets:write`), Idempotency-Key | 60 per minute |
 
 ### ai-admin (`modules/ai-admin/routes.ts`)
 All four are admin routes and also have a `platformOperatorOnly` hook: only an admin of the default workspace may use them. Other workspaces get 403.
