@@ -332,7 +332,7 @@ everything in **Workspace settings** (admin area) instead of env:
 | Product Connection | the base URL of the customer endpoint (step 2b), the Bearer API key, the HS256 signing secret, sign-in URL, timeout, cache; a **Test** button fetches one customer | `GET/PUT /api/v1/workspace/connector`, `POST …/connector/test` |
 | Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
 | Workspace Settings | models per job, tone guide, chat and voice switches and limits, voice name, widget origins, branding, nouns | `GET/PUT /api/v1/workspace/settings` |
-| API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
+| API Keys | server-to-server keys with the permissions you pick (Read only, Read & write, or single scopes), shown once, revocable | `/api/v1/workspace/api-keys` |
 | Provider Keys | the workspace's own AI and voice provider keys (write-only, last 4 shown) | `/api/v1/workspace/provider-keys` |
 | Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed`; signing secret shown once; test delivery; last 20 deliveries | `/api/v1/workspace/webhooks` |
 
@@ -345,17 +345,53 @@ transcripts, tickets, and the live event stream.
 Secrets are encrypted at rest (AES-256-GCM under the server's `SECRETS_MASTER_KEY`) and never
 returned; the screens show a last-4 hint only.
 
-**Server API (workspace API keys).** Your server reads its own tickets with a key that has the
-`tickets:read` scope: `Authorization: Bearer blsk_…`.
+**Server API (workspace API keys).** Your server calls the support API with a workspace key:
+`Authorization: Bearer blsk_…`. When you create a key (API Keys screen) you choose what it may do;
+every route checks the scope on the server and answers **403** (`API_KEY_SCOPE`) without it.
 
-| Route | Returns |
-| --- | --- |
-| `GET /api/v1/server/tickets?status=&updatedSince=&cursor=&limit=` | newest first, `limit` 1–200 (default 50), `nextCursor` for the next page |
-| `GET /api/v1/server/tickets/:id` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
+| Scope | Label on the API Keys screen | Allows |
+| --- | --- | --- |
+| `tickets:read` | Read tickets | list tickets, read one ticket and its conversation |
+| `customers:read` | Read customers | one customer's tickets by your customer id |
+| `tickets:write` | Create & update tickets | raise tickets, add customer messages, resolve / close / reopen |
 
-Tickets use your own ids: `customerId` is the customer id your product sends, and `itemId` is the
-item id (book), or `null` for account-level tickets. Errors: 401 for a missing, unknown or revoked
-key, 403 for a missing scope, 404 for another workspace's ticket. Limit: 120 requests per minute.
+Presets: **Read only** = `tickets:read` + `customers:read`; **Read & write** = both plus
+`tickets:write`. Keys made before this change keep the scopes they were created with.
+
+| Route | Scope | Does |
+| --- | --- | --- |
+| `GET /api/v1/server/tickets?status=&updatedSince=&cursor=&limit=` | `tickets:read` | newest first, `limit` 1–200 (default 50), `nextCursor` for the next page |
+| `GET /api/v1/server/tickets/:id` | `tickets:read` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
+| `GET /api/v1/server/customers/:customerId/tickets?status=&cursor=&limit=` | `customers:read` | the same page, for one customer only; 404 if support has no record of that customer |
+| `POST /api/v1/server/tickets` | `tickets:write` | raise a ticket for a customer: `{ "customerId", "subject" (5–150), "body" (20–4000), "itemId"? }`; 201 with the ticket, triage runs as usual |
+| `POST /api/v1/server/tickets/:id/messages` | `tickets:write` | a message from the customer: `{ "body" (1–4000) }`; 201 with the ticket |
+| `PATCH /api/v1/server/tickets/:id` | `tickets:write` | `{ "status": "RESOLVED" \| "CLOSED" \| "OPEN" }` (resolve, close, reopen); 200 with the ticket |
+
+```bash
+curl -X POST https://support.example.com/api/v1/server/tickets \
+  -H "Authorization: Bearer $SUPPORT_API_KEY" \
+  -H "Idempotency-Key: $(uuidgen)" -H "Content-Type: application/json" \
+  -d '{"customerId":"AUTH001","itemId":"BK001","subject":"Royalty statement question","body":"My statement for last quarter looks lower than expected."}'
+```
+
+- **Your own ids.** `customerId` is the customer id your product sends (the token's `sub`), and
+  `itemId` is the item id (book), or `null` / absent for an account-level ticket. A customer support
+  has not seen yet is read once from your customer endpoint (step 2b), like at sign-in; one your
+  product does not know is **404**, and **503** when your product cannot be reached. An item that is
+  not that customer's is **404**.
+- **Same rules as the widget and the staff app.** A new ticket gets the acknowledgement, triage and
+  draft like any other (source shown to staff as "Your server (API)"); a message is the customer's
+  own message; status changes follow the ticket status rules (a move they do not allow is **409**
+  `INVALID_TRANSITION`; moving to the status a ticket already has is a no-op). Live updates and
+  webhooks (`ticket.created`, `ticket.status_changed`) fire as usual.
+- **Retries.** Send an `Idempotency-Key` header (a UUID) on every POST and PATCH. The same key
+  again returns the first result and changes nothing (a repeated create answers 200 instead of 201);
+  reusing a create key for a different customer is **409** `IDEMPOTENCY_KEY_REUSED`. A key that is
+  not a UUID is **422**.
+- **Errors.** 401 for a missing, unknown or revoked key; 403 for a missing scope; 404 for another
+  workspace's ticket or customer; 409 as above; 422 for a body that fails validation; 429 over the
+  limit. **Limits** per calling address: 120 reads and 60 writes per minute.
+- The full contract (bodies, responses, error shapes) is in the API docs at `/api/docs` (tag `server`).
 
 **Webhooks.** Each event is saved in the same database transaction as the change (an outbox), then
 POSTed as JSON: `{ "id", "type", "createdAt", "data": { "ticket", "message"? } }`. Headers:

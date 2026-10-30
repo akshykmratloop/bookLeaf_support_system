@@ -54,5 +54,5 @@ export const DRAFT_SOURCES = ['AI', 'TEMPLATE'] as const;
 export type DraftSource = (typeof DRAFT_SOURCES)[number];
 
 /** Where a ticket was raised. CHAT/VOICE tickets link back to the conversation. */
-export const TICKET_SOURCES = ['PORTAL', 'CHAT', 'VOICE'] as const;
+export const TICKET_SOURCES = ['PORTAL', 'CHAT', 'VOICE', 'API'] as const;
 export type TicketSource = (typeof TICKET_SOURCES)[number];

@@ -38,7 +38,12 @@ async function registerDocs(app: FastifyInstance) {
       },
       components: {
         securitySchemes: {
-          apiKey: { type: 'http', scheme: 'bearer', description: 'Workspace API key (blsk_…)' },
+          apiKey: {
+            type: 'http',
+            scheme: 'bearer',
+            description:
+              'Workspace API key (blsk_…). Each route names the scope it needs (tickets:read, customers:read, tickets:write); without it the answer is 403.',
+          },
         },
       },
     },

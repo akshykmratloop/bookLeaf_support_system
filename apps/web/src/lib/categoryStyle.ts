@@ -6,6 +6,7 @@ import {
   MessagesSquare,
   Printer,
   ScanBarcode,
+  Server,
   Store,
   Tag,
   Ticket,
@@ -68,6 +69,7 @@ const CHANNEL: Record<TicketSource, { label: string; Icon: LucideIcon }> = {
   PORTAL: { label: 'Ticket form', Icon: Ticket },
   CHAT: { label: 'Chat', Icon: MessagesSquare },
   VOICE: { label: 'Call', Icon: Headphones },
+  API: { label: 'Your server (API)', Icon: Server },
 };
 
 export const channelStyle = (channel: TicketSource) => CHANNEL[channel];

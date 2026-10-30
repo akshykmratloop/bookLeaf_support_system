@@ -107,7 +107,7 @@ export async function revokeApiKey(
 export function verifyApiKey(
   deps: { db: Db; clock: Clock },
   plainKey: string,
-): Promise<{ workspaceId: string; scopes: string[] } | null> {
+): Promise<{ workspaceId: string; scopes: string[]; prefix: string } | null> {
   if (!plainKey.startsWith(`${KEY_PREFIX}_`) || plainKey.length > 200) return Promise.resolve(null);
   return asPlatform(async () => {
     const key = await deps.db.workspaceApiKey.findUnique({ where: { keyHash: hashKey(plainKey) } });
@@ -116,6 +116,6 @@ export function verifyApiKey(
       where: { id: key.id },
       data: { lastUsedAt: deps.clock.now() },
     });
-    return { workspaceId: key.workspaceId, scopes: key.scopes };
+    return { workspaceId: key.workspaceId, scopes: key.scopes, prefix: key.prefix };
   });
 }

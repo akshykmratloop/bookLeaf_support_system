@@ -262,6 +262,7 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
 | SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | `d5ab0d8` |
 | RV.1 | Review fixes: SLA follows the ticket's new category (admin PATCH and re-triage, also when only the category changes); removed staff cannot sign in again (login + per-request membership check); chat and voice prompts, the voice greeting and the chat fallback answer use generic wording for non-BookLeaf workspaces (BookLeaf byte-identical, goldens added) | ✅ | (this commit) |
+| U-11 + U-8 | API key permissions chosen by the admin (presets Read only / Read & write, or single scopes) and every scope real: `customers:read` → `GET /server/customers/:customerId/tickets`; `tickets:write` → `POST /server/tickets`, `POST /server/tickets/:id/messages`, `PATCH /server/tickets/:id` (resolve / close / reopen through the ticket status rules), Idempotency-Key, 60 writes/min, webhooks as usual; new ticket source `API` (migration `20261031020000_ticket_source_api`). API keys page redesigned: aligned name + button, permission picker, readable scope labels, status pill, dates, copyable prefix, revoked keys in a collapsed group | ✅ | (this commit) |
 
 ---
 

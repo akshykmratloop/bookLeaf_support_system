@@ -387,6 +387,10 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
   `docs/architecture.md` §21).
 - Signed webhooks (`ticket.created`, `ticket.replied`, `ticket.status_changed`) and a server API on workspace API keys
   are built; see the integration guide. The full route list is in `docs/qa/baseline.md`.
+- **API keys do only what the admin allows (U-11).** On "Create key" the admin picks Read only,
+  Read & write, or single permissions. With `tickets:write` the product's server can raise tickets,
+  add customer messages and resolve / close / reopen (`/api/v1/server/...`, Idempotency-Key,
+  rate limited); details in `docs/integration.md`.
 - **Categories and knowledge base are per company (S.9)**, edited under Categories and Knowledge
   Base in the staff app. Reply drafts get only the articles linked to the ticket's category (no
   search or embeddings yet; RAG with pgvector comes later). The author assistant (chat and voice)
