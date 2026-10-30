@@ -234,7 +234,7 @@ sign-in at `/platform/login`, its own account and cookie, and its own look:
 
 | URL | What it is |
 | --- | --- |
-| `/platform` | Every customer: status, plan and usage counts (tickets, chats, calls, AI runs and estimated AI cost). Create a customer. No ticket content is ever shown |
+| `/platform` | Every customer: status, plan and usage counts (tickets, chats, calls, AI runs and estimated AI cost). Customers join by self-serve signup only. No ticket content is ever shown |
 | `/platform/customers/:id` | One customer's plan (chat / voice allowed, AI on, maximum limits) and suspend / resume |
 | `/platform/ai` | AI provider and models for triage, drafts, chat and voice; the global outage switch; provider keys (encrypted, env keys as the fallback); Test connection |
 

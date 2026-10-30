@@ -424,7 +424,7 @@ account is created or updated by the seed from `PLATFORM_ADMIN_EMAIL` + `PLATFOR
 
 | Screen | What it does | API |
 | --- | --- | --- |
-| Customers | every workspace with status, plan and usage **counts** (tickets all time and last 30 days, chats, calls and call minutes, AI runs, estimated AI cost); create a customer; never any ticket content | `GET/POST /api/v1/platform/customers` |
+| Customers | every workspace with status, plan and usage **counts** (tickets all time and last 30 days, chats, calls and call minutes, AI runs, estimated AI cost); customers join only by self-serve signup; never any ticket content | `GET /api/v1/platform/customers` |
 | Customer | the plan (chat / voice allowed, AI on, maximum limits) and suspend / resume, saved with a version (409 when stale) | `PUT /api/v1/platform/customers/:id/plan` |
 | AI and keys | provider and models for triage, drafts, chat and voice; the global outage switch; provider keys (encrypted, last 4 shown; with no saved key the server env key is used); **Test connection** | `GET /api/v1/platform/ai`, `PUT …/ai/settings`, `PUT/DELETE …/ai/keys/:capability/:provider`, `POST …/ai/test` |
 

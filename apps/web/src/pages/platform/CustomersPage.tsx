@@ -1,10 +1,6 @@
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
 import type { CustomerList } from '@bookleaf/shared';
-import { Button } from '../../components/atoms/Button';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
-import { CreateCustomerForm } from '../../components/organisms/platform/CreateCustomerForm';
 import { CustomerTable } from '../../components/organisms/platform/CustomerTable';
 import { formatCost, useCustomers } from '../../lib/platform';
 
@@ -34,25 +30,12 @@ function Totals({ list }: { list: CustomerList }) {
 /** /platform: every customer with plan, status and usage counts. Never ticket content. */
 export function CustomersPage() {
   const customers = useCustomers();
-  const [creating, setCreating] = useState(false);
   return (
     <div>
       <PageHeader
         title="Customers"
         subtitle="Plans, status and usage for every workspace. Usage counts only — no ticket content."
-        actions={
-          creating ? null : (
-            <Button icon={<Plus size={15} aria-hidden />} onClick={() => setCreating(true)}>
-              New customer
-            </Button>
-          )
-        }
       />
-      {creating ? (
-        <div className="mb-6">
-          <CreateCustomerForm onDone={() => setCreating(false)} />
-        </div>
-      ) : null}
       {customers.isPending ? <LoadingState label="Loading customers…" /> : null}
       {customers.isError ? (
         <ErrorState error={customers.error} onRetry={() => void customers.refetch()} />
@@ -61,7 +44,7 @@ export function CustomersPage() {
         <>
           <Totals list={customers.data} />
           {customers.data.items.length === 0 ? (
-            <EmptyState title="No customers yet" body="Create the first one above." />
+            <EmptyState title="No customers yet" body="Companies appear here once they sign up." />
           ) : (
             <CustomerTable items={customers.data.items} />
           )}

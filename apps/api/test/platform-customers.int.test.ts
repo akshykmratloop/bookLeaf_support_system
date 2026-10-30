@@ -10,11 +10,12 @@ import {
   type Harness,
 } from './helpers/app.js';
 import { platformCookie, seedSuperAdmin, updatePlan } from './helpers/platform.js';
-import { ownerCookie, ownerOf } from './helpers/workspaces.js';
+import { ownerCookie, ownerOf, signupWorkspace } from './helpers/workspaces.js';
 
 /**
- * U-7: the super admin's customer list (counts and usage only, never ticket content), creating
- * and suspending customers, and plans that cap what a customer may switch on and set.
+ * U-7: the super admin's customer list (counts and usage only, never ticket content), suspending
+ * customers, and plans that cap what a customer may switch on and set. Customers join only by
+ * self-serve signup; the console cannot create them.
  */
 let h: Harness;
 let platform: string;
@@ -37,15 +38,8 @@ beforeAll(async () => {
   await seedSuperAdmin(h);
   platform = await platformCookie(h);
   priya = await h.login(EMAILS.priya);
-  const created = await call(
-    h,
-    'POST',
-    '/platform/customers',
-    platform,
-    ownerOf(SLUG, 'Plan Acme'),
-  );
-  expect(created.statusCode).toBe(201);
-  acmeId = created.json<{ id: string }>().id;
+  await signupWorkspace(h, ownerOf(SLUG, 'Plan Acme'));
+  acmeId = (await h.db.workspace.findUniqueOrThrow({ where: { slug: SLUG } })).id;
   acme = await ownerCookie(h, SLUG);
 });
 afterAll(async () => {
@@ -80,15 +74,10 @@ describe('customers list (U-7)', () => {
     expect(res.body).not.toContain(EMAILS.priya);
   });
 
-  it('creates customers like a signup: the owner can sign in, a taken slug is 409', async () => {
-    const again = await call(
-      h,
-      'POST',
-      '/platform/customers',
-      platform,
-      ownerOf(SLUG, 'Plan Acme'),
-    );
-    expect(again.statusCode).toBe(409);
+  it('has no way to create a customer: companies join only by self-serve signup', async () => {
+    const res = await call(h, 'POST', '/platform/customers', platform, ownerOf('plan-nope', 'No'));
+    expect(res.statusCode).toBe(404);
+    expect(await h.db.workspace.findUnique({ where: { slug: 'plan-nope' } })).toBeNull();
     expect((await call(h, 'GET', '/workspace', acme)).statusCode).toBe(200);
   });
 });

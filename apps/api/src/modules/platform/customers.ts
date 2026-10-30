@@ -1,11 +1,10 @@
-import type { CreateCustomer, CustomerList, CustomerSummary, UpdatePlan } from '@bookleaf/shared';
+import type { CustomerList, CustomerSummary, UpdatePlan } from '@bookleaf/shared';
 import type { Prisma } from '@prisma/client';
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import { ConflictError, NotFoundError } from '../../platform/errors.js';
 import { asPlatform } from '../../platform/tenancy.js';
 import type { WorkspaceConfigs } from '../settings/configs.js';
-import { signup } from '../workspaces/signup.js';
 import { toPlanState, type PlanReader } from './plans.js';
 import { USAGE_DAYS, usageByWorkspace } from './usage.js';
 
@@ -105,10 +104,6 @@ async function updatePlan(deps: CustomerDeps, workspaceId: string, input: Update
 export function createCustomerService(deps: CustomerDeps) {
   return {
     list: () => asPlatform(() => listCustomers(deps)),
-    async create(input: CreateCustomer): Promise<{ id: string; slug: string }> {
-      const { workspace } = await asPlatform(() => signup(deps, input));
-      return { id: workspace.id, slug: workspace.slug };
-    },
     updatePlan: (workspaceId: string, input: UpdatePlan) =>
       asPlatform(() => updatePlan(deps, workspaceId, input)),
   };

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
-  CreateCustomer,
   CustomerList,
   PlanStatus,
   PlatformAdmin,
@@ -63,9 +62,6 @@ export const removePlatformKey = (input: { capability: ProviderCapability; provi
 
 export const testPlatformAi = () =>
   api<{ ok: boolean; detail: string }>(`${P}/ai/test`, { method: 'POST' });
-
-export const createCustomer = (input: CreateCustomer) =>
-  api<{ id: string; slug: string }>(`${P}/customers`, { method: 'POST', body: input });
 
 export const updateCustomerPlan = ({ id, ...input }: UpdatePlan & { id: string }) =>
   api<PlanStatus>(`${P}/customers/${id}/plan`, { method: 'PUT', body: input });

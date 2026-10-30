@@ -2,7 +2,6 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   AiTestResultSchema,
-  CreateCustomerSchema,
   CustomerIdParamSchema,
   CustomerListSchema,
   PlanStatusSchema,
@@ -113,19 +112,6 @@ function registerCustomers(app: RouteApp, { customers }: Opts) {
       },
     },
     async () => customers.list(),
-  );
-  app.post(
-    '/customers',
-    {
-      config: { rateLimit: { max: 20, timeWindow: '1 hour' } },
-      schema: {
-        tags,
-        summary: 'Create a customer: a workspace and its first owner',
-        body: CreateCustomerSchema,
-        response: { 201: z.object({ id: z.uuid(), slug: z.string() }), ...errors },
-      },
-    },
-    async (req, reply) => reply.status(201).send(await customers.create(req.body)),
   );
   app.put(
     '/customers/:id/plan',

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { LIMIT_BOUNDS, PlanSchema, type LimitKey } from './plans.js';
 import { PROVIDER_CAPABILITIES } from './provider-keys.js';
-import { SignupRequestSchema } from './workspaces.js';
 
 /**
  * The super admin console (/platform, U-7): the support provider's own operators. Separate
@@ -133,10 +132,6 @@ export const CustomerListSchema = z.object({
   since: z.iso.datetime(),
 });
 export type CustomerList = z.infer<typeof CustomerListSchema>;
-
-/** A super admin creates a customer the same way a business signs up: workspace + first owner. */
-export const CreateCustomerSchema = SignupRequestSchema;
-export type CreateCustomer = z.infer<typeof CreateCustomerSchema>;
 
 const maxLimit = (key: LimitKey) =>
   z.int().min(LIMIT_BOUNDS[key].min).max(LIMIT_BOUNDS[key].max).optional();
