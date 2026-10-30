@@ -1,4 +1,3 @@
-import type { FastifyRequest } from 'fastify';
 import type { RouteApp } from '../../platform/http/route-app.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -12,6 +11,7 @@ import {
 } from '@bookleaf/shared';
 import '../../platform/http/augment.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
+import type { LoginThrottle } from './login-throttle.js';
 import { toAuthUser, type AuthService } from './service.js';
 import { SESSION_COOKIE } from './session.js';
 
@@ -31,17 +31,17 @@ interface Opts {
   secureCookies: boolean;
   /** Embed mode: the cookie must also work inside the host's iframe. */
   embedded: boolean;
+  /** Counts sign-in attempts per account (10 per 15 minutes, from all addresses). */
+  throttle: LoginThrottle;
 }
 
-const HOST_LIMIT = { max: 20, timeWindow: '1 minute' };
-
-/** Five sign-in tries a minute for each address and email. */
-const LOGIN_LIMIT = {
-  max: 5,
-  timeWindow: '1 minute',
-  keyGenerator: (req: FastifyRequest) =>
-    `${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
-};
+/**
+ * Per-address backstops. Behind a proxy (Vercel) many people can share one address, so these
+ * are loose: password guessing is limited per account by `throttle`, and hand-over tokens are
+ * signed and single-use.
+ */
+const HOST_LIMIT = { max: 60, timeWindow: '1 minute' };
+const LOGIN_LIMIT = { max: 20, timeWindow: '1 minute' };
 
 /**
  * The session cookie. In embed mode it is a partitioned third-party cookie (SameSite=None;
@@ -70,6 +70,7 @@ function registerSignIn(app: RouteApp, opts: Opts) {
       },
     },
     async (req, reply) => {
+      await opts.throttle('staff', req.body.email);
       const { user, token } = await auth.login(req.body);
       reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: ttlSeconds });
       return { user };

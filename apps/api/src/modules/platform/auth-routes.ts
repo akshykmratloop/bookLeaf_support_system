@@ -1,26 +1,23 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { LoginRequestSchema, PlatformAdminSchema, ProblemSchema } from '@bookleaf/shared';
-import type { FastifyRequest } from 'fastify';
 import '../../platform/http/augment.js';
 import type { PlatformAuth } from './auth.js';
 import { toPlatformAdmin } from './auth.js';
 import { platformAdminOf } from './guard.js';
+import type { LoginThrottle } from '../auth/login-throttle.js';
 import { PLATFORM_COOKIE } from './session.js';
 
 interface Opts {
   auth: PlatformAuth;
   ttlSeconds: number;
   secureCookies: boolean;
+  /** Counts sign-in attempts per account (10 per 15 minutes, from all addresses). */
+  throttle: LoginThrottle;
 }
 
-/** Five sign-in tries a minute for each address and email. */
-const LOGIN_LIMIT = {
-  max: 5,
-  timeWindow: '1 minute',
-  keyGenerator: (req: FastifyRequest) =>
-    `platform:${req.ip}:${String((req.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase()}`,
-};
+/** A loose per-address backstop; guessing is limited per account by `throttle`. */
+const LOGIN_LIMIT = { max: 20, timeWindow: '1 minute' };
 
 const tags = ['platform'];
 
@@ -47,6 +44,7 @@ function loginRoute(app: App, opts: Opts, cookie: Cookie): void {
       },
     },
     async (req, reply) => {
+      await opts.throttle('platform', req.body.email);
       const { admin, token } = await opts.auth.login(req.body);
       reply.setCookie(PLATFORM_COOKIE, token, { ...cookie, maxAge: opts.ttlSeconds });
       return { admin };

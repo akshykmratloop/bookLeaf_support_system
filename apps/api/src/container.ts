@@ -30,6 +30,7 @@ import type { Env } from './config/index.js';
 
 import { createProviders, type ProviderOverrides } from './container-providers.js';
 import { createSharedParts, type SharedOverrides } from './container-shared.js';
+import { loginThrottle } from './modules/auth/login-throttle.js';
 import type { CacheSync } from './platform/shared-state/cache-sync.js';
 
 export interface ContainerOverrides extends ProviderOverrides, SharedOverrides {
@@ -95,6 +96,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     voiceProvider,
     /** The platform's voice client for a customer's call (every customer uses the same one). */
     voiceFor: (_workspaceId: string) => platform.voice(),
+    /** Sign-in attempts per account, shared by every copy of the API. */
+    loginThrottle: loginThrottle(shared.state.counters),
   };
 }
 

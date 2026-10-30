@@ -33,6 +33,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     ttlSeconds: c.sessions.ttlSeconds,
     secureCookies: c.env.NODE_ENV === 'production',
     embedded: c.embedded,
+    throttle: c.loginThrottle,
   });
   await api.register(booksRoutes, { books: c.books });
   await api.register(ticketRoutes, { deps: c.ticketDeps });
@@ -76,6 +77,7 @@ export async function registerPlatformRoutes(api: FastifyInstance, c: Container)
     auth: pc.auth,
     ttlSeconds: pc.sessions.ttlSeconds,
     secureCookies: c.env.NODE_ENV === 'production',
+    throttle: c.loginThrottle,
   });
   await api.register(platformConsoleRoutes, { ai: pc.ai, customers: pc.customers });
 }
