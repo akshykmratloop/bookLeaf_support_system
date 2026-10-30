@@ -162,7 +162,7 @@ function Assistant({
     closeTicket();
   }, [call, closeTicket]);
   return (
-    <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="flex min-w-0 flex-col gap-4" aria-label="Ask BookLeaf">
         <AskHeader
           voice={voice.state}

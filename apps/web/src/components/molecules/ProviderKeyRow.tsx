@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { ProviderCapability, ProviderKey } from '@bookleaf/shared';
 import { Button } from '../atoms/Button';
-import { Input, Select } from '../atoms/Input';
+import { Input } from '../atoms/Input';
+import { Dropdown } from './Dropdown';
 import { Field } from './Field';
 
 interface Props {
@@ -30,18 +31,13 @@ export function ProviderKeyRow(p: Props) {
       </div>
       <div className="grid gap-3 md:grid-cols-[160px_1fr_auto]">
         <Field id={`${id}-provider`} label="Provider">
-          <Select
+          <Dropdown
             id={`${id}-provider`}
             value={provider}
             disabled={p.disabled}
-            onChange={(e) => setProvider(e.target.value)}
-          >
-            {p.providers.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </Select>
+            options={p.providers.map((v) => ({ value: v, label: v }))}
+            onChange={setProvider}
+          />
         </Field>
         <Field id={id} label={p.saved ? 'Replace key' : 'API key'} error={p.error}>
           <Input

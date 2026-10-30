@@ -262,6 +262,9 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
 | SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | `d5ab0d8` |
 | RV.1 | Review fixes: SLA follows the ticket's new category (admin PATCH and re-triage, also when only the category changes); removed staff cannot sign in again (login + per-request membership check); chat and voice prompts, the voice greeting and the chat fallback answer use generic wording for non-BookLeaf workspaces (BookLeaf byte-identical, goldens added) | ✅ | (this commit) |
+| U-4 | Staff sign-in redesigned as its own "support desk" page (desk picture on wide screens, form alone on small ones, show/hide password, Caps Lock hint); the link to BookLeaf removed | ✅ | (this commit) |
+| U-5 | Author widget never scrolls sideways: widget grids start from `grid-cols-1` (the cause: an `auto` grid column grew to the widest card), ticket cards and chips shrink/truncate, the ticket tabs wrap instead of scrolling, message bubbles and ticket details wrap long words, `overflow-x: hidden` on the widget scroll area; source-level layout test over every widget page | ✅ | (this commit) |
+| U-6 | One accessible `Dropdown` (select-only combobox + listbox, solid surface, keyboard + screen reader, disabled options readable with a reason) for every admin select: AI settings provider/models, queue filters, ticket properties, category priority, customer field type, workspace models, chat model, voice, provider key; test bans native selects in admin; API in `docs/architecture.md` §22. The "workspace key counts" / Provider-keys note part is superseded by U-7 (platform key counts, BYOK removed), so the provider rule stays "platform key" here | ✅ | (this commit) |
 
 ---
 

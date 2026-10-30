@@ -24,7 +24,7 @@ function TicketsSection() {
       {waiting.length ? (
         <section aria-label="Needs your reply">
           <SectionHeader title="Needs your reply" to={authorPaths.tickets} />
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {waiting.map((t) => (
               <TicketCard key={t.id} ticket={t} />
             ))}
@@ -34,7 +34,7 @@ function TicketsSection() {
       {recent.length ? (
         <section aria-label="Recent tickets">
           <SectionHeader title="Recent tickets" to={authorPaths.tickets} />
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {recent.map((t) => (
               <TicketCard key={t.id} ticket={t} />
             ))}
@@ -71,7 +71,7 @@ export function EmbedHomePage() {
   return (
     <div className="flex flex-col gap-6">
       <HomeGreeting name={user.name} canAsk={chat === 'AVAILABLE'} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <QuickAction
           to={authorPaths.ask}
           title="Ask BookLeaf"

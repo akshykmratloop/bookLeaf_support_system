@@ -10,7 +10,7 @@ function Mine({ body, at, label }: { body: string; at: string; label?: string })
   return (
     <li className="flex animate-fade-up flex-col items-end">
       {label ? <span className="mb-1 text-[11px] font-semibold text-ink-3">{label}</span> : null}
-      <p className="max-w-[85%] rounded-[20px] rounded-br-md bg-brand px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap text-white shadow-soft">
+      <p className="max-w-[85%] rounded-[20px] rounded-br-md bg-brand px-4 py-2.5 text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap text-white shadow-soft">
         {body}
       </p>
       <Time iso={at} />
@@ -27,9 +27,9 @@ function Team({ body, at }: { body: string; at: string }) {
       >
         <Headset size={15} />
       </span>
-      <div className="max-w-[85%]">
+      <div className="max-w-[85%] min-w-0">
         <span className="mb-1 block text-[11px] font-semibold text-ink-3">BookLeaf Support</span>
-        <p className="rounded-[20px] rounded-bl-md border border-line bg-panel px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap shadow-soft">
+        <p className="rounded-[20px] rounded-bl-md border border-line bg-panel px-4 py-2.5 text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap shadow-soft">
           {body}
         </p>
         <Time iso={at} />

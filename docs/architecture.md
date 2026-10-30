@@ -833,3 +833,44 @@ A reaches a call watching on B.
 Already safe with several copies, because they use the database: the AI job worker and the webhook
 sender (both claim work with `SKIP LOCKED` leases), the chat message limits per minute and per day,
 the chat turn counter, the voice call quotas and call claiming (single atomic updates or counts).
+
+## 22. Admin dropdown (U-6)
+
+Admin forms never use the native `<select>`: on macOS its menu is see-through and it greys out
+disabled options until they cannot be read. They use one molecule instead,
+`apps/web/src/components/molecules/Dropdown.tsx` (WAI-ARIA "select-only combobox"). A test
+(`apps/web/src/lib/adminDropdown.test.ts`) fails if a native select appears outside the author
+widget; the widget's own ticket forms (`TicketForm`, `DraftFields`) keep the native control because
+a phone's own picker is the better one there.
+
+```tsx
+import { Dropdown, type DropdownOption } from '../molecules/Dropdown';
+
+const options: DropdownOption<'anthropic' | 'openai'>[] = [
+  { value: 'anthropic', label: 'Anthropic', hint: 'Platform key' },
+  { value: 'openai', label: 'OpenAI', disabled: true, disabledReason: 'No API key configured' },
+];
+
+<Field id="provider" label="Provider" hint="…">
+  <Dropdown id="provider" aria-describedby="provider-hint" value={value} options={options} onChange={setValue} />
+</Field>;
+```
+
+| Prop | Meaning |
+| --- | --- |
+| `id` (required) | The trigger's id. A `<label htmlFor={id}>` (for example `Field`) names it; the list (`<id>-listbox`) and option ids derive from it |
+| `value`, `options`, `onChange` | Controlled. `V extends string`, so `onChange` gets the option's own type (no casts). `onChange` fires only when the value changes |
+| `options[]` | `{ value, label, hint?, disabled?, disabledReason? }`. `hint` is a quieter second line (a model's tier). A disabled option stays readable, shows a lock and `disabledReason` (default "Not available"), can be reached by keyboard so a screen reader reads why, and is never picked |
+| `aria-label` | The name when no visible label points at `id` (filter bars) |
+| `aria-describedby`, `aria-invalid`, `disabled` | Passed to the trigger |
+| `placeholder` | Shown when `value` matches no option (default "Choose…") |
+| `name` | Adds a hidden input, for forms read with `FormData` |
+| `className` | On the wrapper (width, grid placement) |
+
+Keyboard: ↓ ↑ Enter Space open on the current value; in the list ↓ ↑ Home End move, Enter Space or
+Alt+↑ pick, Escape closes, Tab closes and moves on, typed letters jump to a label. A press outside
+closes it. The list is a solid `bg-panel` surface with `text-ink` in both themes and opens upwards
+when there is no room below. The key logic is pure (`lib/listbox.ts`, unit tested); state lives in
+`lib/useDropdown.ts`. **After merging U-7**, the `/platform` pages must use this `Dropdown` for every
+select (provider, models, plans), and their provider options mark a provider without a platform key
+as `disabled` with a `disabledReason`.

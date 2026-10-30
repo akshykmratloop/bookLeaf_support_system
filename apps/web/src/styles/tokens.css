@@ -103,3 +103,24 @@
   --cat-general-bg: rgb(182 189 214 / 0.12);
   color-scheme: dark;
 }
+
+/* Staff sign-in (U-4): the "support desk" panel stays deep navy in both themes, so its text
+   colours are its own (all pass WCAG AA on --console-bg). */
+:root,
+[data-theme='light'] {
+  --console-bg: #1d2738;
+  --console-raised: rgb(255 255 255 / 0.06);
+  --console-line: rgb(255 255 255 / 0.11);
+  --console-ink: #f5f2f3;
+  --console-ink-2: #b8c1cf;
+  --console-glow: rgb(241 104 118 / 0.32);
+}
+
+[data-theme='dark'] {
+  --console-bg: #0c111a;
+  --console-raised: rgb(255 255 255 / 0.05);
+  --console-line: rgb(255 255 255 / 0.09);
+  --console-ink: #f2eff0;
+  --console-ink-2: #aeb7c6;
+  --console-glow: rgb(241 104 118 / 0.24);
+}

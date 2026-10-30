@@ -25,7 +25,7 @@ function BackLink() {
 
 function Body({ conversation: c }: { conversation: ConversationDetail }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <Card className="p-4">
         <TranscriptList lines={c.lines} className="flex flex-col gap-3" label="Conversation" />
       </Card>

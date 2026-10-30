@@ -2,8 +2,8 @@ import type { AssistantAdminStatus, ChannelState } from '@bookleaf/shared';
 import { MessagesSquare, Phone } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card } from '../../components/atoms/Card';
-import { Select } from '../../components/atoms/Input';
 import { Pill, type Tone } from '../../components/atoms/Pill';
+import { Dropdown } from '../../components/molecules/Dropdown';
 import { Field } from '../../components/molecules/Field';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
@@ -112,18 +112,13 @@ function Settings({ status, reload }: { status: AssistantAdminStatus; reload: ()
           label="Chat model"
           hint="A fast model keeps answers quick and low-cost."
         >
-          <Select
+          <Dropdown
             id="chat-model"
             value={settings.chatModel}
             disabled={save.isPending}
-            onChange={(e) => update({ chatModel: e.target.value })}
-          >
-            {status.chatModels.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label} · {m.tier}
-              </option>
-            ))}
-          </Select>
+            options={status.chatModels.map((m) => ({ value: m.id, label: m.label, hint: m.tier }))}
+            onChange={(chatModel) => update({ chatModel })}
+          />
         </Field>
       </ChannelCard>
       <ChannelCard

@@ -1,12 +1,12 @@
 import type { AiStatus } from '@bookleaf/shared';
 import { PlugZap, Save } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { api, errorMessage } from '../../lib/api';
 import { dateTime } from '../../lib/format';
 import { keys, saveAiSettings, useApiMutation } from '../../lib/queries';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
-import { Select } from '../atoms/Input';
+import { Dropdown, type DropdownOption } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 import { useToast } from '../molecules/Toast';
 
@@ -20,19 +20,27 @@ interface SelectFieldProps {
   label: string;
   hint: string;
   value: string;
+  options: readonly DropdownOption[];
   onChange: (value: string) => void;
-  children: ReactNode;
 }
 
-function SelectField({ id, label, hint, value, onChange, children }: SelectFieldProps) {
+function SelectField({ id, label, hint, ...dropdown }: SelectFieldProps) {
   return (
     <Field id={id} label={label} hint={hint}>
-      <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-        {children}
-      </Select>
+      <Dropdown id={id} aria-describedby={`${id}-hint`} {...dropdown} />
     </Field>
   );
 }
+
+const NO_KEY_REASON = 'No API key configured';
+
+const providerOptions = (status: AiStatus): DropdownOption[] =>
+  status.providers.map((p) => ({
+    value: p.id,
+    label: p.label,
+    disabled: !p.configured,
+    disabledReason: NO_KEY_REASON,
+  }));
 
 function OutageToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -88,11 +96,11 @@ export function AiSettingsForm({ status }: { status: AiStatus }) {
   const actions = useSettingsActions(status.settings.version);
   const set = (patch: Partial<Form>) => setForm({ ...form, ...patch });
   const provider = status.providers.find((p) => p.id === form.provider);
-  const modelOptions = provider?.models.map((m) => (
-    <option key={m.id} value={m.id}>
-      {m.label} · {m.tier}
-    </option>
-  ));
+  const modelOptions = (provider?.models ?? []).map((m) => ({
+    value: m.id,
+    label: m.label,
+    hint: m.tier,
+  }));
   return (
     <Card className="flex max-w-[640px] flex-col gap-5 p-6">
       <SelectField
@@ -100,33 +108,25 @@ export function AiSettingsForm({ status }: { status: AiStatus }) {
         label="Provider"
         hint="Only providers with an API key configured on the server can be selected."
         value={form.provider}
+        options={providerOptions(status)}
         onChange={(provider) => set({ provider })}
-      >
-        {status.providers.map((p) => (
-          <option key={p.id} value={p.id} disabled={!p.configured}>
-            {p.label}
-            {p.configured ? '' : ' (no key configured)'}
-          </option>
-        ))}
-      </SelectField>
+      />
       <SelectField
         id="triage"
         label="Classification model"
         hint="Runs once per ticket: a fast, low-cost model is enough."
         value={form.triageModel}
+        options={modelOptions}
         onChange={(triageModel) => set({ triageModel })}
-      >
-        {modelOptions}
-      </SelectField>
+      />
       <SelectField
         id="draft"
         label="Draft model"
         hint="Writes the author-facing reply: a stronger model gives better prose."
         value={form.draftModel}
+        options={modelOptions}
         onChange={(draftModel) => set({ draftModel })}
-      >
-        {modelOptions}
-      </SelectField>
+      />
       <OutageToggle
         checked={form.simulateOutage}
         onChange={(simulateOutage) => set({ simulateOutage })}

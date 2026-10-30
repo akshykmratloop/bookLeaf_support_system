@@ -1,12 +1,24 @@
 import { PRIORITIES, PRIORITY_LABELS, STATUS_LABELS, TICKET_STATUSES } from '@bookleaf/shared';
 import { useCategoryOptions } from '../../lib/categories';
-import { Input, Select } from '../atoms/Input';
+import { Input } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { FilterChips } from '../molecules/FilterChips';
 import type { QueueFilterValues } from '../../lib/queueFilters';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
   ...TICKET_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+];
+
+const PRIORITY_OPTIONS = [
+  { value: '', label: 'All priorities' },
+  ...PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] })),
+];
+
+const ASSIGNEE_OPTIONS = [
+  { value: '', label: 'Anyone' },
+  { value: 'me', label: 'Assigned to me' },
+  { value: 'unassigned', label: 'Unassigned' },
 ];
 
 export function QueueFilters({
@@ -35,42 +47,33 @@ export function QueueFilters({
           onChange={(e) => set('q')(e.target.value)}
           className="col-span-2"
         />
-        <Select
+        <Dropdown
+          id="queue-category"
           name="category"
           aria-label="Category"
           value={value.category}
-          onChange={(e) => set('category')(e.target.value)}
-        >
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </Select>
-        <Select
+          options={[
+            { value: '', label: 'All categories' },
+            ...categories.map((c) => ({ value: c.key, label: c.label })),
+          ]}
+          onChange={set('category')}
+        />
+        <Dropdown
+          id="queue-priority"
           name="priority"
           aria-label="Priority"
           value={value.priority}
-          onChange={(e) => set('priority')(e.target.value)}
-        >
-          <option value="">All priorities</option>
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABELS[p]}
-            </option>
-          ))}
-        </Select>
-        <Select
+          options={PRIORITY_OPTIONS}
+          onChange={set('priority')}
+        />
+        <Dropdown
+          id="queue-assignee"
           name="assignee"
           aria-label="Assignee"
           value={value.assignee}
-          onChange={(e) => set('assignee')(e.target.value)}
-        >
-          <option value="">Anyone</option>
-          <option value="me">Assigned to me</option>
-          <option value="unassigned">Unassigned</option>
-        </Select>
+          options={ASSIGNEE_OPTIONS}
+          onChange={set('assignee')}
+        />
         <div className="col-span-2 grid min-w-0 grid-cols-2 gap-1">
           <Input
             type="date"

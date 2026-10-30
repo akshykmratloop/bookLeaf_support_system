@@ -5,7 +5,8 @@ import {
 } from '@bookleaf/shared';
 import { useState, type FormEvent } from 'react';
 import { Button } from '../atoms/Button';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 
 interface Draft {
@@ -17,6 +18,8 @@ interface Draft {
   visibleToCustomer: boolean;
   position: string;
 }
+
+const TYPE_OPTIONS = CUSTOMER_FIELD_TYPES.map((t) => ({ value: t, label: t }));
 
 const EMPTY: Draft = {
   key: '',
@@ -86,17 +89,12 @@ export function CustomerFieldForm({ initial, isSaving, fieldError, onSubmit, onC
           />
         </Field>
         <Field id="field-type" label="Type" error={fieldError('type')}>
-          <Select
+          <Dropdown
             id="field-type"
             value={d.type}
-            onChange={(e) => set({ type: e.target.value as Draft['type'] })}
-          >
-            {CUSTOMER_FIELD_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </Select>
+            options={TYPE_OPTIONS}
+            onChange={(type) => set({ type })}
+          />
         </Field>
         <Field id="field-position" label="Order" error={fieldError('position')}>
           <Input

@@ -13,10 +13,10 @@ export function Chip({ children, icon, colors = 'bg-panel-2 text-ink-2', title }
   return (
     <span
       title={title}
-      className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-semibold ${colors}`}
+      className={`inline-flex h-6 max-w-full min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[11.5px] font-semibold ${colors}`}
     >
       {icon}
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }

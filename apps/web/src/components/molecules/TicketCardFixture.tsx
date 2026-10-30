@@ -25,7 +25,7 @@ const SAMPLE: AuthorTicketListItem = {
 /** Example cards the boneyard CLI measures to capture the list's loading shape. */
 export function TicketCardFixture() {
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       {[1, 2, 3, 4].map((n) => (
         <TicketCard key={n} ticket={{ ...SAMPLE, id: `${SAMPLE.id.slice(0, -1)}${n}` }} />
       ))}

@@ -1,7 +1,8 @@
 import type { UpdateWorkspaceSettings, WorkspaceSettingsStatus } from '@bookleaf/shared';
 import type { ReactNode } from 'react';
 import { Card } from '../atoms/Card';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 
 export type Patch = Omit<UpdateWorkspaceSettings, 'version'>;
@@ -119,19 +120,16 @@ function ModelSelect({
 }) {
   return (
     <Field id={id} label={label}>
-      <Select
+      <Dropdown
         id={id}
         value={value ?? ''}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value || null)}
-      >
-        <option value="">Platform default</option>
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label} · {m.tier}
-          </option>
-        ))}
-      </Select>
+        options={[
+          { value: '', label: 'Platform default' },
+          ...models.map((m) => ({ value: m.id, label: m.label, hint: m.tier })),
+        ]}
+        onChange={(v) => onChange(v || null)}
+      />
     </Field>
   );
 }
