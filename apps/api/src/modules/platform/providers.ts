@@ -99,10 +99,18 @@ export function createPlatformProviders(deps: PlatformProviderDeps): PlatformPro
   let state: Promise<State> | null = null;
   const built = new Map<string, Client>();
   const fromSaved = savedBuilder(deps, built);
+  // A failed load is dropped, never cached: one failed read must not break every later call.
+  const load = (): Promise<State> => {
+    const next = loadState(deps);
+    state = next;
+    next.catch(() => {
+      if (state === next) state = null;
+    });
+    return next;
+  };
   const current = () => {
     const t = deps.now().getTime();
-    if (!state) state = loadState(deps);
-    return state.then((s) => (t - s.at < CACHE_MS ? s : (state = loadState(deps))));
+    return (state ?? load()).then((s) => (t - s.at < CACHE_MS ? s : load()));
   };
   return {
     async ai(providerId) {
