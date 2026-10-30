@@ -14,6 +14,7 @@ export const toDeliveryDto = (d: WebhookDelivery): DeliveryDto => ({
   lastError: d.lastError,
   createdAt: d.createdAt.toISOString(),
   deliveredAt: d.deliveredAt?.toISOString() ?? null,
+  nextAttemptAt: d.status === 'PENDING' ? d.nextAttemptAt.toISOString() : null,
 });
 
 export const toWebhookDto = (

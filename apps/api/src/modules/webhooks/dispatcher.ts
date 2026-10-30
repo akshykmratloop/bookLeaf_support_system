@@ -1,4 +1,5 @@
 import type { WebhookDelivery, WorkspaceWebhook } from '@prisma/client';
+import { WEBHOOK_MAX_ATTEMPTS } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
 import type { Envelope } from '../../platform/crypto/envelope.js';
 import type { Db } from '../../platform/db.js';
@@ -19,7 +20,7 @@ export interface DispatcherDeps {
   log: { warn(o: object, msg: string): void; error(o: object, msg: string): void };
 }
 
-export const MAX_ATTEMPTS = 6;
+export const MAX_ATTEMPTS = WEBHOOK_MAX_ATTEMPTS;
 const BATCH = 10;
 const LEASE_MS = 30_000;
 const TIMEOUT_MS = 5_000;
@@ -29,7 +30,10 @@ const BASE_BACKOFF_MS = 30_000;
 export const backoffMs = (attempts: number, random = Math.random) =>
   BASE_BACKOFF_MS * 2 ** Math.max(0, attempts - 1) * (1 + random() * 0.2);
 
-/** Leases up to BATCH due deliveries; SKIP LOCKED lets several workers share the table. */
+/**
+ * Leases up to BATCH due deliveries; SKIP LOCKED lets several workers share the table. A switched-off
+ * webhook's deliveries wait (untouched) until it is switched on again.
+ */
 async function claimDue(db: Db, now: Date): Promise<string[]> {
   const until = new Date(now.getTime() + LEASE_MS);
   const rows = await db.$queryRaw<{ id: string }[]>`
@@ -38,6 +42,7 @@ async function claimDue(db: Db, now: Date): Promise<string[]> {
       SELECT id FROM webhook_deliveries
       WHERE status = 'PENDING' AND next_attempt_at <= ${now}
         AND (lease_until IS NULL OR lease_until < ${now})
+        AND webhook_id IN (SELECT id FROM workspace_webhooks WHERE active)
       ORDER BY next_attempt_at LIMIT ${BATCH}
       FOR UPDATE SKIP LOCKED
     )

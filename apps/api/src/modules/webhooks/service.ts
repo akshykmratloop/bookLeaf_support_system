@@ -1,53 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
-import type {
-  CreatedWebhook,
-  CreateWebhookRequest,
-  Webhook,
-  WebhookDelivery,
+import {
+  MAX_WEBHOOKS_PER_WORKSPACE as MAX_WEBHOOKS,
+  type CreatedWebhook,
+  type CreateWebhookRequest,
+  type UpdateWebhookRequest,
+  type Webhook,
+  type WebhookDelivery,
 } from '@bookleaf/shared';
-import type { Clock } from '../../platform/clock.js';
-import type { Envelope } from '../../platform/crypto/envelope.js';
-import type { Db } from '../../platform/db.js';
-import { NotFoundError, ValidationError } from '../../platform/errors.js';
-import { assertSafeUrl, UnsafeUrlError, type SsrfPolicy } from '../../platform/net/ssrf.js';
+import { ConflictError, ValidationError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
 import { SecretsNotConfiguredError } from '../connectors/store.js';
+import { audit, checkUrl, LATEST, ownWebhook, type WebhookDeps } from './access.js';
+import { retryDelivery, rotateSecret, updateWebhook } from './edit.js';
 import { newSigningSecret } from './signing.js';
 import { aadForWebhook, toDeliveryDto, toWebhookDto } from './store.js';
 
-export interface WebhookDeps {
-  db: Db;
-  clock: Clock;
-  envelope: Envelope | null;
-  ssrf: SsrfPolicy;
-}
-
-const MAX_WEBHOOKS = 5;
-const LATEST = { orderBy: { createdAt: 'desc' as const }, take: 1 };
-
-const audit = (s: Session, action: string, id: string, after: Prisma.InputJsonObject) => ({
-  data: {
-    workspaceId: s.workspaceId,
-    actorId: s.userId,
-    entityType: 'workspace_webhook',
-    entityId: id,
-    action,
-    after,
-  },
-});
-
-/** The URL must be one the dispatcher would be allowed to call (same SSRF rules). */
-async function checkUrl(deps: WebhookDeps, url: string) {
-  try {
-    await assertSafeUrl(url, deps.ssrf);
-  } catch (err) {
-    if (!(err instanceof UnsafeUrlError)) throw err;
-    throw new ValidationError('This address cannot receive webhooks', [
-      { path: 'url', message: err.message },
-    ]);
-  }
-}
+export type { WebhookDeps } from './access.js';
 
 async function createWebhook(
   deps: WebhookDeps,
@@ -83,12 +51,6 @@ async function createWebhook(
   return { webhook: toWebhookDto(row), signingSecret };
 }
 
-async function ownWebhook(deps: WebhookDeps, s: Session, id: string) {
-  const w = await deps.db.workspaceWebhook.findFirst({ where: { id, workspaceId: s.workspaceId } });
-  if (!w) throw new NotFoundError('Webhook');
-  return w;
-}
-
 async function removeWebhook(deps: WebhookDeps, s: Session, id: string): Promise<void> {
   const w = await ownWebhook(deps, s, id);
   await deps.db.$transaction(async (tx) => {
@@ -100,6 +62,8 @@ async function removeWebhook(deps: WebhookDeps, s: Session, id: string): Promise
 /** Queues a `webhook.test` delivery so the admin can check the receiver and its signature check. */
 async function sendTest(deps: WebhookDeps, s: Session, id: string): Promise<WebhookDelivery> {
   const w = await ownWebhook(deps, s, id);
+  if (!w.active)
+    throw new ConflictError('WEBHOOK_DISABLED', 'Switch the webhook on to send a test');
   const d = await deps.db.webhookDelivery.create({
     data: {
       webhookId: w.id,
@@ -124,7 +88,11 @@ export function createWebhookService(deps: WebhookDeps) {
     },
     create: (s: Session, input: CreateWebhookRequest) => createWebhook(deps, s, input),
     remove: (s: Session, id: string) => removeWebhook(deps, s, id),
+    update: (s: Session, id: string, input: UpdateWebhookRequest) =>
+      updateWebhook(deps, s, id, input),
+    rotateSecret: (s: Session, id: string) => rotateSecret(deps, s, id),
     test: (s: Session, id: string) => sendTest(deps, s, id),
+    retry: (s: Session, id: string, deliveryId: string) => retryDelivery(deps, s, id, deliveryId),
     async deliveries(s: Session, id: string): Promise<{ items: WebhookDelivery[] }> {
       const w = await ownWebhook(deps, s, id);
       const rows = await deps.db.webhookDelivery.findMany({
