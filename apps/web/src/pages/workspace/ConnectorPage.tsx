@@ -9,28 +9,26 @@ import { Field } from '../../components/molecules/Field';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
+import { DataSourcesEditor } from '../../components/organisms/DataSourcesEditor';
 import { SecretField } from '../../components/organisms/SecretField';
 import { TestConnection } from '../../components/organisms/TestConnection';
 import { errorMessage, isApiError } from '../../lib/api';
+import { sourceDraftsOf, toSourceInputs, type SourceDraft } from '../../lib/dataSources';
 import { useApiMutation } from '../../lib/queries';
 import { saveConnector, useConnector, workspaceKeys } from '../../lib/workspace';
 
 interface Form {
-  baseUrl: string;
+  sources: SourceDraft[];
   signInUrl: string;
   apiKey: string;
   signingSecret: string;
-  timeoutMs: string;
-  cacheSeconds: string;
 }
 
 const formOf = (c: Connector): Form => ({
-  baseUrl: c.baseUrl ?? '',
+  sources: sourceDraftsOf(c.sources),
   signInUrl: c.signInUrl ?? '',
   apiKey: '',
   signingSecret: '',
-  timeoutMs: String(c.timeoutMs),
-  cacheSeconds: String(c.cacheSeconds),
 });
 
 function ConnectorForm({ connector }: { connector: Connector }) {
@@ -39,17 +37,18 @@ function ConnectorForm({ connector }: { connector: Connector }) {
   const save = useApiMutation(saveConnector, [workspaceKeys.connector]);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const fieldError = (p: string) => (isApiError(save.error) ? save.error.fieldError(p) : undefined);
+  const listError = isApiError(save.error)
+    ? save.error.problem.errors?.find((e) => e.path === 'sources')?.message
+    : undefined;
   const submit = (e: FormEvent) => {
     e.preventDefault();
     save.mutate(
       {
         version: connector.version,
-        baseUrl: form.baseUrl,
+        sources: toSourceInputs(form.sources),
         signInUrl: form.signInUrl || null,
         ...(form.apiKey ? { apiKey: form.apiKey } : {}),
         ...(form.signingSecret ? { signingSecret: form.signingSecret } : {}),
-        timeoutMs: Number(form.timeoutMs),
-        cacheSeconds: Number(form.cacheSeconds),
       },
       {
         onSuccess: (saved) => {
@@ -64,7 +63,7 @@ function ConnectorForm({ connector }: { connector: Connector }) {
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Card className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[15px] font-semibold">Your product’s customer endpoint</p>
+          <p className="text-[15px] font-semibold">Your product’s customer data</p>
           <Pill tone={connector.source === 'WORKSPACE' ? 'success' : 'neutral'} dot>
             {connector.source === 'WORKSPACE'
               ? 'Configured here'
@@ -73,19 +72,12 @@ function ConnectorForm({ connector }: { connector: Connector }) {
                 : 'Not configured'}
           </Pill>
         </div>
-        <Field
-          id="baseUrl"
-          label="Base URL"
-          hint="We call {base URL}/support/customers/{id}. https only in production."
-          error={fieldError('baseUrl')}
-        >
-          <Input
-            id="baseUrl"
-            value={form.baseUrl}
-            onChange={(e) => set({ baseUrl: e.target.value })}
-            placeholder="https://app.example.com"
-          />
-        </Field>
+        <DataSourcesEditor
+          drafts={form.sources}
+          onChange={(sources) => set({ sources })}
+          fieldError={fieldError}
+          listError={listError}
+        />
         <Field
           id="signInUrl"
           label="Where customers sign in to your product"
@@ -100,12 +92,12 @@ function ConnectorForm({ connector }: { connector: Connector }) {
         </Field>
         <SecretField
           id="apiKey"
-          label="API key we send as Bearer"
+          label="API key we send to every source"
           stored={connector.apiKey}
           value={form.apiKey}
           onChange={(apiKey) => set({ apiKey })}
           error={fieldError('apiKey')}
-          hint="At least 24 characters. Your product checks it on every request."
+          hint="At least 24 characters. Sent as Bearer, or in the key header a source names."
         />
         <SecretField
           id="signingSecret"
@@ -116,32 +108,6 @@ function ConnectorForm({ connector }: { connector: Connector }) {
           error={fieldError('signingSecret')}
           hint="At least 32 characters. Your product signs the hand-over token with it."
         />
-        <div className="grid grid-cols-2 gap-4">
-          <Field id="timeoutMs" label="Timeout (ms)" error={fieldError('timeoutMs')}>
-            <Input
-              id="timeoutMs"
-              type="number"
-              min={200}
-              max={10000}
-              value={form.timeoutMs}
-              onChange={(e) => set({ timeoutMs: e.target.value })}
-            />
-          </Field>
-          <Field
-            id="cacheSeconds"
-            label="Reuse an answer for (seconds)"
-            error={fieldError('cacheSeconds')}
-          >
-            <Input
-              id="cacheSeconds"
-              type="number"
-              min={0}
-              max={600}
-              value={form.cacheSeconds}
-              onChange={(e) => set({ cacheSeconds: e.target.value })}
-            />
-          </Field>
-        </div>
         <div>
           <Button type="submit" isLoading={save.isPending} icon={<Save size={15} aria-hidden />}>
             Save connection

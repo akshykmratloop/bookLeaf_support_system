@@ -1,16 +1,13 @@
 import { HostUnavailableError } from './errors.js';
-import { httpHostRecords } from './http/records.js';
+import { sourcesHostRecords } from './sources/records.js';
+import type { SourcesConfig } from './sources/types.js';
 import type { HostRecords } from './types.js';
 
-/** Plain settings of one workspace's product API, as the HTTP adapter needs them. */
-export interface WorkspaceHostConfig {
-  baseUrl: string;
-  apiKey: string;
-  timeoutMs: number;
-  cacheSeconds: number;
-  /** Set for a tenant's own connector: the address is re-checked before every request. */
-  checkUrl?: (url: URL) => Promise<void>;
-}
+/**
+ * Plain settings of one workspace's product API: its data sources, field mapping and key (U-9).
+ * `checkUrl` is set for a tenant's own connector: every address is re-checked before each request.
+ */
+export type WorkspaceHostConfig = SourcesConfig;
 
 export interface WorkspaceHostSource {
   /** The workspace's settings and a version that changes on every save (null = none). */
@@ -46,7 +43,7 @@ export function workspaceHostRecords(src: WorkspaceHostSource, now: () => number
       cached.checkedAt = now();
       return cached.records;
     }
-    const records = httpHostRecords({ ...found.config, now });
+    const records = sourcesHostRecords(found.config, now);
     entries.set(workspaceId, { version: found.version, records, checkedAt: now() });
     return records;
   };

@@ -18,6 +18,7 @@ export * from './schemas/host.js';
 export * from './fact-ids.js';
 export * from './schemas/workspaces.js';
 export * from './schemas/connectors.js';
+export * from './schemas/data-sources.js';
 export * from './schemas/customer-fields.js';
 export * from './schemas/workspace-settings.js';
 export * from './schemas/api-keys.js';

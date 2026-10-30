@@ -274,6 +274,14 @@ together on one branch. S.8 and S.9 above are part of this pass.
 
 ---
 
+## U-9 — Flexible product connection · branch `feature/u9` (30 Oct)
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| U-9 | One to five data sources per workspace (GET URL templates with `{id}`/`{email}`, Bearer or own key header, own timeout + cache, SSRF check on save and before every call); only the sources a mapping needs are called, in parallel, and merged into one customer record behind the same `HostRecords` interface (a failing source marks only its fields Unavailable); field mapping (source + JSON path, item list + per-item paths) and Test with raw answers + mapped preview on the Customer data page; migration `20261031010000_product_data_sources` turns each saved connector into its first full-shape source (BookLeaf on env keeps its endpoint); docs/integration.md §2c | ✅ | (this commit) |
+
+---
+
 ## P2 — Polish (lowest priority: only after Phase 2/3 are done or NO-GO)
 
 | # | Task | Status |

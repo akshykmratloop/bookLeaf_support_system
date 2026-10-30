@@ -9,6 +9,7 @@ import type {
   CustomerFieldInput,
   MyWorkspace,
   SaveConnectorRequest,
+  SaveRecordMappingRequest,
   SignupRequest,
   SignupResponse,
   UpdateWorkspaceSettings,
@@ -64,8 +65,12 @@ export const signup = (input: SignupRequest) =>
 export const saveConnector = (input: SaveConnectorRequest) =>
   api<Connector>('/workspace/connector', { method: 'PUT', body: input });
 
-export const testConnector = (customerId: string) =>
-  api<ConnectorTestResult>('/workspace/connector/test', { method: 'POST', body: { customerId } });
+export const testConnector = (input: { customerId: string; email?: string }) =>
+  api<ConnectorTestResult>('/workspace/connector/test', { method: 'POST', body: input });
+
+/** Where the customer name, email and item list come from in the data sources (U-9). */
+export const saveRecordMapping = (input: SaveRecordMappingRequest) =>
+  api<Connector>('/workspace/connector/mapping', { method: 'PUT', body: input });
 
 export const createField = (input: CustomerFieldInput) =>
   api<CustomerField>('/workspace/fields', { method: 'POST', body: input });

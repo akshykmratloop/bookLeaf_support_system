@@ -1,15 +1,22 @@
-import type { Connector, ConnectorTestResult, SaveConnectorRequest } from '@bookleaf/shared';
+import type {
+  Connector,
+  ConnectorTestResult,
+  MappedPreview,
+  SaveConnectorRequest,
+  SaveRecordMappingRequestSchema,
+} from '@bookleaf/shared';
 import type { WorkspaceConnector } from '@prisma/client';
-import { CustomerNotFoundError, HostUnavailableError } from '../../host/errors.js';
-import type { HostRecords } from '../../host/types.js';
+import type { z } from 'zod';
+import { probeSources } from '../../host/sources/records.js';
 import { workspaceHostRecords, type WorkspaceHostSource } from '../../host/workspaces.js';
+import { withWorkspace } from '../../platform/tenancy.js';
 import type { Session } from '../auth/session.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 import type { ConnectorDeps } from './deps.js';
+import { saveRecordMapping } from './mapping.js';
 import { saveConnector } from './save.js';
+import { sourcesConfigFor } from './sources-config.js';
 import { resolveConnector, type Resolved } from './store.js';
-import { assertSafeUrl } from '../../platform/net/ssrf.js';
-import { withWorkspace } from '../../platform/tenancy.js';
 
 const hint = (value: string, at: Date) => ({ hint: value, updatedAt: at.toISOString() });
 
@@ -33,14 +40,18 @@ function hints(r: Resolved): Pick<Connector, 'apiKey' | 'signingSecret'> {
   return { apiKey: null, signingSecret: null };
 }
 
-/** The connector as the UI sees it: URLs, limits, secret hints; never a secret. */
+const EMPTY = { baseUrl: null, signInUrl: null, timeoutMs: 3000, cacheSeconds: 60, sources: [] };
+
+/** The connector as the UI sees it: URLs, sources, mapping, secret hints; never a secret. */
 function toDto(r: Resolved): Connector {
-  const c = r.config ?? { baseUrl: null, signInUrl: null, timeoutMs: 3000, cacheSeconds: 60 };
+  const c = r.config ?? { ...EMPTY, record: { name: null, email: null, items: null } };
   return {
     configured: r.source !== 'NONE',
     source: r.source,
     baseUrl: c.baseUrl,
     signInUrl: c.signInUrl,
+    sources: c.sources,
+    mapping: c.record,
     ...hints(r),
     timeoutMs: c.timeoutMs,
     cacheSeconds: c.cacheSeconds,
@@ -49,55 +60,66 @@ function toDto(r: Resolved): Connector {
   };
 }
 
-/** Tries the product endpoint for one customer id; wording is safe to show the admin. */
-async function tryCustomer(records: HostRecords, workspaceId: string, customerId: string) {
-  try {
-    const c = await records.customer(customerId, workspaceId);
-    const items = c.items.length;
-    const facts = c.facts.length + c.items.reduce((n, i) => n + i.facts.length, 0);
-    return { ok: true, detail: `Found ${c.name}: ${facts} facts, ${items} items`, facts, items };
-  } catch (err) {
-    if (err instanceof CustomerNotFoundError)
-      return { ok: false, detail: 'Connected, but the product does not know this customer id' };
-    if (err instanceof HostUnavailableError) return { ok: false, detail: err.message };
-    throw err;
-  }
-}
-
-/** Where each workspace's product API is, as the records adapter reads it. */
-function hostSource(deps: ConnectorDeps): WorkspaceHostSource {
+/** The Test result as the admin reads it: one line, plus each source's answer and the preview. */
+function summary(
+  preview: MappedPreview,
+): Pick<ConnectorTestResult, 'ok' | 'detail' | 'facts' | 'items'> {
+  const c = preview.customer;
+  if (!c) return { ok: false, detail: preview.unavailable[0]?.reason ?? 'No customer record' };
+  const items = c.items.length;
+  const facts = c.facts.length + c.items.reduce((n, i) => n + i.facts.length, 0);
+  const missing = preview.unavailable.length ? `; ${preview.unavailable.length} unavailable` : '';
   return {
-    defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
-    // Cached per workspace, so always read as that workspace, whoever asks first (S.8).
-    async configFor(workspaceId) {
-      const r = await withWorkspace(workspaceId, () => resolveConnector(deps, workspaceId));
-      if (!r.config) return null;
-      const version = r.row ? `${r.row.version}:${r.row.updatedAt.getTime()}` : 'env';
-      // A tenant's own URL is checked again at every request; env settings are the operator's.
-      const checkUrl = r.row
-        ? async (url: URL) => void (await assertSafeUrl(url.toString(), deps.ssrf))
-        : undefined;
-      return { config: { ...r.config, checkUrl }, version };
-    },
+    ok: true,
+    detail: `Found ${c.name}: ${facts} facts, ${items} items${missing}`,
+    facts,
+    items,
   };
 }
 
-/** Per-workspace product connections: read, save (encrypted) and test. */
+async function runTest(
+  deps: ConnectorDeps,
+  workspaceId: string,
+  customerId: string,
+  email?: string,
+) {
+  const found = await sourcesConfigFor(deps, workspaceId);
+  if (!found)
+    return {
+      ok: false,
+      detail: 'This workspace has no product connection yet.',
+      sources: [],
+      preview: null,
+    };
+  const probe = await probeSources(found.config, customerId, email ?? null);
+  return { ...summary(probe.preview), ...probe };
+}
+
+/** Where each workspace's product API is, as the records adapter reads it. */
+const hostSource = (deps: ConnectorDeps): WorkspaceHostSource => ({
+  defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+  configFor: (workspaceId) => sourcesConfigFor(deps, workspaceId),
+});
+
+/** Per-workspace product connections: read, save (encrypted), map and test. */
 export function createConnectorService(deps: ConnectorDeps) {
   /** Every workspace's records behind one HostRecords, re-read when a connector is saved. */
   const records = workspaceHostRecords(hostSource(deps), () => deps.clock.now().getTime());
+  const dto = async (s: Session) => toDto(await resolveConnector(deps, s.workspaceId));
 
   return {
     records,
-    async get(session: Session): Promise<Connector> {
-      return toDto(await resolveConnector(deps, session.workspaceId));
-    },
+    get: dto,
     async save(session: Session, input: SaveConnectorRequest): Promise<Connector> {
       await saveConnector(deps, session, input);
-      return toDto(await resolveConnector(deps, session.workspaceId));
+      return dto(session);
     },
-    async test(session: Session, customerId: string): Promise<ConnectorTestResult> {
-      const result = await tryCustomer(records, session.workspaceId, customerId);
+    async saveMapping(session: Session, input: z.output<typeof SaveRecordMappingRequestSchema>) {
+      await saveRecordMapping(deps, session, input);
+      return dto(session);
+    },
+    async test(session: Session, customerId: string, email?: string): Promise<ConnectorTestResult> {
+      const result = await runTest(deps, session.workspaceId, customerId, email);
       await deps.db.workspaceConnector.updateMany({
         where: { workspaceId: session.workspaceId },
         data: {

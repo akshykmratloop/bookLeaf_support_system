@@ -5,6 +5,7 @@ import {
   ConnectorTestResultSchema,
   ProblemSchema,
   SaveConnectorRequestSchema,
+  SaveRecordMappingRequestSchema,
 } from '@bookleaf/shared';
 import '../../platform/http/augment.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
@@ -42,7 +43,7 @@ function registerWrite(app: RouteApp, { connectors }: Opts) {
       config: ADMIN,
       schema: {
         tags: ['workspace'],
-        summary: 'Set the product URL, API key and signing secret (secrets are write-only)',
+        summary: 'Set the data sources, API key and signing secret (secrets are write-only)',
         body: SaveConnectorRequestSchema,
         response: { 200: ConnectorSchema, 503: ProblemSchema, ...errors },
       },
@@ -55,16 +56,33 @@ function registerWrite(app: RouteApp, { connectors }: Opts) {
       config: { ...ADMIN, rateLimit: TEST_LIMIT },
       schema: {
         tags: ['workspace'],
-        summary: 'Fetch one customer from the product to check the connection',
+        summary: 'Call every data source for one customer: raw answers and the merged record',
         body: ConnectorTestRequestSchema,
         response: { 200: ConnectorTestResultSchema, ...errors },
       },
     },
-    async (req) => connectors.test(sessionOf(req), req.body.customerId),
+    async (req) => connectors.test(sessionOf(req), req.body.customerId, req.body.email),
+  );
+}
+
+function registerMapping(app: RouteApp, { connectors }: Opts) {
+  app.put(
+    '/workspace/connector/mapping',
+    {
+      config: ADMIN,
+      schema: {
+        tags: ['workspace'],
+        summary: 'Where the customer name, email and item list come from in your data sources',
+        body: SaveRecordMappingRequestSchema,
+        response: { 200: ConnectorSchema, ...errors },
+      },
+    },
+    async (req) => connectors.saveMapping(sessionOf(req), req.body),
   );
 }
 
 export const connectorRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
   registerRead(app, opts);
   registerWrite(app, opts);
+  registerMapping(app, opts);
 };

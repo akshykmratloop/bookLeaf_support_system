@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { cleanText } from '../sanitize.js';
+import { SourcePathSchema } from './data-sources.js';
 
 /**
  * The workspace's customer-data schema: which facts its product sends, what each one means
@@ -36,10 +37,24 @@ export const CustomerFieldInputSchema = z
     allowedValues: z.array(statusCode).max(30).optional().default([]),
     visibleToCustomer: z.boolean().optional().default(true),
     position: z.int().min(0).max(10_000).optional().default(0),
+    /**
+     * U-9 mapping: where a MAPPED data source holds this value. Per-item fields (`{id}` in the
+     * key) leave `sourceId` empty: their path is read inside each element of the item list.
+     */
+    sourceId: z.uuid().nullable().optional().default(null),
+    path: SourcePathSchema.nullable().optional().default(null),
   })
   .refine((f) => f.type !== 'STATUS' || f.allowedValues.length > 0, {
     path: ['allowedValues'],
     message: 'A STATUS field lists the codes the product may send',
+  })
+  .refine((f) => !(f.key.includes('{id}') && f.sourceId), {
+    path: ['sourceId'],
+    message: 'A per-item field is read from the item list; leave the source empty',
+  })
+  .refine((f) => f.key.includes('{id}') || (f.sourceId === null) === (f.path === null), {
+    path: ['path'],
+    message: 'Pick both a data source and a path, or neither',
   });
 export type CustomerFieldInput = z.input<typeof CustomerFieldInputSchema>;
 
@@ -52,6 +67,8 @@ export const CustomerFieldSchema = z.object({
   allowedValues: z.array(z.string()),
   visibleToCustomer: z.boolean(),
   position: z.int(),
+  sourceId: z.string().nullable(),
+  path: z.string().nullable(),
   updatedAt: z.iso.datetime(),
 });
 export type CustomerField = z.infer<typeof CustomerFieldSchema>;
