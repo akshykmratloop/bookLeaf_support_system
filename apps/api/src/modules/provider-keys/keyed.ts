@@ -4,6 +4,7 @@ import type { Envelope } from '../../platform/crypto/envelope.js';
 import type { Db } from '../../platform/db.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import { decryptKey, listKeys } from './store.js';
+import { withWorkspace } from '../../platform/tenancy.js';
 
 /** Which provider client a workspace runs on: its own key's, else the platform's. */
 export interface KeyedProviders {
@@ -41,7 +42,8 @@ function clientFor<T>(deps: KeyedDeps, row: WorkspaceProviderKey, build: (key: s
 }
 
 async function loadOwn(deps: KeyedDeps, workspaceId: string, at: number): Promise<Own> {
-  const rows = await listKeys(deps.db, workspaceId);
+  // Cached per workspace, so always read as that workspace, whoever asks first (S.8).
+  const rows = await withWorkspace(workspaceId, () => listKeys(deps.db, workspaceId));
   const ai = rows.find((r) => r.capability === 'AI');
   const voice = rows.find((r) => r.capability === 'VOICE');
   return {

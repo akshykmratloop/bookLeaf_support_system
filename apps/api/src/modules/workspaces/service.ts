@@ -8,6 +8,7 @@ import type {
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import { ForbiddenError } from '../../platform/errors.js';
+import { asPlatform } from '../../platform/tenancy.js';
 import type { Session } from '../auth/session.js';
 import { createApiKey, listApiKeys, revokeApiKey, verifyApiKey } from './api-keys.js';
 import { auditInclude, toAuditEntry, toWorkspaceDto } from './mappers.js';
@@ -18,7 +19,9 @@ const AUDIT_PAGE = 100;
 /** The signed-in staff member's workspace and the record of changes made in it. */
 export function createWorkspaceService(deps: { db: Db; clock: Clock }) {
   return {
-    signup: (input: SignupRequest): Promise<SignupResponse> => signup(deps, input),
+    /** A new workspace does not exist yet, and its slug, prefix and email span the platform (S.8). */
+    signup: (input: SignupRequest): Promise<SignupResponse> =>
+      asPlatform(() => signup(deps, input)),
 
     async mine(session: Session): Promise<MyWorkspace> {
       const member = await deps.db.workspaceMember.findUnique({

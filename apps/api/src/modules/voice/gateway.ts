@@ -5,6 +5,7 @@ import { startCall, type CallHandle, type CallerChannel } from '../../voice/call
 import type { CallOutcome } from '../../voice/call/types.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import { AppError } from '../../platform/errors.js';
+import { bindScope } from '../../platform/tenancy.js';
 import type { Session } from '../auth/session.js';
 import { audioBudget } from './audio-budget.js';
 import type { CallContext } from './context.js';
@@ -110,15 +111,17 @@ export async function bridgeCall(
     );
     return;
   }
+  // Provider and socket events run these later, outside the request: keep the caller's workspace.
+  const draft = deps.voice.draftPort(session, ctx);
   line.handle = await startCall({
     provider: deps.provider,
     config: ctx.config,
-    draft: deps.voice.draftPort(session, ctx),
+    draft: { ...draft, run: bindScope(draft.run) },
     limits: { ...deps.voice.callLimits(ctx), turnsLeft: ctx.turnsLeft },
     caller: channelFor(socket),
     now: deps.now,
-    isStillAllowed: () => deps.voice.isVoiceStillOn(session),
-    onEnd: saver(callId, ctx, deps),
+    isStillAllowed: bindScope(() => deps.voice.isVoiceStillOn(session)),
+    onEnd: bindScope(saver(callId, ctx, deps)),
     lines: ctx.lines,
     warn: (message, err) => deps.log.warn({ err, callId }, message),
   });

@@ -24,7 +24,8 @@ import { createSettingsService } from './modules/settings/service.js';
 import { createHostSignIn } from './modules/workspaces/host-sign-in.js';
 import { createWorkspaceService } from './modules/workspaces/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
-import { createDb, type Db } from './platform/db.js';
+import type { Db } from './platform/db.js';
+import { createTenantDb } from './platform/tenant-db.js';
 import { createCategoryService } from './modules/categories/service.js';
 import type { Env } from './config/index.js';
 
@@ -34,6 +35,7 @@ import type { CacheSync } from './platform/shared-state/cache-sync.js';
 
 export interface ContainerOverrides extends ProviderOverrides, SharedOverrides {
   clock?: Clock;
+  /** Replaces both connections with one client (no row-level security); tests use the env's. */
   db?: Db;
   /** The host product's records; tests pass a real demo host or a fake. */
   records?: HostRecords;
@@ -59,7 +61,9 @@ function createSettingsCaches(
 /** Shared infrastructure every module uses: clock, database, events, AI runtime, sessions. */
 function createCore(env: Env, overrides: ContainerOverrides) {
   const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
-  const db = overrides.db ?? createDb(env.DATABASE_URL);
+  // Requests on the restricted app role under RLS; platform work on the owner (S.8).
+  const db =
+    overrides.db ?? createTenantDb({ appUrl: env.DATABASE_URL, adminUrl: env.DATABASE_ADMIN_URL });
   const shared = createSharedParts(env, clock, overrides);
   const { events, cacheSync } = shared;
   const providerInputs = { env, db, clock, cacheSync };

@@ -27,7 +27,7 @@ function deploy(): void {
   execFileSync(
     `${apiRoot}node_modules/.bin/prisma`,
     ['migrate', 'deploy', '--schema', join(work, 'schema.prisma')],
-    { cwd: apiRoot, env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe' },
+    { cwd: apiRoot, env: { ...process.env, DATABASE_ADMIN_URL: url }, stdio: 'pipe' },
   );
 }
 
@@ -96,10 +96,10 @@ const keysOf = async (ws: string) =>
   ).map((r) => r.key);
 
 beforeAll(async () => {
-  admin = createDb(inject('databaseUrl'));
+  admin = createDb(inject('databaseAdminUrl'));
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${DB_NAME}`);
   await admin.$executeRawUnsafe(`CREATE DATABASE ${DB_NAME}`);
-  const u = new URL(inject('databaseUrl'));
+  const u = new URL(inject('databaseAdminUrl'));
   u.pathname = `/${DB_NAME}`;
   url = u.toString();
   work = mkdtempSync(join(tmpdir(), 's9-'));

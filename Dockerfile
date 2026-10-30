@@ -24,4 +24,5 @@ COPY --from=build /out /app
 RUN npx prisma generate
 USER node
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Migrations as the owner (DATABASE_ADMIN_URL), then the restricted app role (DATABASE_URL, S.8).
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/db-roles.js && node dist/server.js"]

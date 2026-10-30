@@ -69,18 +69,19 @@ function markSent(d: TicketDraftRow): TicketOrigin['afterCreate'] {
   };
 }
 
-/** Sends the draft as a ticket, exactly once, with the issue type the author chose. */
-export async function submitDraft(
+/** An already-sent draft: its ticket, nothing created. */
+async function alreadySent(deps: DraftDeps, session: Session, d: TicketDraftRow) {
+  if (d.status !== 'SUBMITTED' || !d.ticket) return null;
+  const ticket = await getAuthorTicket(deps, session, d.ticket.id);
+  return { draft: toTicketDraft(d), ticket, created: false };
+}
+
+async function sendOnce(
   deps: DraftDeps,
   session: Session,
   input: SubmitDraft,
+  d: TicketDraftRow,
 ): Promise<Submitted> {
-  const authorId = session.authorId ?? '';
-  const d = await findOwnDraft(deps.db, input.id, authorId);
-  if (d.status === 'SUBMITTED' && d.ticket) {
-    const ticket = await getAuthorTicket(deps, session, d.ticket.id);
-    return { draft: toTicketDraft(d), ticket, created: false };
-  }
   assertCanSubmit(d, input);
   const ticketInput = ticketInputOf(d);
   const origin = { ...(await originFor(deps, d)), afterCreate: markSent(d) };
@@ -89,7 +90,31 @@ export async function submitDraft(
     idempotencyKey: `draft:${input.id}`,
     origin,
   });
-  const draft = toTicketDraft(await findOwnDraft(deps.db, input.id, authorId));
+  const draft = toTicketDraft(await findOwnDraft(deps.db, input.id, session.authorId ?? ''));
   deps.live.publish({ draft, by: input.by, changed: ['status'] });
   return { draft, ticket, created };
+}
+
+/**
+ * Sends the draft as a ticket, exactly once, with the issue type the author chose. A second Send
+ * racing the first can see the first's ticket half-way (the chat already has it, or the draft
+ * moved on); it then reads the draft again and answers with the ticket the first one sent.
+ */
+export async function submitDraft(
+  deps: DraftDeps,
+  session: Session,
+  input: SubmitDraft,
+): Promise<Submitted> {
+  const authorId = session.authorId ?? '';
+  const d = await findOwnDraft(deps.db, input.id, authorId);
+  const sent = await alreadySent(deps, session, d);
+  if (sent) return sent;
+  try {
+    return await sendOnce(deps, session, input, d);
+  } catch (err) {
+    if (!(err instanceof ConflictError)) throw err;
+    const raced = await alreadySent(deps, session, await findOwnDraft(deps.db, input.id, authorId));
+    if (raced) return raced;
+    throw err;
+  }
 }

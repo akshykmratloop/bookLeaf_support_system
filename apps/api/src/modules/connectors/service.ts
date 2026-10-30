@@ -9,6 +9,7 @@ import type { ConnectorDeps } from './deps.js';
 import { saveConnector } from './save.js';
 import { resolveConnector, type Resolved } from './store.js';
 import { assertSafeUrl } from '../../platform/net/ssrf.js';
+import { withWorkspace } from '../../platform/tenancy.js';
 
 const hint = (value: string, at: Date) => ({ hint: value, updatedAt: at.toISOString() });
 
@@ -67,8 +68,9 @@ async function tryCustomer(records: HostRecords, workspaceId: string, customerId
 function hostSource(deps: ConnectorDeps): WorkspaceHostSource {
   return {
     defaultWorkspaceId: DEFAULT_WORKSPACE_ID,
+    // Cached per workspace, so always read as that workspace, whoever asks first (S.8).
     async configFor(workspaceId) {
-      const r = await resolveConnector(deps, workspaceId);
+      const r = await withWorkspace(workspaceId, () => resolveConnector(deps, workspaceId));
       if (!r.config) return null;
       const version = r.row ? `${r.row.version}:${r.row.updatedAt.getTime()}` : 'env';
       // A tenant's own URL is checked again at every request; env settings are the operator's.
@@ -108,7 +110,7 @@ export function createConnectorService(deps: ConnectorDeps) {
     },
     /** The workspace's own signing secret for host tokens, or null when it has no connector. */
     async secretFor(workspaceId: string): Promise<string | null> {
-      const r = await resolveConnector(deps, workspaceId);
+      const r = await withWorkspace(workspaceId, () => resolveConnector(deps, workspaceId));
       return r.source === 'WORKSPACE' ? r.config.signingSecret : null;
     },
   };

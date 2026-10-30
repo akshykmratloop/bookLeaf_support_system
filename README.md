@@ -89,7 +89,8 @@ infra/           Terraform for the AWS demo server, plus apply / destroy scripts
 cp .env.example .env    # then replace each replace-with-... value (openssl rand -base64 48)
 pnpm install
 pnpm db:up              # Postgres 16 on localhost:5433 + Redis 7 on 6380 (docker compose)
-pnpm db:migrate         # prisma migrate deploy (export the .env values first)
+pnpm db:migrate         # prisma migrate deploy as the owner (export the .env values first)
+pnpm db:roles           # creates/updates the restricted app role from DATABASE_URL (safe to re-run)
 pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
 pnpm dev                # runs the four apps in watch mode
 ```
@@ -133,7 +134,7 @@ and open BookLeaf at http://localhost:5174.
 | `pnpm start` | Starts the built API (and the web app it serves) |
 | `pnpm host:build` | Builds the author dashboard (`apps/host-web`) |
 | `pnpm host:start` | Starts the BookLeaf host demo |
-| `pnpm db:up` · `db:migrate` · `db:seed` | Postgres and Redis in Docker · apply migrations · seed staff accounts and AI settings |
+| `pnpm db:up` · `db:migrate` · `db:roles` · `db:seed` | Postgres and Redis in Docker · apply migrations (owner) · create/update the restricted app role · seed staff accounts and AI settings |
 | `pnpm typecheck` · `lint` · `format:check` · `test` · `eval` | Checks (see below) |
 
 ### Important settings
@@ -255,6 +256,17 @@ Each workspace numbers its own tickets from 1001 under its own fixed prefix (Boo
 BL-1002…; "Acme Corp": AC-1001…). The prefix is made from the company name at sign-up, is unique
 across the platform (a second "BL" company gets BL2) and never changes. One workspace's numbers say
 nothing about another's ticket volume.
+
+**Postgres keeps workspaces apart too (S.8, row-level security).** Every tenant table (and the
+tables that hang off tickets, chats and webhooks) has a policy: a row is visible, and writable,
+only inside its own workspace. The API serves requests as a restricted database role
+(`DATABASE_URL`, no right to bypass these policies) and sets the request's workspace for each
+transaction, so even a query that forgot its workspace filter cannot read or change another
+company's rows. Migrations, the seed, signup, sign-in lookups, the AI worker and the webhook
+sender use the owner (`DATABASE_ADMIN_URL`). `npm run local` and every deploy create the app role
+for you (`pnpm db:roles`); the API refuses to start in production if the roles are wrong. An
+older local `.env` whose `DATABASE_URL` still uses the owner keeps working, with a warning at
+startup: copy the two `DATABASE_*` lines from `.env.example` to turn the protection on.
 
 Each workspace's saved settings drive its own chat and voice: on/off switches, message and call
 limits, conversation length, models, tone notes for reply drafts, and the call voice. A workspace
@@ -396,7 +408,8 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 The live demo's setup (AWS + Vercel, Terraform, the `-deploy` flags, teardown) is in
 [docs/deploy.md](docs/deploy.md). For any other host: two services plus Postgres, support
 (`deploy/Dockerfile.api`) and the host product (`deploy/Dockerfile.host-demo`). Support needs
-`DATABASE_URL`, `REDIS_URL` (Redis 7 in the Compose stacks; the API refuses to start in production
+`DATABASE_URL` (the restricted app role) and `DATABASE_ADMIN_URL` (the owner: run migrations and
+`node dist/db-roles.js` with both set before starting the server), `REDIS_URL` (Redis 7 in the Compose stacks; the API refuses to start in production
 without it), `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings, `SECRETS_MASTER_KEY`,
 `NODE_ENV=production`, and optionally the AI keys. To run more than one copy of the API, point every
 copy at the same Postgres and the same Redis; nothing else is needed (live voice calls stay on the

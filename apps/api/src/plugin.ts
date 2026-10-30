@@ -11,6 +11,7 @@ import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
 import { DEFAULT_WORKSPACE_SLUG } from './modules/workspaces/constants.js';
 import { authGuard } from './platform/http/auth-guard.js';
 import { cspDirectives } from './platform/http/csp.js';
+import { checkDbRoles } from './platform/db-role-check.js';
 import { csrfGuard } from './platform/http/csrf.js';
 import { sharedRateLimitStore } from './platform/http/rate-limit-store.js';
 import { allowWidgetScript, registerWidgetPages } from './platform/http/embed.js';
@@ -39,6 +40,9 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   const c = opts.container ?? createContainer(requireEnv(opts.env));
   // Refuses to start when Redis (REDIS_URL) cannot be reached: shared state is not optional.
   await c.shared.ready();
+  // Row-level security needs the restricted app role for requests and the owner for platform
+  // work (S.8): production refuses to start without both, other environments warn.
+  await checkDbRoles(c.db, c.env.NODE_ENV === 'production', app.log);
   const background = runInBackground(app, c);
   app.addHook('onClose', async () => {
     await background.stop();

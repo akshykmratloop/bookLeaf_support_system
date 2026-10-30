@@ -156,14 +156,19 @@ describe('grounded answers', () => {
     ]);
     expect([first.statusCode, second.statusCode]).toEqual([200, 200]);
     expect(prompts).toHaveLength(2);
-    expect(prompts[1]).toContain('Answer number 1.');
+    // Two requests sent at the same moment have no fixed arrival order (either may reach the
+    // queue first). What must hold: one turn at a time, and the second sees the first's answer.
     const final = (await call(h, 'GET', `/chat/sessions/${chat.id}`, priya)).json<ChatSession>();
-    expect(final.messages.map((m) => m.body)).toEqual([
-      'First question about my book',
-      'Answer number 1.',
-      'Second question about my book',
-      'Answer number 2.',
-    ]);
+    const [firstAsked, answer1, secondAsked, answer2] = final.messages.map((m) => m.body);
+    expect([answer1, answer2]).toEqual(['Answer number 1.', 'Answer number 2.']);
+    expect(new Set([firstAsked, secondAsked])).toEqual(
+      new Set(['First question about my book', 'Second question about my book']),
+    );
+    expect(final.messages).toHaveLength(4);
+    expect(prompts[0]).toContain(String(firstAsked));
+    expect(prompts[1]).toContain(String(firstAsked));
+    expect(prompts[1]).toContain('Answer number 1.');
+    expect(prompts[1]).toContain(String(secondAsked));
   });
 
   it('answers common questions instantly from records, without calling the AI', async () => {

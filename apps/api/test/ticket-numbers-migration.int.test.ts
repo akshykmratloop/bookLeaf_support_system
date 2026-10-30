@@ -30,7 +30,7 @@ function deploy(): void {
     ['migrate', 'deploy', '--schema', join(work, 'schema.prisma')],
     {
       cwd: apiRoot,
-      env: { ...process.env, DATABASE_URL: url },
+      env: { ...process.env, DATABASE_ADMIN_URL: url },
       stdio: 'pipe',
     },
   );
@@ -108,10 +108,10 @@ const workspace = async (id: string) =>
   )[0];
 
 beforeAll(async () => {
-  admin = createDb(inject('databaseUrl'));
+  admin = createDb(inject('databaseAdminUrl'));
   await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${DB_NAME}`);
   await admin.$executeRawUnsafe(`CREATE DATABASE ${DB_NAME}`);
-  const u = new URL(inject('databaseUrl'));
+  const u = new URL(inject('databaseAdminUrl'));
   u.pathname = `/${DB_NAME}`;
   url = u.toString();
   work = mkdtempSync(join(tmpdir(), 'f13-'));

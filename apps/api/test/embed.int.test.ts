@@ -174,6 +174,7 @@ describe('HOST_ORIGINS setting', () => {
   const base = {
     APP_ORIGIN: ORIGIN,
     DATABASE_URL: 'postgresql://u:p@localhost/db',
+    DATABASE_ADMIN_URL: 'postgresql://o:p@localhost/db',
     JWT_SECRET: 'x'.repeat(32),
     HOST_API_URL: HOST_PAGE,
     HOST_API_KEY: 'k'.repeat(24),

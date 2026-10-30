@@ -1,5 +1,8 @@
 # Local development database and Redis. Tests use their own throwaway containers (testcontainers).
 services:
+  # POSTGRES_USER is the owner (DATABASE_ADMIN_URL). The API serves requests as a second,
+  # restricted role under row-level security (DATABASE_URL, S.8); `npm run local` creates it with
+  # `pnpm db:roles` after migrating, on a new volume and on an existing one.
   db:
     image: postgres:16-alpine
     environment:

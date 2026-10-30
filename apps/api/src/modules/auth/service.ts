@@ -1,6 +1,7 @@
 import type { AuthUser, LoginRequest } from '@bookleaf/shared';
 import type { Db } from '../../platform/db.js';
 import { UnauthorizedError } from '../../platform/errors.js';
+import { asPlatform } from '../../platform/tenancy.js';
 import { randomUUID } from 'node:crypto';
 import { hashPassword, verifyPassword } from './password.js';
 import type { Session, SessionCodec } from './session.js';
@@ -16,10 +17,13 @@ export function createAuthService(db: Db, sessions: SessionCodec) {
   /** Verified against when the email is unknown, so response time does not reveal which emails exist. */
   const dummyHash = hashPassword(randomUUID());
   const findAccount = async (input: LoginRequest) => {
-    const user = await db.user.findUnique({
-      where: { loginEmail: loginEmailOf(input.email) },
-      include: { author: true },
-    });
+    // Before sign-in the workspace is unknown: the email lookup spans the platform (S.8).
+    const user = await asPlatform(() =>
+      db.user.findUnique({
+        where: { loginEmail: loginEmailOf(input.email) },
+        include: { author: true },
+      }),
+    );
     if (user?.passwordHash && (await verifyPassword(user.passwordHash, input.password)))
       return user;
     if (!user?.passwordHash) await verifyPassword(await dummyHash, input.password);

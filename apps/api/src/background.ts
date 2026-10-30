@@ -4,6 +4,7 @@ import type { Container } from './container.js';
 import { ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { failInterruptedCalls } from './modules/voice/repository.js';
 import { createWebhookDispatcher } from './modules/webhooks/dispatcher.js';
+import { asPlatform } from './platform/tenancy.js';
 
 /**
  * The work the module does beside its routes, tied to the app's lifecycle so a host that
@@ -29,7 +30,7 @@ export function runInBackground(app: FastifyInstance, c: Container): { stop(): P
   app.addHook('onReady', async () => {
     // Calls live in the process that holds their socket, so any left PENDING or ACTIVE died with
     // the last one. With several copies this must be scoped first (docs/architecture.md §21).
-    const interrupted = await failInterruptedCalls(c.db, c.clock.now());
+    const interrupted = await asPlatform(() => failInterruptedCalls(c.db, c.clock.now()));
     if (interrupted.count) app.log.warn({ count: interrupted.count }, 'marked interrupted calls');
     if (!c.env.WORKER_ENABLED) return;
     worker.start();

@@ -2,6 +2,7 @@ import type { AuthUser } from '@bookleaf/shared';
 import { decodeJwt } from 'jose';
 import type { Db } from '../../platform/db.js';
 import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
+import { asPlatform, withWorkspace } from '../../platform/tenancy.js';
 import { signInFromHost, type HostSignInDeps } from '../auth/host-login.js';
 import { DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_SLUG } from './constants.js';
 
@@ -38,8 +39,11 @@ function issuerSlug(token: string): string | null {
  */
 export async function resolveIssuer(router: HostSignInRouter, token: string): Promise<HostIssuer> {
   const slug = issuerSlug(token);
+  // Which workspace is not known until the slug is looked up across the platform (S.8).
   const workspace = slug
-    ? await router.db.workspace.findUnique({ where: { slug }, select: { id: true } })
+    ? await asPlatform(() =>
+        router.db.workspace.findUnique({ where: { slug }, select: { id: true } }),
+      )
     : { id: DEFAULT_WORKSPACE_ID };
   if (!workspace) throw INVALID();
   const own = await router.secretFor(workspace.id);
@@ -72,6 +76,10 @@ export function createHostSignIn(base: Base, router: HostSignInRouter) {
     if (expectedSlug !== undefined && expectedSlug !== workspaceSlug)
       throw new ForbiddenError('This sign-in is for a different workspace');
     const issuer = await resolveIssuer(router, token);
-    return { ...(await signInFromHost({ ...base, ...issuer }, token)), workspaceSlug };
+    // From here on everything happens inside the token's workspace (row-level security, S.8).
+    const signedIn = await withWorkspace(issuer.workspaceId, () =>
+      signInFromHost({ ...base, ...issuer }, token),
+    );
+    return { ...signedIn, workspaceSlug };
   };
 }

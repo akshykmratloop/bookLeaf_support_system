@@ -2,6 +2,7 @@ import type { WorkspaceSettings as Row } from '@prisma/client';
 import type { Db } from '../../platform/db.js';
 import type { AssistantLimits } from '../assistant/limits.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
+import { withWorkspace } from '../../platform/tenancy.js';
 
 /** What one workspace's chat, voice and AI run with right now. */
 export interface WorkspaceConfig {
@@ -122,10 +123,13 @@ const CACHE_MS = 5_000;
 export function createWorkspaceConfigs(db: Db, platform: PlatformDefaults, now = Date.now) {
   const cache = new Map<string, { at: number; config: Promise<WorkspaceConfig> }>();
   async function load(workspaceId: string): Promise<WorkspaceConfig> {
-    const ws = await db.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { name: true, settings: true },
-    });
+    // Cached per workspace, so always read as that workspace, whoever asks first (S.8).
+    const ws = await withWorkspace(workspaceId, () =>
+      db.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { name: true, settings: true },
+      }),
+    );
     const fallbackName = brandFallback(workspaceId, ws?.name);
     if (ws?.settings) return toConfig(ws.settings, platform, fallbackName);
     const seed = await seedValues(platform);

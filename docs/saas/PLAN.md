@@ -16,7 +16,7 @@
 - **A customer is a customer**, not an author. Items are "items", facts are whatever the tenant
   defines. BookLeaf's authors and books are one tenant's vocabulary, seeded as data.
 - **Isolation first.** Every tenant-owned row carries `workspace_id`; every query is scoped by the
-  signed-in session's workspace; Postgres RLS is the second lock (next step, see §5.2).
+  signed-in session's workspace; Postgres RLS is the second lock (built in S.8, see §5.2).
 - **Additive.** New modules under `modules/workspaces`, `modules/connectors`, `modules/settings`,
   `platform/crypto`. Existing files get the smallest edits that make them workspace-aware.
 
@@ -24,7 +24,7 @@
 
 | Topic | What we took |
 | --- | --- |
-| Prisma + RLS (`/websites/prisma_io`, client extensions) | Prisma recommends one extended client per request that wraps queries in `$transaction` and runs `SET LOCAL app.tenant_id` first. Pooled connections make a plain `SET` unsafe. Tonight: application-level scoping through the session; RLS policies are written (§5.2) and applied once every repository goes through a per-request client. |
+| Prisma + RLS (`/websites/prisma_io`, client extensions) | Prisma recommends one extended client per request that wraps queries in `$transaction` and runs `SET LOCAL app.tenant_id` first. Pooled connections make a plain `SET` unsafe. Built (S.8): the extension sets `app.workspace_id` per query transaction from an `AsyncLocalStorage` scope (§5.2). |
 | Envelope encryption | AES-256-GCM. A random 32-byte data key per secret encrypts the value; the data key is wrapped with the master key (`SECRETS_MASTER_KEY`, base64, ≥ 32 bytes). Stored as `v1.<keyId>.<wrappedDek>.<iv>.<tag>.<ciphertext>`. Rotation = new master key id, re-wrap data keys only (no re-encryption of values). AAD binds the ciphertext to `workspaceId:field`, so a ciphertext cannot be moved between rows. |
 | Zendesk / Intercom / Freshdesk / Gorgias | All share: **workspace (account/subdomain)** → **members with roles** (owner / admin / agent) → **custom fields** on tickets and on the customer ("user attributes", "custom objects") → **data connectors / apps** that pull records from the customer's own system → **API keys per workspace** with scopes → **webhooks** → **audit log**. Ticket *forms* (which fields are shown) and *SLA policies* sit on top of categories and priorities. We model the same shapes in domain words, not vendor words. |
 | Embedded widget identity (Intercom identity verification) | Intercom: `user_hash = HMAC-SHA256(secret, user_id)`; or a JWT signed with the workspace secret. We already use a short-lived HS256 JWT (`aud: support`, `jti` single-use). Multi-tenant addition: the token carries `iss: <workspace slug>` so the server can find the right signing secret; a token without `iss` belongs to the default (env) workspace. |
@@ -96,23 +96,45 @@ The singleton `ai_settings` / `assistant_settings` rows stay as **platform defau
 - Integration test: workspace B's admin asks for workspace A's ticket → 404; B's list never contains
   A's rows; B's signup cannot reuse A's slug.
 
-### 5.2 Row-level security (next step; SQL ready)
+### 5.2 Row-level security (built: S.8)
+
+Migration `20261030130000_row_level_security`:
 
 ```sql
+CREATE FUNCTION app_current_workspace_id() RETURNS uuid LANGUAGE sql STABLE AS
+  $$ SELECT NULLIF(current_setting('app.workspace_id', true), '')::uuid $$;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON tickets
-  USING (workspace_id = current_setting('app.workspace_id', true)::uuid)
-  WITH CHECK (workspace_id = current_setting('app.workspace_id', true)::uuid);
--- repeat for users, authors, books, chat_sessions, voice_sessions, ticket_drafts, audit_events,
--- workspace_connectors, customer_fields, workspace_settings, ticket_categories,
--- knowledge_articles, workspace_api_keys
+CREATE POLICY workspace_isolation ON tickets
+  USING (workspace_id = app_current_workspace_id())
+  WITH CHECK (workspace_id = app_current_workspace_id());
+-- the same on workspace_members, workspace_connectors, customer_fields, workspace_settings,
+-- workspace_api_keys, workspace_provider_keys, workspace_webhooks, users, authors, books,
+-- ticket_drafts, chat_sessions, voice_sessions, audit_events, ticket_categories,
+-- knowledge_articles, knowledge_article_categories; `workspaces` on its own id;
+-- ticket_messages, ai_jobs, ai_drafts, ai_runs (ticketless runs allowed), chat_messages and
+-- webhook_deliveries through their parent row's workspace_id.
 ```
 
-Applied once data access runs through a per-request Prisma client extension that opens an
-interactive transaction and runs `SELECT set_config('app.workspace_id', $1, true)` first. The app
-must then connect as a role **without** `BYPASSRLS` (table owners bypass RLS unless `FORCE`).
-Background worker and signup use a platform role with a `bypass` setting.
+- **Two roles.** `DATABASE_URL` is a restricted app role (login, no superuser, no `BYPASSRLS`,
+  row access only; `pnpm db:roles` / `node dist/db-roles.js` creates it idempotently from the
+  user and password in that URL). `DATABASE_ADMIN_URL` is the owner, which bypasses RLS:
+  migrations, the seed, signup, sign-in lookups by email / slug / API key, the AI worker, the
+  webhook sender and the startup call clean-up. The API checks both roles at startup (refuses to
+  start in production if either is wrong; warns elsewhere).
+- **Scope per call, not per connection** (`platform/tenancy.ts`, `platform/tenant-db.ts`). An
+  `AsyncLocalStorage` scope says which workspace the current call chain runs as. The auth guard
+  runs each signed-in request's handler inside `withWorkspace(session.workspaceId)`; platform work
+  runs inside `asPlatform()`. The app's one `Db` picks the connection per call: platform → owner;
+  workspace → a Prisma query extension wraps each query in a small transaction that runs
+  `SELECT set_config('app.workspace_id', $1, true)` first (Prisma's RLS pattern; pooled-safe), and
+  an interactive `$transaction(async (tx) => …)` sets it once as its first statement; no scope →
+  nothing is set and tenant tables return no rows (default deny). Batch `$transaction([...])` is
+  refused in a workspace scope (it cannot set the workspace first).
+- Per-workspace caches (settings, provider keys, connector config and signing secret) always read
+  inside their own workspace, whoever asks first. Voice-call callbacks that run later from socket
+  or provider events are bound to the caller's workspace.
+- F-12's member-removal trigger now runs as its owner (`SECURITY DEFINER`).
 
 ### 5.3 Secrets
 
@@ -154,7 +176,7 @@ test: 10 per workspace per minute. API keys: sha256 hashed, prefix shown, compar
 
 | # | Slice | Tonight | Later |
 | --- | --- | --- | --- |
-| 1 | Tenancy core: tables, backfill migration, `workspaceId` in session, scoped ticket queries, cross-tenant test | ✅ | RLS policies + per-request client (§5.2) |
+| 1 | Tenancy core: tables, backfill migration, `workspaceId` in session, scoped ticket queries, cross-tenant test; RLS policies + scoped client (§5.2, S.8) | ✅ | |
 | 2 | Self-serve signup API + page | ✅ | Email verification, invitations, member management UI |
 | 3 | Envelope crypto, connector table, admin endpoints + UI + test-connection, SSRF guard, per-workspace `HostRecords` | ✅ | KMS-backed master key, key rotation job |
 | 4 | Customer-data schema (customer fields) API + UI; BookLeaf fields as seed | ✅ API + UI | Fact validation driven by field definitions; triage rules per field |

@@ -18,9 +18,9 @@ function setup() {
   const clock = { now: () => new Date(), dataAsOf: () => new Date('2025-12-31T00:00:00Z') };
   const store = new Map<string, number>([[SESSION.userId, 1]]);
   const versions: SessionVersions = {
-    current: async (id) => store.get(id) ?? null,
-    bumpFrom: async (id, from) => {
-      if (store.get(id) === from) store.set(id, from + 1);
+    current: async ({ userId }) => store.get(userId) ?? null,
+    bumpFrom: async ({ userId }, from) => {
+      if (store.get(userId) === from) store.set(userId, from + 1);
     },
   };
   const tokens = createSessionTokens(SECRET, 8, clock);

@@ -54,6 +54,8 @@ export async function updateAiSettings(
     );
   await db.auditEvent.create({
     data: {
+      // Recorded in the acting admin's workspace: row-level security allows no other (S.8).
+      workspaceId: session.workspaceId,
       actorId: session.userId,
       entityType: 'ai_settings',
       entityId: '1',

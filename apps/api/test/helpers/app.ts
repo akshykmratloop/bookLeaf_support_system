@@ -173,6 +173,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     NODE_ENV: 'test',
     APP_ORIGIN: ORIGIN,
     DATABASE_URL: inject('databaseUrl'),
+    DATABASE_ADMIN_URL: inject('databaseAdminUrl'),
     JWT_SECRET: 'integration-test-secret-that-is-long-enough-123',
     DATA_AS_OF: '2025-12-31',
     ANTHROPIC_API_KEY: SENTINEL_KEY,
@@ -187,7 +188,8 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     REDIS_KEY_PREFIX: redisPrefix,
     ...opts.env,
   });
-  const db = createDb(env.DATABASE_URL);
+  // Tests set up and check rows as the owner; the app itself runs on the restricted role (S.8).
+  const db = createDb(env.DATABASE_ADMIN_URL);
   // Files share one database: start BookLeaf's saved settings again from this file's env.
   if (!opts.keepSettings)
     await db.workspaceSettings.deleteMany({ where: { workspaceId: DEFAULT_WORKSPACE_ID } });
@@ -197,7 +199,6 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
   const voice = opts.voice === false ? null : fakeVoiceProvider();
   const ownKeyUses: string[] = [];
   const container = createContainer(env, {
-    db,
     clock,
     providers: new Map([['anthropic', provider]]),
     voiceProvider: voice,
@@ -258,7 +259,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
       await app.close();
       await container.shared.close();
       await host.close();
-      await db.$disconnect();
+      await Promise.all([db.$disconnect(), container.db.$disconnect()]);
     },
   };
 }

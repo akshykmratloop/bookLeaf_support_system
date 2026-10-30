@@ -40,7 +40,12 @@ services:
     build: { context: .., dockerfile: deploy/Dockerfile.api }
     image: bookleaf-api:latest
     environment:
-      DATABASE_URL: postgresql://bookleaf:${POSTGRES_PASSWORD}@postgres:5432/bookleaf
+      # Two roles on one database (S.8): requests run as the restricted app role under row-level
+      # security; migrations, seed, signup, sign-in lookups and the worker run as the owner.
+      # up.sh creates/updates bookleaf_app (node dist/db-roles.js) before the API starts, and
+      # sets POSTGRES_APP_PASSWORD from POSTGRES_PASSWORD when the secret does not carry one.
+      DATABASE_URL: postgresql://bookleaf_app:${POSTGRES_APP_PASSWORD:?run through deploy/up.sh}@postgres:5432/bookleaf
+      DATABASE_ADMIN_URL: postgresql://bookleaf:${POSTGRES_PASSWORD}@postgres:5432/bookleaf
       REDIS_URL: redis://redis:6379
       HOST_API_URL: http://host-demo:3200
       # The web build inside the image: the API serves the widget pages (/embed/<slug>, F-18).

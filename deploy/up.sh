@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Brings the demo box up to the code in this folder. Called by bookleaf-deploy after the env file
-# is rendered; safe to run again. Order: database up → backup → build → start (the API applies
-# migrations on start) → seed (idempotent) → check both public HTTPS endpoints.
+# is rendered; safe to run again. Order: database up → backup → build → migrate (owner) → app role
+# (idempotent, S.8) → start → seed (idempotent) → check both public HTTPS endpoints.
 # Usage: deploy/up.sh /opt/bookleaf/.env.prod
 set -euo pipefail
 
@@ -19,6 +19,14 @@ set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 set +a
+
+# The restricted app role's password (S.8). The secret may carry POSTGRES_APP_PASSWORD; without it
+# a stable one is derived from POSTGRES_PASSWORD (one-way), so no secret change is needed. Exported
+# so compose puts it into DATABASE_URL.
+if [ -z "${POSTGRES_APP_PASSWORD:-}" ]; then
+  POSTGRES_APP_PASSWORD=$(printf 'bookleaf_app:%s' "$POSTGRES_PASSWORD" | sha256sum | cut -d' ' -f1)
+fi
+export POSTGRES_APP_PASSWORD
 
 backup_database() {
   mkdir -p "$BACKUP_DIR"
@@ -55,8 +63,15 @@ compose up -d --wait postgres redis
 log "Backing up the database before migrations"
 backup_database
 
-log "Building and starting the apps (the API applies migrations on start)"
+log "Building the apps"
 compose build api host-demo
+
+# Migrations run as the owner (DATABASE_ADMIN_URL). Then the restricted app role the API serves
+# requests with is created or updated, with row access on every table (idempotent, every deploy).
+log "Migrating the database and setting up the app role (row-level security)"
+compose run --rm --no-deps -T api sh -c 'npx prisma migrate deploy && node dist/db-roles.js'
+
+log "Starting the apps"
 compose up -d --wait --wait-timeout 300 api host-demo
 compose up -d caddy
 

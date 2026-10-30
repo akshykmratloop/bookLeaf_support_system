@@ -43,6 +43,16 @@ profile `loopmethods`), tagged `Project=bookleaf`:
   Caddy (HTTPS with free Let's Encrypt certificates on `sslip.io` names), api, host-demo,
   Postgres 16, Redis 7. The compose file gives the api `REDIS_URL=redis://redis:6379` (the API
   refuses to start in production without it; F-19), so the secret does not need to carry it.
+- **Two database roles (S.8, row-level security).** The compose file gives the api
+  `DATABASE_ADMIN_URL` (the owner `bookleaf`, from `POSTGRES_PASSWORD`) and `DATABASE_URL` (the
+  restricted role `bookleaf_app`, from `POSTGRES_APP_PASSWORD`). `deploy/up.sh` runs the
+  migrations as the owner and then `node dist/db-roles.js` in a one-off api container before the
+  API starts; that creates or updates `bookleaf_app` (login, no superuser, no BYPASSRLS, row
+  access only, no access to the migrations table). It runs on every deploy and changes nothing
+  when all is already set. `POSTGRES_APP_PASSWORD` is optional in the secret: without it `up.sh`
+  derives a stable one from `POSTGRES_PASSWORD` (SHA-256, one-way), so no secret change is needed.
+  To set your own, add `POSTGRES_APP_PASSWORD` (letters and digits, 24+ characters) to the secret
+  and redeploy the backend. Run Compose by hand only through `up.sh`, which exports that value.
 - **Secrets Manager** `bookleaf/demo/env`: the whole production env as one JSON secret. Terraform
   generates the passwords and keys. The box renders it to `/opt/bookleaf/.env.prod`.
 - **S3** `bookleaf-demo-releases-533063875346`: one tarball per deployed commit (kept 14 days).

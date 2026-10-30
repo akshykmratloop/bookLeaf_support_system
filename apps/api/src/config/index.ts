@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AiConfig } from './ai.js';
 import { AuthConfig } from './auth.js';
 import { ChatConfig } from './chat.js';
-import { DatabaseConfig } from './database.js';
+import { DatabaseConfig, usesSeparateRoles } from './database.js';
 import { HostConfig } from './host.js';
 import { PlatformConfig } from './platform.js';
 import { ServerConfig } from './server.js';
@@ -34,6 +34,10 @@ const EnvSchema = z
     path: ['REDIS_URL'],
     message:
       'is required in production (every copy of the API shares live updates, rate limits and one-use tokens through Redis)',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || usesSeparateRoles(env), {
+    path: ['DATABASE_URL'],
+    message: 'must use the restricted app role, not the owner user of DATABASE_ADMIN_URL (S.8)',
   })
   .refine((env) => env.NODE_ENV !== 'production' || !env.CONNECTOR_ALLOW_PRIVATE_HOSTS, {
     path: ['CONNECTOR_ALLOW_PRIVATE_HOSTS'],

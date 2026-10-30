@@ -1,6 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
+import { withWorkspace } from '../../platform/tenancy.js';
 import type { RouteApp } from '../../platform/http/route-app.js';
 import type { VoiceProvider } from '../../voice/providers/types.js';
 import { SESSION_COOKIE, type Session, type SessionCodec } from '../auth/session.js';
@@ -52,18 +53,21 @@ export function registerStreamRoute(app: RouteApp, opts: StreamOpts) {
         if (req.session.role !== 'AUTHOR') throw new ForbiddenError();
       },
     },
+    // The upgrade may run outside the request's scope: set the caller's workspace again (S.8).
     async (socket, req) => {
       const session = req.session as Session;
-      const provider = await opts.voiceFor(session.workspaceId);
-      if (!provider) {
-        socket.close(4503, 'voice unavailable');
-        return;
-      }
-      void bridgeCall(socket, session, req.params.id, {
-        voice: opts.voice,
-        provider,
-        log: req.log,
-        now: opts.now,
+      await withWorkspace(session.workspaceId, async () => {
+        const provider = await opts.voiceFor(session.workspaceId);
+        if (!provider) {
+          socket.close(4503, 'voice unavailable');
+          return;
+        }
+        void bridgeCall(socket, session, req.params.id, {
+          voice: opts.voice,
+          provider,
+          log: req.log,
+          now: opts.now,
+        });
       });
     },
   );

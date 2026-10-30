@@ -484,6 +484,24 @@ token's version is still current, so an old cookie cannot sign out newer session
 code path or manual SQL counts). Logout therefore signs the user out on every device. There is no
 per-device session table. Tokens issued before this change have no version and are refused once.
 
+**Workspaces in the database (S.8).** Postgres row-level security is the second lock behind the
+data-access code's own `workspace_id` filters. Every tenant table has a `workspace_isolation`
+policy (RLS + FORCE); child tables follow their parent row. The API serves requests as a
+restricted role (`DATABASE_URL`, no `BYPASSRLS`): the auth guard runs the handler inside
+`withWorkspace(session.workspaceId)`, and each query sets `app.workspace_id` for its own
+transaction first, so a query without a workspace filter still sees only that workspace. Work that
+is not one workspace's (sign-in lookups by email, slug or API key, signup, the AI worker, the
+webhook sender, the startup call clean-up) runs in `asPlatform()` on the owner
+(`DATABASE_ADMIN_URL`). Code with no scope sees no tenant rows. Details: `docs/saas/PLAN.md` §5.2.
+
+```mermaid
+flowchart LR
+    req["Signed-in request"] -- "withWorkspace(session.workspaceId)" --> app["app role<br/>set_config('app.workspace_id', …, true)"]
+    bg["Sign-in lookups · signup · AI worker · webhook sender"] -- "asPlatform()" --> owner["owner role<br/>(bypasses RLS)"]
+    app --> pg[("Postgres<br/>RLS + FORCE on every tenant table")]
+    owner --> pg
+```
+
 CSRF: Origin must equal `APP_ORIGIN` on state-changing requests + JSON-only bodies + a
 `SameSite=Lax` cookie (`SameSite=None; Secure; Partitioned` in embed mode, §15). No CORS headers.
 

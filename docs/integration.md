@@ -307,6 +307,12 @@ The plugin is encapsulated. Its security headers, cookies, rate limits, error fo
 under the prefix, and the host's own routes are untouched (`apps/api/test/plugin.int.test.ts`). It
 starts the AI worker when the app is ready and stops it when the app closes.
 
+The plugin needs two database URLs (row-level security, S.8): `DATABASE_URL` for the restricted
+app role every request runs on, and `DATABASE_ADMIN_URL` for the owner (migrations, signup,
+sign-in lookups, the worker). Run `prisma migrate deploy` and then `node dist/db-roles.js` (or
+`pnpm db:roles`) with both set before the first start; it creates the app role from the user and
+password in `DATABASE_URL`. In production the plugin refuses to start when the roles are wrong.
+
 ---
 
 ## Detaching

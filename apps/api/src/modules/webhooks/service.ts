@@ -91,10 +91,10 @@ async function ownWebhook(deps: WebhookDeps, s: Session, id: string) {
 
 async function removeWebhook(deps: WebhookDeps, s: Session, id: string): Promise<void> {
   const w = await ownWebhook(deps, s, id);
-  await deps.db.$transaction([
-    deps.db.workspaceWebhook.delete({ where: { id: w.id } }),
-    deps.db.auditEvent.create(audit(s, 'webhook.deleted', w.id, { url: w.url })),
-  ]);
+  await deps.db.$transaction(async (tx) => {
+    await tx.workspaceWebhook.delete({ where: { id: w.id } });
+    await tx.auditEvent.create(audit(s, 'webhook.deleted', w.id, { url: w.url }));
+  });
 }
 
 /** Queues a `webhook.test` delivery so the admin can check the receiver and its signature check. */

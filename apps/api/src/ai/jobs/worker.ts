@@ -1,3 +1,4 @@
+import { asPlatform } from '../../platform/tenancy.js';
 import { AiError, AiRateLimitedError } from '../providers/errors.js';
 import { draftHandler } from './handlers/draft.js';
 import { triageHandler } from './handlers/triage.js';
@@ -65,12 +66,14 @@ export function createWorker(deps: JobDeps, opts: WorkerOptions): Worker {
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
   let running = false;
   let loop: Promise<void> | null = null;
-  const runOnce = async () => {
-    const job = await claimNextJob(deps.db, deps.clock.now(), leaseMs);
-    if (!job) return false;
-    await processJob(job, deps);
-    return true;
-  };
+  // Jobs of every workspace: the platform (owner) path (S.8).
+  const runOnce = () =>
+    asPlatform(async () => {
+      const job = await claimNextJob(deps.db, deps.clock.now(), leaseMs);
+      if (!job) return false;
+      await processJob(job, deps);
+      return true;
+    });
   const tick = async () => {
     while (running) {
       const worked = await runOnce().catch((err: unknown) => {

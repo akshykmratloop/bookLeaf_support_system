@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { asPlatform } from '../../platform/tenancy.js';
 import type { Session } from '../auth/session.js';
 
 /**
@@ -99,17 +100,22 @@ export async function revokeApiKey(
   });
 }
 
-/** The workspace and scopes a presented key grants, or null (unknown, revoked, malformed). */
-export async function verifyApiKey(
+/**
+ * The workspace and scopes a presented key grants, or null (unknown, revoked, malformed). The key
+ * itself names the workspace, so this lookup runs on the platform path (S.8).
+ */
+export function verifyApiKey(
   deps: { db: Db; clock: Clock },
   plainKey: string,
 ): Promise<{ workspaceId: string; scopes: string[] } | null> {
-  if (!plainKey.startsWith(`${KEY_PREFIX}_`) || plainKey.length > 200) return null;
-  const key = await deps.db.workspaceApiKey.findUnique({ where: { keyHash: hashKey(plainKey) } });
-  if (!key || key.revokedAt) return null;
-  await deps.db.workspaceApiKey.update({
-    where: { id: key.id },
-    data: { lastUsedAt: deps.clock.now() },
+  if (!plainKey.startsWith(`${KEY_PREFIX}_`) || plainKey.length > 200) return Promise.resolve(null);
+  return asPlatform(async () => {
+    const key = await deps.db.workspaceApiKey.findUnique({ where: { keyHash: hashKey(plainKey) } });
+    if (!key || key.revokedAt) return null;
+    await deps.db.workspaceApiKey.update({
+      where: { id: key.id },
+      data: { lastUsedAt: deps.clock.now() },
+    });
+    return { workspaceId: key.workspaceId, scopes: key.scopes };
   });
-  return { workspaceId: key.workspaceId, scopes: key.scopes };
 }

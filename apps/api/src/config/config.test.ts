@@ -3,7 +3,8 @@ import { loadEnv } from './index.js';
 
 const REQUIRED = {
   APP_ORIGIN: 'http://localhost:5173',
-  DATABASE_URL: 'postgresql://u:p@localhost:5433/db',
+  DATABASE_URL: 'postgresql://app:p@localhost:5433/db',
+  DATABASE_ADMIN_URL: 'postgresql://owner:p@localhost:5433/db',
   JWT_SECRET: 'x'.repeat(32),
   HOST_API_URL: 'http://localhost:3200',
   HOST_API_KEY: 'k'.repeat(24),
@@ -77,5 +78,23 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...REQUIRED, REDIS_KEY_PREFIX: 'bad prefix' })).toThrow(
       /REDIS_KEY_PREFIX/,
     );
+  });
+
+  it('needs both database connections: the app role and the owner (S.8)', () => {
+    const { DATABASE_ADMIN_URL: _admin, ...withoutAdmin } = REQUIRED;
+    expect(() => loadEnv(withoutAdmin)).toThrow(/DATABASE_ADMIN_URL/);
+  });
+
+  it('refuses one user for both connections in production (RLS would be bypassed)', () => {
+    const production = {
+      ...REQUIRED,
+      NODE_ENV: 'production',
+      SECRETS_MASTER_KEY: Buffer.alloc(32, 1).toString('base64'),
+      REDIS_URL: 'redis://redis:6379',
+    };
+    expect(loadEnv(production).DATABASE_ADMIN_URL).toBe(REQUIRED.DATABASE_ADMIN_URL);
+    const same = { ...production, DATABASE_URL: 'postgresql://owner:p@db:5432/db' };
+    expect(() => loadEnv(same)).toThrow(/DATABASE_URL: must use the restricted app role/);
+    expect(loadEnv({ ...same, NODE_ENV: 'development' }).DATABASE_URL).toContain('owner');
   });
 });

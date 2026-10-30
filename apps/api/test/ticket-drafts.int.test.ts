@@ -3,6 +3,7 @@ import type { AssistantSettings, TicketDraft } from '@bookleaf/shared';
 import type { DraftChange } from '../src/modules/ticket-drafts/live.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
 import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
+import { withWorkspace } from '../src/platform/tenancy.js';
 
 let h: Harness;
 let priya: string;
@@ -195,6 +196,8 @@ describe('sending the draft', () => {
 });
 
 describe('assistant confirmation rules', () => {
+  // Called on the service directly, as a request in BookLeaf's workspace would (RLS scope, S.8).
+  const asBookleaf = <T>(fn: () => Promise<T>) => withWorkspace(DEFAULT_WORKSPACE_ID, fn);
   it('the assistant can only send after asking, and any edit cancels the request', async () => {
     const svc = h.container.ticketDrafts;
     const authorId = await authorIdOf(EMAILS.priya);
@@ -207,23 +210,33 @@ describe('assistant confirmation rules', () => {
       email: EMAILS.priya,
     };
     const { draft } = await newDraft();
-    await expect(svc.requestConfirmation(authorId, draft.id)).rejects.toMatchObject({
+    await expect(
+      asBookleaf(() => svc.requestConfirmation(authorId, draft.id)),
+    ).rejects.toMatchObject({
       status: 422,
     });
-    await svc.edit(
-      authorId,
-      draft.id,
-      { subject: SUBJECT_OK, description: DESCRIPTION_OK },
-      'ASSISTANT',
+    await asBookleaf(() =>
+      svc.edit(
+        authorId,
+        draft.id,
+        { subject: SUBJECT_OK, description: DESCRIPTION_OK },
+        'ASSISTANT',
+      ),
     );
-    const early = svc.submit(session, draft.id, { by: 'ASSISTANT', version: null });
+    const early = asBookleaf(() =>
+      svc.submit(session, draft.id, { by: 'ASSISTANT', version: null }),
+    );
     await expect(early).rejects.toMatchObject({ code: 'DRAFT_NOT_CONFIRMED' });
-    const asked = await svc.requestConfirmation(authorId, draft.id);
+    const asked = await asBookleaf(() => svc.requestConfirmation(authorId, draft.id));
     expect(asked.status).toBe('AWAITING_CONFIRMATION');
-    const changed = await svc.edit(authorId, draft.id, { subject: 'A newer subject' }, 'AUTHOR');
+    const changed = await asBookleaf(() =>
+      svc.edit(authorId, draft.id, { subject: 'A newer subject' }, 'AUTHOR'),
+    );
     expect(changed.status).toBe('OPEN');
-    await svc.requestConfirmation(authorId, draft.id);
-    const sent = await svc.submit(session, draft.id, { by: 'ASSISTANT', version: null });
+    await asBookleaf(() => svc.requestConfirmation(authorId, draft.id));
+    const sent = await asBookleaf(() =>
+      svc.submit(session, draft.id, { by: 'ASSISTANT', version: null }),
+    );
     expect(sent.created).toBe(true);
     expect(sent.draft.status).toBe('SUBMITTED');
   });

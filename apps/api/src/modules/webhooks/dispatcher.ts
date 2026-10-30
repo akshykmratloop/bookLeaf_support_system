@@ -5,6 +5,7 @@ import type { Db } from '../../platform/db.js';
 import { assertSafeUrl, type SsrfPolicy } from '../../platform/net/ssrf.js';
 import { aadForWebhook } from './store.js';
 import { signatureHeader } from './signing.js';
+import { asPlatform } from '../../platform/tenancy.js';
 
 /** Sends one HTTP request; the default is fetch. Tests use a real local server. */
 export type Send = (url: string, init: RequestInit) => Promise<{ status: number }>;
@@ -121,11 +122,13 @@ async function deliverOne(deps: DispatcherDeps, id: string): Promise<void> {
 export function createWebhookDispatcher(deps: DispatcherDeps, opts: { pollMs: number }) {
   let running = false;
   let loop: Promise<void> | null = null;
-  const runOnce = async (): Promise<number> => {
-    const ids = await claimDue(deps.db, deps.clock.now());
-    await Promise.all(ids.map((id) => deliverOne(deps, id)));
-    return ids.length;
-  };
+  // Background work for every workspace: the platform (owner) path (S.8).
+  const runOnce = (): Promise<number> =>
+    asPlatform(async () => {
+      const ids = await claimDue(deps.db, deps.clock.now());
+      await Promise.all(ids.map((id) => deliverOne(deps, id)));
+      return ids.length;
+    });
   const tick = async () => {
     while (running) {
       const sent = await runOnce().catch((err: unknown) => {

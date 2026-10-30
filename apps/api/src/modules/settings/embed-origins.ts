@@ -1,5 +1,6 @@
 import type { Db } from '../../platform/db.js';
 import type { WidgetFraming } from '../../platform/http/embed.js';
+import { asPlatform } from '../../platform/tenancy.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 
 /** Origins that may show a workspace's support widget (`/embed/<slug>`) in an iframe. */
@@ -33,10 +34,13 @@ export function createEmbedOrigins(
       const t = now().getTime();
       const hit = cache.get(slug);
       if (hit && t - hit.at < CACHE_MS) return hit.list;
-      const workspace = await db.workspace.findUnique({
-        where: { slug },
-        select: { id: true, settings: { select: { allowedOrigins: true } } },
-      });
+      // A public page, before anyone signs in: the slug lookup spans the platform (S.8).
+      const workspace = await asPlatform(() =>
+        db.workspace.findUnique({
+          where: { slug },
+          select: { id: true, settings: { select: { allowedOrigins: true } } },
+        }),
+      );
       if (!workspace) return null;
       const own = workspace.settings?.allowedOrigins ?? [];
       const list = clean(workspace.id === DEFAULT_WORKSPACE_ID ? [...envOrigins, ...own] : own);

@@ -1,6 +1,7 @@
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
 import { UnauthorizedError } from '../../platform/errors.js';
+import { asPlatform, withWorkspace } from '../../platform/tenancy.js';
 import {
   createSessionTokens,
   sessionExpired,
@@ -17,26 +18,36 @@ import {
  */
 export interface SessionVersions {
   /** The user's current version, or null when the account no longer exists. */
-  current(userId: string): Promise<number | null>;
+  current(user: SessionUser): Promise<number | null>;
   /** Moves the version on, but only if it is still `from` (an ended token cannot end newer ones). */
-  bumpFrom(userId: string, from: number): Promise<void>;
+  bumpFrom(user: SessionUser, from: number): Promise<void>;
 }
 
+/** Who a session is for. */
+export type SessionUser = Pick<Session, 'userId' | 'workspaceId'>;
+
+/**
+ * Row-level security (S.8): the version check runs on every request, before the request has a
+ * workspace scope, so it is one primary-key read on the platform path (a signed token names the
+ * user). Bumping it (logout) is a write and runs inside the user's own workspace.
+ */
 export function sessionVersionsIn(db: Db): SessionVersions {
   return {
-    async current(userId) {
-      const row = await db.user.findUnique({
-        where: { id: userId },
-        select: { sessionVersion: true },
-      });
-      return row?.sessionVersion ?? null;
-    },
-    async bumpFrom(userId, from) {
-      await db.user.updateMany({
-        where: { id: userId, sessionVersion: from },
-        data: { sessionVersion: { increment: 1 } },
-      });
-    },
+    current: ({ userId }) =>
+      asPlatform(async () => {
+        const row = await db.user.findUnique({
+          where: { id: userId },
+          select: { sessionVersion: true },
+        });
+        return row?.sessionVersion ?? null;
+      }),
+    bumpFrom: ({ userId, workspaceId }, from) =>
+      withWorkspace(workspaceId, async () => {
+        await db.user.updateMany({
+          where: { id: userId, sessionVersion: from },
+          data: { sessionVersion: { increment: 1 } },
+        });
+      }),
   };
 }
 
@@ -55,18 +66,18 @@ export function createSessionCodec(tokens: SessionTokens, versions: SessionVersi
   return {
     ttlSeconds: tokens.ttlSeconds,
     async sign(session: Session) {
-      const version = await versions.current(session.userId);
+      const version = await versions.current(session);
       if (version === null) throw new UnauthorizedError('Unknown account');
       return tokens.sign(session, version);
     },
     async verify(token) {
       const { session, version } = await tokens.verify(token);
-      if ((await versions.current(session.userId)) !== version) throw sessionExpired();
+      if ((await versions.current(session)) !== version) throw sessionExpired();
       return session;
     },
     async end(token) {
       const read = await readOrNull(tokens, token);
-      if (read) await versions.bumpFrom(read.session.userId, read.version);
+      if (read) await versions.bumpFrom(read.session, read.version);
     },
   };
 }

@@ -20,6 +20,7 @@
     "db:up": "docker compose up -d db redis",
     "db:migrate": "pnpm --filter @bookleaf/api db:migrate",
     "db:seed": "pnpm --filter @bookleaf/api db:seed",
+    "db:roles": "pnpm --filter @bookleaf/api db:roles",
     "eval": "pnpm --filter @bookleaf/api eval",
     "host:start": "pnpm --filter @bookleaf/host-demo start",
     "host:build": "pnpm --filter @bookleaf/host-web build"

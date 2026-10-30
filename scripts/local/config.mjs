@@ -1,8 +1,11 @@
 // What `npm run local` starts on this branch, and what it prints when ready.
 // Values come from .env at run time, so changing a port or password there is enough.
 
-/** Root package.json scripts run in order before the apps start. */
-export const SETUP_SCRIPTS = ['db:migrate', 'db:seed'];
+/**
+ * Root package.json scripts run in order before the apps start: migrations as the owner, then
+ * the restricted app role the API serves requests with (row-level security, S.8), then the seed.
+ */
+export const SETUP_SCRIPTS = ['db:migrate', 'db:roles', 'db:seed'];
 
 /** Root package.json script that starts every app in watch mode. */
 export const START_SCRIPT = 'dev';

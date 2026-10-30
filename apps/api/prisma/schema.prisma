@@ -5,9 +5,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// The CLI (migrations) connects as the owner. At runtime the API passes both URLs explicitly:
+// DATABASE_URL (restricted app role, under row-level security) and DATABASE_ADMIN_URL (S.8).
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_ADMIN_URL")
 }
 
 enum Role {
