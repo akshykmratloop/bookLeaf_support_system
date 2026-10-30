@@ -2,7 +2,6 @@ import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/atoms/Card';
 import { ConversationRow } from '../../components/molecules/ConversationRow';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
-import { errorMessage } from '../../lib/api';
 import { useConversations } from '../../lib/conversations';
 import { groupByDay } from '../../lib/dayGroups';
 
@@ -20,9 +19,7 @@ export function HistoryPage() {
         </p>
       </div>
       {list.isPending ? <LoadingState label="Loading your conversations…" /> : null}
-      {list.isError ? (
-        <ErrorState message={errorMessage(list.error)} onRetry={() => void list.refetch()} />
-      ) : null}
+      {list.isError ? <ErrorState error={list.error} onRetry={() => void list.refetch()} /> : null}
       {list.data && items.length === 0 ? (
         <Card>
           <EmptyState

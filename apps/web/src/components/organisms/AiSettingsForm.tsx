@@ -38,6 +38,8 @@ function OutageToggle({ checked, onChange }: { checked: boolean; onChange: (v: b
   return (
     <label className="flex items-start gap-3 rounded-control border border-line bg-inset p-3">
       <input
+        id="simulateOutage"
+        name="simulateOutage"
         type="checkbox"
         className="mt-1"
         checked={checked}

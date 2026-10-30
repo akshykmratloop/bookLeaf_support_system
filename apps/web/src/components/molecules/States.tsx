@@ -2,6 +2,7 @@ import { AlertTriangle, Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '../atoms/Button';
 import { Spinner } from '../atoms/Spinner';
+import { errorMessage, isRetryable } from '../../lib/api';
 
 export function EmptyState({
   title,
@@ -24,14 +25,15 @@ export function EmptyState({
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+/** A failed load. "Try again" is offered only when retrying can help (not for 403, 404…). */
+export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   return (
     <div role="alert" className="flex flex-col items-center gap-3 px-6 py-12 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-danger-bg text-danger">
         <AlertTriangle size={20} aria-hidden />
       </span>
-      <p className="text-[14px] text-ink">{message}</p>
-      {onRetry ? (
+      <p className="text-[14px] text-ink">{errorMessage(error)}</p>
+      {onRetry && isRetryable(error) ? (
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Try again
         </Button>

@@ -36,6 +36,8 @@ function StatusRow({ ticket, isSaving, onPatch }: RowProps) {
   return (
     <PropertyRow label="Status">
       <Select
+        id="ticket-status"
+        name="status"
         aria-label="Status"
         value={ticket.status}
         disabled={isSaving}
@@ -58,6 +60,8 @@ function CategoryRow({ ticket, isSaving, onPatch }: RowProps) {
       hint={ticket.categorySource ? SOURCE[ticket.categorySource] : 'Waiting for AI'}
     >
       <Select
+        id="ticket-category"
+        name="category"
         aria-label="Category"
         value={ticket.category ?? ''}
         disabled={isSaving}
@@ -80,6 +84,8 @@ function PriorityRow({ ticket, isSaving, onPatch }: RowProps) {
   return (
     <PropertyRow label="Priority" hint={SOURCE[ticket.prioritySource]}>
       <Select
+        id="ticket-priority"
+        name="priority"
         aria-label="Priority"
         value={ticket.priority}
         disabled={isSaving}

@@ -44,7 +44,7 @@ export function NewTicketPage() {
       <Card className="max-w-[760px] p-6">
         {books.isPending ? <LoadingState /> : null}
         {books.isError ? (
-          <ErrorState message={errorMessage(books.error)} onRetry={() => void books.refetch()} />
+          <ErrorState error={books.error} onRetry={() => void books.refetch()} />
         ) : null}
         {books.data ? (
           <TicketForm

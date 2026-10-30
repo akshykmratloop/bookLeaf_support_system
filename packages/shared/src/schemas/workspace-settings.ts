@@ -7,20 +7,16 @@ import { cleanText } from '../sanitize.js';
  * Null model = the platform default for the active provider.
  */
 const model = z.string().trim().min(1).max(80).nullable();
-/** Keeps the scheme and host only (no path), without needing the DOM URL type here. */
-/** A web page's origin (scheme, host, port): anything else is refused, not trimmed. */
+const ORIGIN_HINT = 'Use a page origin, like https://app.example.com';
+/**
+ * A web page's origin (scheme, host, port): anything else is refused. A path is trimmed off,
+ * keeping the scheme and host only, without needing the DOM URL type here.
+ */
 const origin = z
-  .url({ protocol: /^https?$/ })
+  .url({ protocol: /^https?$/, error: ORIGIN_HINT })
   .max(2048)
   .transform((u) => u.replace(/^(https?:\/\/[^/?#]+).*$/i, '$1').toLowerCase())
-  .pipe(
-    z
-      .string()
-      .regex(
-        /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/,
-        'Use a page origin, like https://app.example.com',
-      ),
-  );
+  .pipe(z.string().regex(/^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/, ORIGIN_HINT));
 
 export const WorkspaceSettingsSchema = z.object({
   triageModel: z.string().nullable(),

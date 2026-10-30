@@ -9,7 +9,6 @@ import { ChatPanel, type CallInChat } from '../../components/organisms/ChatPanel
 import { DraftSheet } from '../../components/organisms/DraftSheet';
 import { TicketDraftPanel } from '../../components/organisms/TicketDraftPanel';
 import { VoiceCallPanel } from '../../components/organisms/VoiceCallPanel';
-import { errorMessage } from '../../lib/api';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { authorPaths } from '../../lib/paths';
 import { useCallInChat } from '../../lib/useCallInChat';
@@ -193,11 +192,6 @@ export function AssistantPage() {
   if (availability.isPending) return <LoadingState />;
   // A failed background refresh keeps the last answer, so a live call is never unmounted by it.
   if (!availability.data)
-    return (
-      <ErrorState
-        message={errorMessage(availability.error)}
-        onRetry={() => void availability.refetch()}
-      />
-    );
+    return <ErrorState error={availability.error} onRetry={() => void availability.refetch()} />;
   return <Assistant availability={availability.data} call={call} />;
 }

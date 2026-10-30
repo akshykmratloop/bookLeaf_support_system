@@ -129,9 +129,7 @@ export function ApiKeysPage() {
         actions={<KeyRound size={18} aria-hidden className="text-ink-3" />}
       />
       {keys.isPending ? <LoadingState /> : null}
-      {keys.isError ? (
-        <ErrorState message={errorMessage(keys.error)} onRetry={() => void keys.refetch()} />
-      ) : null}
+      {keys.isError ? <ErrorState error={keys.error} onRetry={() => void keys.refetch()} /> : null}
       {keys.data ? <Keys keys={keys.data} /> : null}
     </>
   );

@@ -38,9 +38,10 @@ export function TicketReplyBox({ ticketId, closed }: { ticketId: string; closed:
       <label htmlFor="followup" className="px-1 text-[12.5px] font-semibold text-ink-2">
         {closed ? 'Need more help? Replying opens this ticket again.' : 'Reply to the team'}
       </label>
-      <div className="flex items-end gap-2 rounded-[22px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand/60 focus-within:ring-4 focus-within:ring-brand/15">
+      <div className="flex items-end gap-2 rounded-[22px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/60">
         <textarea
           id="followup"
+          name="body"
           rows={2}
           value={body}
           maxLength={MESSAGE_LIMITS.max}

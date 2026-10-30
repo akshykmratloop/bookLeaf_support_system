@@ -137,7 +137,7 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
             />
             {LIVE_TEXT[live]}
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={toggleTheme}
@@ -149,7 +149,7 @@ export function AppShell({ user, live, onSignOut, children }: Props) {
             <button
               type="button"
               onClick={onSignOut}
-              className="flex h-9 items-center gap-2 rounded-control px-3 text-[12.5px] text-ink-2 hover:bg-panel-2"
+              className="flex h-9 shrink-0 items-center gap-2 rounded-control px-3 text-[12.5px] whitespace-nowrap text-ink-2 hover:bg-panel-2"
             >
               <LogOut size={15} aria-hidden /> Sign out
             </button>

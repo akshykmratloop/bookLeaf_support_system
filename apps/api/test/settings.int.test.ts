@@ -135,6 +135,18 @@ describe('workspace settings', () => {
     ).toBe(422);
   });
 
+  it('names the bad widget origin entry in a readable field error (422)', async () => {
+    const res = await call(h, 'PUT', '/workspace/settings', acme, {
+      version: 1,
+      allowedOrigins: ['https://ok.example', 'javascript:alert(1)'],
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json<{ errors: { path: string; message: string }[] }>().errors).toContainEqual({
+      path: 'allowedOrigins.1',
+      message: 'Use a page origin, like https://app.example.com',
+    });
+  });
+
   it("runs chat and voice on the workspace's own switches and limits, not another's", async () => {
     const acmeId = (await h.db.workspace.findUniqueOrThrow({ where: { slug: OWNER.slug } })).id;
     const before = await h.container.assistant.config(DEFAULT_WORKSPACE_ID);

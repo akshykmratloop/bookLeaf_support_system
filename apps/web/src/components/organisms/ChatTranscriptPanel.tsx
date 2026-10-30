@@ -1,6 +1,5 @@
 import { MessagesSquare } from 'lucide-react';
 import { useState } from 'react';
-import { errorMessage } from '../../lib/api';
 import { useChatTranscript } from '../../lib/assistant';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
@@ -27,9 +26,7 @@ export function ChatTranscriptPanel({ sessionId }: { sessionId: string }) {
         </Button>
       </div>
       {isOpen && transcript.isPending ? <LoadingState label="Loading conversation…" /> : null}
-      {isOpen && transcript.isError ? (
-        <ErrorState message={errorMessage(transcript.error)} />
-      ) : null}
+      {isOpen && transcript.isError ? <ErrorState error={transcript.error} /> : null}
       {isOpen && transcript.data ? (
         <ol className="mt-4 flex flex-col gap-3">
           {transcript.data.messages.map((m) => (

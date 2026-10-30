@@ -162,10 +162,7 @@ export function ConnectorPage() {
       />
       {connector.isPending ? <LoadingState /> : null}
       {connector.isError ? (
-        <ErrorState
-          message={errorMessage(connector.error)}
-          onRetry={() => void connector.refetch()}
-        />
+        <ErrorState error={connector.error} onRetry={() => void connector.refetch()} />
       ) : null}
       {connector.data ? (
         <div className="grid max-w-[880px] gap-4">

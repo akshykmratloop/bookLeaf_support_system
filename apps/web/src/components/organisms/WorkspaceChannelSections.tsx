@@ -1,4 +1,4 @@
-import { Input } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
 import { Field } from '../molecules/Field';
 import { VoiceNameField } from '../molecules/VoiceNameField';
 import { NumberField, Section, Toggle, type SectionProps } from './WorkspaceSettingsSections';
@@ -118,6 +118,7 @@ export function VoiceSection({ status, isSaving, update, fieldError }: SectionPr
 
 export function WidgetSection({ status, isSaving, update, fieldError }: SectionProps) {
   const s = status.settings;
+  const originsError = fieldError('allowedOrigins');
   const commit = (key: 'brandName' | 'customerNoun' | 'itemNoun') => (value: string) => {
     if (value !== s[key]) update({ [key]: value });
   };
@@ -130,12 +131,14 @@ export function WidgetSection({ status, isSaving, update, fieldError }: SectionP
         id="allowedOrigins"
         label="Pages allowed to embed the widget"
         hint="One origin per line, e.g. https://app.example.com"
-        error={fieldError('allowedOrigins')}
+        error={originsError}
       >
-        <textarea
+        <Textarea
           id="allowedOrigins"
+          name="allowedOrigins"
           rows={3}
-          className="w-full rounded-[9px] border border-line bg-inset px-3 py-2 text-[13.5px]"
+          aria-invalid={originsError ? true : undefined}
+          aria-describedby={originsError ? 'allowedOrigins-error' : 'allowedOrigins-hint'}
           defaultValue={s.allowedOrigins.join('\n')}
           disabled={isSaving}
           onBlur={(e) => {

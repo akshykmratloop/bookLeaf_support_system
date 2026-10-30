@@ -150,7 +150,7 @@ export function AssistantSettingsPage() {
       />
       {status.isPending ? <LoadingState /> : null}
       {status.isError ? (
-        <ErrorState message={errorMessage(status.error)} onRetry={() => void status.refetch()} />
+        <ErrorState error={status.error} onRetry={() => void status.refetch()} />
       ) : null}
       {status.data ? <Settings status={status.data} reload={() => void status.refetch()} /> : null}
     </>

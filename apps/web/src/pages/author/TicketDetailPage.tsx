@@ -9,7 +9,6 @@ import { SolveTicketCard } from '../../components/organisms/SolveTicketCard';
 import { TicketConversation } from '../../components/organisms/TicketConversation';
 import { TicketInfoCard } from '../../components/organisms/TicketInfoCard';
 import { TicketReplyBox } from '../../components/organisms/TicketReplyBox';
-import { errorMessage } from '../../lib/api';
 import { categoryStyle } from '../../lib/categoryStyle';
 import { authorPaths } from '../../lib/paths';
 import { useAuthorTicket } from '../../lib/queries';
@@ -20,9 +19,7 @@ export function TicketDetailPage() {
   const ticket = useAuthorTicket(id);
   if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
   if (ticket.isError)
-    return (
-      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
-    );
+    return <ErrorState error={ticket.error} onRetry={() => void ticket.refetch()} />;
   const t = ticket.data;
   const status = requesterStatus(t);
   const cat = categoryStyle(t.category);

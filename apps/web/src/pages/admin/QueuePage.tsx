@@ -4,7 +4,6 @@ import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { QueueFilters } from '../../components/organisms/QueueFilters';
 import { QueueTable } from '../../components/organisms/QueueTable';
-import { errorMessage } from '../../lib/api';
 import { sla } from '../../lib/format';
 import { EMPTY_FILTERS, type QueueFilterValues } from '../../lib/queueFilters';
 import { useAdminTickets } from '../../lib/queries';
@@ -50,10 +49,7 @@ export function QueuePage() {
       <Card>
         {tickets.isPending ? <LoadingState label="Loading tickets…" /> : null}
         {tickets.isError ? (
-          <ErrorState
-            message={errorMessage(tickets.error)}
-            onRetry={() => void tickets.refetch()}
-          />
+          <ErrorState error={tickets.error} onRetry={() => void tickets.refetch()} />
         ) : null}
         {tickets.data && items.length === 0 ? (
           <EmptyState

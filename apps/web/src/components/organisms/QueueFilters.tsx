@@ -33,6 +33,7 @@ export function QueueFilters({
       />
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
         <Input
+          name="q"
           aria-label="Search subject or ticket number"
           placeholder="Search subject or BL-1001"
           value={value.q}
@@ -40,6 +41,7 @@ export function QueueFilters({
           className="col-span-2"
         />
         <Select
+          name="category"
           aria-label="Category"
           value={value.category}
           onChange={(e) => set('category')(e.target.value)}
@@ -52,6 +54,7 @@ export function QueueFilters({
           ))}
         </Select>
         <Select
+          name="priority"
           aria-label="Priority"
           value={value.priority}
           onChange={(e) => set('priority')(e.target.value)}
@@ -64,6 +67,7 @@ export function QueueFilters({
           ))}
         </Select>
         <Select
+          name="assignee"
           aria-label="Assignee"
           value={value.assignee}
           onChange={(e) => set('assignee')(e.target.value)}
@@ -75,12 +79,14 @@ export function QueueFilters({
         <div className="col-span-2 grid min-w-0 grid-cols-2 gap-1">
           <Input
             type="date"
+            name="from"
             aria-label="Created from"
             value={value.from}
             onChange={(e) => set('from')(e.target.value)}
           />
           <Input
             type="date"
+            name="to"
             aria-label="Created to"
             value={value.to}
             onChange={(e) => set('to')(e.target.value)}

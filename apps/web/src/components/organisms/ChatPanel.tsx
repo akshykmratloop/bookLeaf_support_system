@@ -87,8 +87,6 @@ export function ChatPanel({ maxChars, onRestarted, call }: Props) {
   useInitialQuestion(current.isSuccess, chat.queue);
   if (current.isPending) return <LoadingState label="Opening chat…" />;
   if (current.isError)
-    return (
-      <ErrorState message={errorMessage(current.error)} onRetry={() => void current.refetch()} />
-    );
+    return <ErrorState error={current.error} onRetry={() => void current.refetch()} />;
   return <Conversation chat={chat} maxChars={maxChars} call={call} />;
 }

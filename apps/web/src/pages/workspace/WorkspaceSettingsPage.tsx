@@ -54,7 +54,7 @@ export function WorkspaceSettingsPage() {
       />
       {status.isPending ? <LoadingState /> : null}
       {status.isError ? (
-        <ErrorState message={errorMessage(status.error)} onRetry={() => void status.refetch()} />
+        <ErrorState error={status.error} onRetry={() => void status.refetch()} />
       ) : null}
       {status.data ? (
         <Sections

@@ -140,7 +140,7 @@ export function FieldsPage() {
       />
       {fields.isPending ? <LoadingState /> : null}
       {fields.isError ? (
-        <ErrorState message={errorMessage(fields.error)} onRetry={() => void fields.refetch()} />
+        <ErrorState error={fields.error} onRetry={() => void fields.refetch()} />
       ) : null}
       {fields.data ? <FieldsEditor fields={fields.data} /> : null}
     </>

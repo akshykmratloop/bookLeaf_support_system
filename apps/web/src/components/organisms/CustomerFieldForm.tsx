@@ -136,6 +136,8 @@ export function CustomerFieldForm({ initial, isSaving, fieldError, onSubmit, onC
       ) : null}
       <label className="flex items-center gap-2 text-[12.5px] font-semibold">
         <input
+          id="field-visible"
+          name="visibleToCustomer"
           type="checkbox"
           className="h-4 w-4"
           checked={d.visibleToCustomer}

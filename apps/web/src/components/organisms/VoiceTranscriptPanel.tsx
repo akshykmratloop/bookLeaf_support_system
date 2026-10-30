@@ -1,7 +1,6 @@
 import type { AdminVoiceCall } from '@bookleaf/shared';
 import { Phone } from 'lucide-react';
 import { useState } from 'react';
-import { errorMessage } from '../../lib/api';
 import { useAdminVoiceCall } from '../../lib/assistant';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
@@ -28,7 +27,7 @@ function SpokenIssues({ issues }: { issues: readonly SpokenIssue[] }) {
 function CallBody({ callId }: { callId: string }) {
   const call = useAdminVoiceCall(callId);
   if (call.isPending) return <LoadingState label="Loading call…" />;
-  if (call.isError) return <ErrorState message={errorMessage(call.error)} />;
+  if (call.isError) return <ErrorState error={call.error} />;
   return (
     <>
       <SpokenIssues issues={call.data.spokenCheck?.issues ?? []} />

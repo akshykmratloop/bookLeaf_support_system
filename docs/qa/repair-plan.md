@@ -40,6 +40,6 @@ Rule followed for every fix: write a test that fails for the right reason first,
 | F-13 | P2 | Ticket numbers (BL-1001…) are one global sequence, so a tenant can infer how many tickets other tenants have | Per-workspace numbering needs an expand-and-contract migration (new column, backfill, switch reads, drop old). Not safe to rush. |
 | F-18 | P3 | `/embed` frame-ancestors is the union of every tenant's allowed origins | Per-workspace embed path (`/embed/<slug>`) so the CSP can be per tenant. Practical risk is low: the page needs a valid host token for that workspace. |
 | F-19 | P3 | In-memory, single-process state (host-token replay cache, rate limits, event bus, config cache) | Documented in `docs/architecture.md`; move to Postgres/Redis before running more than one instance. |
-| D2 | P3 | Invalid widget origin shows only a generic toast | Field-level error message in the settings form. |
-| D5–D8 | P3 | Small UI polish items from the browser run | See `docs/qa/browser-journeys.md`. |
+| D2 | P3 | Invalid widget origin shows only a generic toast | **Fixed (2026-10-30):** field-level error under the origins box. See `docs/qa/browser-journeys.md`. |
+| D5–D8 | P3 | Small UI polish items from the browser run | **Fixed (2026-10-30):** one-line Sign out, field ids/names and a visible widget focus ring, no retry on a forbidden page, no stale draft banner after sending. See `docs/qa/browser-journeys.md`. |
 | Audit | — | `pnpm audit --prod`: 1 high (`deepmerge-ts` via prisma); dev-only: 2 critical (`tinypool` via vitest) | **Production advisory fixed (2026-10-30):** pnpm override pins `deepmerge-ts` `>=8.0.0`; `pnpm audit --prod` is clean. Dev-only advisories do not ship. |

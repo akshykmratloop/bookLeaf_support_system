@@ -3,7 +3,6 @@ import { Pill } from '../../components/atoms/Pill';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { AiSettingsForm } from '../../components/organisms/AiSettingsForm';
-import { errorMessage } from '../../lib/api';
 import { useAiStatus } from '../../lib/queries';
 
 export function AiSettingsPage() {
@@ -23,7 +22,7 @@ export function AiSettingsPage() {
       </p>
       {status.isPending ? <LoadingState /> : null}
       {status.isError ? (
-        <ErrorState message={errorMessage(status.error)} onRetry={() => void status.refetch()} />
+        <ErrorState error={status.error} onRetry={() => void status.refetch()} />
       ) : null}
       {/* Re-mount the form when saved settings change, so it never shows stale values. */}
       {status.data ? (

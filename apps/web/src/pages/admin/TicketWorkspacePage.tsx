@@ -15,6 +15,7 @@ import { TicketProperties } from '../../components/organisms/TicketProperties';
 import { api, errorMessage } from '../../lib/api';
 import { dateTime, sla } from '../../lib/format';
 import { keys, useAdminTicket, useApiMutation, useDraft } from '../../lib/queries';
+import { isDraftAnswered } from '../../lib/replyDraft';
 
 type Patch = Omit<UpdateTicketRequest, 'version'>;
 
@@ -85,6 +86,8 @@ function Workspace({ t, draft }: { t: AdminTicket; draft: ReturnType<typeof useD
       { onSuccess: () => toast('success', 'Ticket updated'), onError },
     );
   const current = draft.data?.draft ?? null;
+  // Once a reply went out after this draft, the draft is used: stop offering it for review.
+  const answered = isDraftAnswered(current, t.messages);
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex min-w-0 flex-col gap-4">
@@ -94,7 +97,8 @@ function Workspace({ t, draft }: { t: AdminTicket; draft: ReturnType<typeof useD
         </Card>
         <ReplyComposer
           ticketId={t.id}
-          draft={current}
+          draft={answered ? null : current}
+          replied={answered}
           isDraftPending={draft.data?.pending ?? draft.isPending}
           onRegenerate={() => regenerate.mutate(undefined, { onError })}
           isRegenerating={regenerate.isPending}
@@ -122,9 +126,7 @@ export function TicketWorkspacePage() {
   const draft = useDraft(id);
   if (ticket.isPending) return <LoadingState label="Loading ticket…" />;
   if (ticket.isError)
-    return (
-      <ErrorState message={errorMessage(ticket.error)} onRetry={() => void ticket.refetch()} />
-    );
+    return <ErrorState error={ticket.error} onRetry={() => void ticket.refetch()} />;
   return (
     <>
       <Header t={ticket.data} />

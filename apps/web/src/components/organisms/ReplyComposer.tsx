@@ -12,6 +12,8 @@ import { useReplyComposer, type Mode } from './useReplyComposer';
 interface Props {
   ticketId: string;
   draft: Draft | null;
+  /** A reply was already sent after the latest draft, so that draft is no longer offered. */
+  replied: boolean;
   isDraftPending: boolean;
   onRegenerate: () => void;
   isRegenerating: boolean;
@@ -22,12 +24,20 @@ const MODES = [
   { value: 'INTERNAL_NOTE', label: 'Internal note' },
 ];
 
-function DraftHeader({ draft, pending }: { draft: Draft | null; pending: boolean }) {
+interface HeaderProps {
+  draft: Draft | null;
+  pending: boolean;
+  replied: boolean;
+}
+
+function DraftHeader({ draft, pending, replied }: HeaderProps) {
   if (pending && !draft) return <Spinner size={14} label="AI is writing a draft…" />;
   if (!draft)
     return (
       <span className="text-[12.5px] text-ink-3">
-        No draft yet. You can write the reply yourself.
+        {replied
+          ? 'Reply sent. Write a follow-up or ask for a new draft.'
+          : 'No draft yet. You can write the reply yourself.'}
       </span>
     );
   return (
@@ -65,6 +75,8 @@ function CheckNotes({ c }: { c: Composer }) {
         <label className="flex flex-col gap-1 text-[12.5px] text-ink-2">
           Reason for sending unverified figures (saved in the audit log)
           <Input
+            id="override-reason"
+            name="overrideReason"
             value={c.overrideReason}
             onChange={(e) => c.setOverrideReason(e.target.value)}
             placeholder="e.g. Finance confirmed the amount by email"
@@ -108,6 +120,7 @@ function SendButtons({ c }: { c: Composer }) {
 export function ReplyComposer({
   ticketId,
   draft,
+  replied,
   isDraftPending,
   onRegenerate,
   isRegenerating,
@@ -123,9 +136,11 @@ export function ReplyComposer({
           value={c.mode}
           onChange={(v) => c.setMode(v as Mode)}
         />
-        <DraftHeader draft={draft} pending={isDraftPending} />
+        <DraftHeader draft={draft} pending={isDraftPending} replied={replied} />
       </div>
       <Textarea
+        id="reply-body"
+        name="body"
         aria-label={isNote ? 'Internal note (not visible to the author)' : 'Reply to the author'}
         rows={12}
         value={c.text}

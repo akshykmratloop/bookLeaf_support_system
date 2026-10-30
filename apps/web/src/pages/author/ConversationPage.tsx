@@ -6,7 +6,6 @@ import { DraftSummary } from '../../components/molecules/DraftSummary';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { TranscriptList } from '../../components/molecules/TranscriptList';
-import { errorMessage } from '../../lib/api';
 import { kindOf, useConversation } from '../../lib/conversations';
 import { shouldShowTicket } from '../../lib/ticketVisibility';
 import { dateTime } from '../../lib/format';
@@ -39,7 +38,7 @@ function Conversation({ kind, id }: { kind: ConversationKind; id: string }) {
     <>
       <PageHeader title={title} subtitle={subtitle} actions={backLink} />
       {query.isPending ? <LoadingState label="Loading the conversation…" /> : null}
-      {query.isError ? <ErrorState message={errorMessage(query.error)} /> : null}
+      {query.isError ? <ErrorState error={query.error} /> : null}
       {query.data ? <Body conversation={query.data} /> : null}
     </>
   );

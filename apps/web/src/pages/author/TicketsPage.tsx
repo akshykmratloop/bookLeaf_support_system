@@ -7,7 +7,6 @@ import { Tabs } from '../../components/atoms/Tabs';
 import { EmptyState, ErrorState } from '../../components/molecules/States';
 import { TicketCard } from '../../components/molecules/TicketCard';
 import { TicketCardFixture } from '../../components/molecules/TicketCardFixture';
-import { errorMessage } from '../../lib/api';
 import { authorPaths } from '../../lib/paths';
 import { useAuthorTickets } from '../../lib/queries';
 import {
@@ -34,6 +33,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
       <span className="sr-only">Search your tickets</span>
       <input
         type="search"
+        name="q"
         value={value}
         maxLength={100}
         onChange={(e) => onChange(e.target.value)}
@@ -79,7 +79,7 @@ export function TicketsPage() {
         <SearchBox value={search} onChange={setSearch} />
       </div>
       {tickets.isError ? (
-        <ErrorState message={errorMessage(tickets.error)} onRetry={() => void tickets.refetch()} />
+        <ErrorState error={tickets.error} onRetry={() => void tickets.refetch()} />
       ) : (
         <Skeleton name="ticket-list" loading={tickets.isPending} fixture={<TicketCardFixture />}>
           {shown.length === 0 ? (

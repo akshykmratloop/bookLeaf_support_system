@@ -10,8 +10,12 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 
+  /** The message for a field. An error on a list entry (`origins.1`) names the entry. */
   fieldError(path: string): string | undefined {
-    return this.problem.errors?.find((e) => e.path === path)?.message;
+    const hit = this.problem.errors?.find((e) => e.path === path || e.path.startsWith(`${path}.`));
+    if (!hit) return undefined;
+    const index = /^\.(\d+)/.exec(hit.path.slice(path.length))?.[1];
+    return index === undefined ? hit.message : `Entry ${Number(index) + 1}: ${hit.message}`;
   }
 }
 
@@ -78,4 +82,13 @@ export const isApiError = (e: unknown): e is ApiError => e instanceof ApiError;
 export function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.problem.title;
   return 'Something went wrong. Please try again.';
+}
+
+/** Statuses where asking again later can succeed: no connection, timeout, rate limit, server error. */
+const RETRYABLE_STATUS = (status: number) =>
+  status === 0 || status === 408 || status === 429 || status >= 500;
+
+/** False when trying again cannot help (forbidden, not found, signed out, invalid request). */
+export function isRetryable(e: unknown): boolean {
+  return isApiError(e) ? RETRYABLE_STATUS(e.status) : true;
 }
