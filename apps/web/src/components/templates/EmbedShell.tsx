@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { isFramed, requestReauth, tellHost } from '../../lib/frame';
 import { useSignInOptions } from '../../lib/hostSignIn';
+import { useAssistantAvailability } from '../../lib/assistant';
 import { useLiveUpdates } from '../../lib/live-updates';
 import { useWorkspaceBrand } from '../../lib/useWorkspaceBrand';
 import { useAuthorTickets } from '../../lib/queries';
@@ -13,11 +14,24 @@ import { SignedOutNote } from '../molecules/SignedOutNote';
 import { EmbedNav } from './EmbedNav';
 
 /** Full page (opened from the host, not in the widget): a way back, never a sign-out. */
-function PageHeader({ user, brandName }: { user: AuthUser; brandName: string }) {
+function PageHeader({
+  user,
+  brandName,
+  logoUrl,
+}: {
+  user: AuthUser;
+  brandName: string;
+  logoUrl: string | null;
+}) {
   const back = useSignInOptions().data?.hostSignInUrl ?? null;
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-panel px-4 lg:px-8">
-      <img src="/favicon.svg" alt="" className="h-8 w-8" />
+      <img
+        src={logoUrl ?? '/favicon.svg'}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="h-8 w-8 rounded-[6px] object-contain"
+      />
       <p className="flex-1 text-[16px] font-bold">{brandName} Help</p>
       {back ? (
         <a
@@ -57,11 +71,12 @@ export function EmbedShell({ user }: { user: AuthUser }) {
   useLiveUpdates(onExpired);
   useEscapeToHost();
   const brandName = useWorkspaceBrand();
+  const logoUrl = useAssistantAvailability().data?.brand.logoUrl ?? null;
   const awaiting = (useAuthorTickets().data?.items ?? []).filter((t) => t.awaitingYou).length;
   if (expired) return <SignedOutNote />;
   return (
     <div className="flex h-full flex-col overflow-hidden bg-app">
-      {framed ? null : <PageHeader user={user} brandName={brandName} />}
+      {framed ? null : <PageHeader user={user} brandName={brandName} logoUrl={logoUrl} />}
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-[232px] shrink-0 flex-col gap-4 border-r border-line bg-panel p-4 lg:flex">
           <EmbedNav awaiting={awaiting} rail />

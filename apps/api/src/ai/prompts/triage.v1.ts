@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PRIORITIES } from '@bookleaf/shared';
 import type { WorkspaceKnowledge } from '../knowledge/knowledge.js';
+import { behaviourBlock } from './behaviour.js';
 import { genericTriageSystem } from './triage-generic.js';
 
 export const TRIAGE_PROMPT_VERSION = 'triage.v1';
@@ -54,9 +55,11 @@ OUTPUT FIELDS:
 
 /** Same for every ticket of a workspace, so the provider can cache it. */
 export function triageSystem(k: WorkspaceKnowledge): string {
-  if (!k.publishingPack) return genericTriageSystem(k);
+  // The customer's language and topics to avoid (U-7); nothing chosen adds nothing.
+  const settings = behaviourBlock(k.behaviour, 'triage');
+  if (!k.publishingPack) return genericTriageSystem(k) + settings;
   const lines = k.categories.map((c) => `- ${c.key}: ${c.description}`).join('\n');
-  return `${BOOKLEAF_HEAD}CATEGORIES (choose exactly one):\n${lines}\n${BOOKLEAF_TAIL}`;
+  return `${BOOKLEAF_HEAD}CATEGORIES (choose exactly one):\n${lines}\n${BOOKLEAF_TAIL}${settings}`;
 }
 
 export interface TriagePromptInput {

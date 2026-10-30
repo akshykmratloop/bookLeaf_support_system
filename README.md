@@ -158,8 +158,10 @@ stored in the repo. The ones you will most likely change:
 | `HOST_ORIGINS` | empty | Page origins allowed to frame the default workspace's (BookLeaf's) widget, `/embed/bookleaf`. Empty turns embed mode off |
 | `EMBED_ENABLED` | `false` | Embed mode for the origins each workspace saves in its settings screen, without `HOST_ORIGINS` |
 | `SEED_ADMIN_PASSWORD` · `HOST_DEMO_PASSWORD` | demo values below | Demo passwords for staff and for the host demo's authors |
+| `PLATFORM_ADMIN_EMAIL` · `PLATFORM_ADMIN_PASSWORD` | `owner@support.local` · `Platform@Owner1` (local) | The super admin account for the `/platform` console, created or updated by the seed. Set both or neither. Password: 12+ characters with a letter and a digit |
 
-`ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are optional:
+`ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are optional, and a key saved in the `/platform` console
+replaces the env key:
 
 - Without the Anthropic key, tickets use the rule-based fallback, and chat offers a ticket instead
   of answering.
@@ -178,6 +180,7 @@ These are documented demo values for local use only. Change them for any real de
 | Kavita Deshmukh (author) | BookLeaf dashboard | `kavita.deshmukh@email.com` | same |
 | Neha Verma (support staff, admin) | support app, http://localhost:5173/login (`npm run local`) or :3300/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
 | Karan Mehta (support staff) | support app | `ops2@bookleaf.demo` | same |
+| Super admin (support provider) | support app, http://localhost:5173/platform/login | `PLATFORM_ADMIN_EMAIL` (`owner@support.local`) | `PLATFORM_ADMIN_PASSWORD` (`Platform@Owner1`) |
 
 Authors sign in to the **BookLeaf dashboard**, not to the support app. Every author in
 `apps/host-demo/src/data/sample-data.json` can sign in.
@@ -219,8 +222,23 @@ English. Calls last at most `VOICE_MAX_CALL_SECONDS` (300).
 | URL | What it is |
 | --- | --- |
 | `/admin` | Ticket queue (open a ticket to review and send the reply) |
-| `/admin/ai` | AI settings, including the outage switch |
-| `/admin/assistant` | Switch chat and voice on or off for authors |
+| `/admin/assistant` | Switch chat and voice on or off for authors (when the plan allows) |
+| `/admin/workspace/settings` | How the AI writes (tone, greeting, signature, language, length, formality, topics to avoid), chat and voice limits, widget and branding |
+
+AI providers, models and keys are no longer set here: `/admin/ai` now says "Managed by your
+support provider" and the old endpoints answer 403.
+
+**The super admin console** (the support provider, not a customer) is `/platform`, with its own
+sign-in at `/platform/login`, its own account and cookie, and its own look:
+
+| URL | What it is |
+| --- | --- |
+| `/platform` | Every customer: status, plan and usage counts (tickets, chats, calls, AI runs and estimated AI cost). Create a customer. No ticket content is ever shown |
+| `/platform/customers/:id` | One customer's plan (chat / voice allowed, AI on, maximum limits) and suspend / resume |
+| `/platform/ai` | AI provider and models for triage, drafts, chat and voice; the global outage switch; provider keys (encrypted, env keys as the fallback); Test connection |
+
+A customer session gets 403 on the console's API, and a super admin session gets 403 on the
+customer API.
 
 ## What to try
 
@@ -269,9 +287,11 @@ older local `.env` whose `DATABASE_URL` still uses the owner keeps working, with
 startup: copy the two `DATABASE_*` lines from `.env.example` to turn the protection on.
 
 Each workspace's saved settings drive its own chat and voice: on/off switches, message and call
-limits, conversation length, models, tone notes for reply drafts, and the call voice. A workspace
-can also save its own AI and voice provider keys (encrypted; shown only by their last 4
-characters). With its own key it runs only on that key and never falls back to the platform's.
+limits and conversation length (each up to the maximum in its plan), and the call voice from the
+approved list. Its AI behaviour settings (tone and brand voice, greeting, signature, language,
+reply length, formality, topics to avoid) are used by triage, reply drafts, chat and voice. The
+AI provider, models and keys are the support provider's, set once for everyone in `/platform`;
+no workspace has its own AI key.
 
 ## Checks
 
@@ -312,15 +332,16 @@ OpenAI's realtime speech API, which is a separate provider behind its own interf
    straight from the facts, without an AI call. A call gets the facts in its instructions. Both can
    fill a ticket draft, which the author confirms.
 
-**When AI fails** (down, rate-limited, bad key, or the outage switch in *AI Settings*): tickets are
+**When AI fails** (down, rate-limited, bad key, the outage switch in the `/platform` console, or AI switched off for the customer): tickets are
 still created and classified by keyword rules ("Auto-fallback"), with a template draft filled in by
 code from the same facts. Staff can always write manually or press "Re-run AI".
 
 **Prompt injection:** author text is labelled as untrusted, the prompts say never to follow it, and
 the checker blocks refund promises whatever the model writes.
 
-**Keys** are read from environment variables at startup. They are never stored, logged or sent to
-the browser. An integration test checks that a sentinel key never appears in any response.
+**Keys** are read from environment variables at startup, or saved in the `/platform` console
+(encrypted with `SECRETS_MASTER_KEY`; a saved key wins over the env key). They are never logged or
+sent to the browser; the console shows only the last 4 characters. An integration test checks that a sentinel key never appears in any response.
 
 ## API
 
@@ -338,7 +359,8 @@ Full schemas are in Swagger at `/api/docs`.
 | Voice | `POST /voice/calls` (optionally inside a chat) · `GET /voice/calls/resumable` · `GET /voice/calls/:id` · WebSocket `…/stream` | author |
 | History | `GET /conversations` · `GET /conversations/chats/:id` · `GET /conversations/calls/:id` | author |
 | Live updates | `GET /events` (Server-Sent Events, hints only) | signed in |
-| Settings | `/admin/ai/*` · `/admin/assistant/*` · `GET /assistant/availability` | staff |
+| Settings | `/admin/assistant/*` · `/workspace/settings` · `GET /assistant/availability` | staff |
+| Super admin console | `/platform/auth/*` · `/platform/ai/*` · `/platform/customers/*` | super admin only |
 | Health | `GET /health` | public |
 
 Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 missing *or not yours* ·
@@ -419,4 +441,6 @@ without it), `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings,
 `NODE_ENV=production`, and optionally the AI keys. To run more than one copy of the API, point every
 copy at the same Postgres and the same Redis; nothing else is needed (live voice calls stay on the
 copy that opened them). Seed staff accounts once
-with `SEED_ADMIN_PASSWORD=… pnpm db:seed`.
+with `SEED_ADMIN_PASSWORD=… pnpm db:seed`; add `PLATFORM_ADMIN_EMAIL` and `PLATFORM_ADMIN_PASSWORD`
+to create the super admin for `/platform` (the demo box's `deploy/up.sh` runs the seed on every
+deploy, so put both in its env secret).

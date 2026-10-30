@@ -60,6 +60,8 @@ async function insertWorkspace(tx: Prisma.TransactionClient, o: NewOwner) {
   });
   const user = await createOwner(tx, workspace.id, o);
   await createStarterCategory(tx, workspace.id);
+  // Every new customer starts on the default plan; a super admin may change it (U-7).
+  await tx.workspacePlan.create({ data: { workspaceId: workspace.id, createdAt: o.now } });
   await tx.auditEvent.create({
     data: {
       workspaceId: workspace.id,

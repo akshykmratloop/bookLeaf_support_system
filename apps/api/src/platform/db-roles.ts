@@ -56,7 +56,7 @@ async function createOrUpdateRole(admin: PrismaClient, role: AppRole): Promise<v
   );
 }
 
-/** Row access on every table, now and for tables later migrations create (as the owner). */
+/** Row access on every tenant table, now and for tables later migrations create (as the owner). */
 async function grantRowAccess(admin: PrismaClient, { name, schema }: AppRole): Promise<void> {
   const [db] = await admin.$queryRaw<{ name: string }[]>`SELECT current_database() AS name`;
   if (!db) throw new Error('could not read the current database name');
@@ -69,11 +69,29 @@ async function grantRowAccess(admin: PrismaClient, { name, schema }: AppRole): P
     `ALTER DEFAULT PRIVILEGES IN SCHEMA "${schema}" GRANT USAGE, SELECT ON SEQUENCES TO "${name}"`,
   ];
   for (const sql of statements) await admin.$executeRawUnsafe(sql);
-  // Migration history is the owner's business only.
-  const history = await admin.$queryRaw<unknown[]>`
-    SELECT 1 FROM pg_tables WHERE schemaname = ${schema} AND tablename = '_prisma_migrations'`;
-  if (history.length > 0)
-    await admin.$executeRawUnsafe(`REVOKE ALL ON "${schema}"."_prisma_migrations" FROM "${name}"`);
+  await revokeOwnerOnly(admin, { name, schema });
+}
+
+/**
+ * Tables the app role must never touch, not even a row: migration history, and the platform
+ * tables of the super admin console (U-7), which only the owner connection reads and writes.
+ * Any new platform table must be added here (and revoked in its own migration).
+ */
+export const OWNER_ONLY_TABLES = [
+  '_prisma_migrations',
+  'platform_admins',
+  'platform_settings',
+  'platform_provider_keys',
+  'workspace_plans',
+] as const;
+
+async function revokeOwnerOnly(admin: PrismaClient, { name, schema }: Omit<AppRole, 'password'>) {
+  const present = await admin.$queryRaw<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables WHERE schemaname = ${schema}`;
+  const names = new Set(present.map((t) => t.tablename));
+  for (const table of OWNER_ONLY_TABLES)
+    if (names.has(table))
+      await admin.$executeRawUnsafe(`REVOKE ALL ON "${schema}"."${table}" FROM "${name}"`);
 }
 
 /** Refuses a role that could see past row-level security. */

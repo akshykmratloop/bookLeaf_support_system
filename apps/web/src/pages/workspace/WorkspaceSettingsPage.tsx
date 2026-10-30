@@ -2,13 +2,10 @@ import type { WorkspaceSettingsStatus } from '@bookleaf/shared';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
-import {
-  ChatSection,
-  VoiceSection,
-  WidgetSection,
-} from '../../components/organisms/WorkspaceChannelSections';
-import { ProviderKeysSection } from '../../components/organisms/ProviderKeysSection';
-import { AiSection, type Patch } from '../../components/organisms/WorkspaceSettingsSections';
+import { AiBehaviourSection } from '../../components/organisms/AiBehaviourSection';
+import { ChatSection, VoiceSection } from '../../components/organisms/WorkspaceChannelSections';
+import { WidgetSection } from '../../components/organisms/WidgetSection';
+import type { Patch } from '../../components/organisms/WorkspaceSettingsSections';
 import { errorMessage, isApiError } from '../../lib/api';
 import { useApiMutation } from '../../lib/queries';
 import { saveWorkspaceSettings, useWorkspaceSettings, workspaceKeys } from '../../lib/workspace';
@@ -35,8 +32,7 @@ function Sections({ status, reload }: { status: WorkspaceSettingsStatus; reload:
   };
   return (
     <div className="grid max-w-[960px] gap-4">
-      <AiSection {...props} />
-      <ProviderKeysSection />
+      <AiBehaviourSection {...props} />
       <ChatSection {...props} />
       <VoiceSection {...props} />
       <WidgetSection {...props} />
@@ -50,7 +46,7 @@ export function WorkspaceSettingsPage() {
     <>
       <PageHeader
         title="Assistant settings"
-        subtitle="Models, tone, chat and voice limits, widget origins and branding for this workspace. Each change saves immediately."
+        subtitle="How the AI writes, chat and voice limits (up to your plan), widget origins and branding. AI providers and models are managed by your support provider. Each change saves immediately."
       />
       {status.isPending ? <LoadingState /> : null}
       {status.isError ? (

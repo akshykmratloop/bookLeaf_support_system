@@ -38,7 +38,7 @@ describe('supportPlugin mounted in a host app', () => {
     const status = (cookie?: string) =>
       host.inject({
         method: 'GET',
-        url: '/support/api/v1/admin/ai/status',
+        url: '/support/api/v1/workspace/settings',
         headers: cookie ? { cookie } : {},
       });
     expect((await status()).statusCode).toBe(401);

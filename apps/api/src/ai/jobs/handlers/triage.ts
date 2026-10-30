@@ -12,7 +12,6 @@ import { loadTicketContext, type TicketContext } from '../context.js';
 import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
-import { workspaceAiFor } from '../workspace-ai.js';
 import { categoryOf } from '../../knowledge/knowledge.js';
 
 function triageInput(ctx: TicketContext): TriageInput {
@@ -89,16 +88,16 @@ async function applyDecision(
 
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
-    const { triageModel, workspaceId } = await workspaceAiFor(deps.db, job.ticketId);
-    const { provider, model } = await deps.ai.resolve('TRIAGE', {
-      workspaceId,
-      preferred: triageModel,
-    });
     const ctx = await loadTicketContext(deps, job.ticketId);
+    const { provider, model, providerId } = await deps.ai.resolve('TRIAGE', {
+      workspaceId: ctx.ticket.workspaceId,
+    });
     const meta = {
       ticketId: job.ticketId,
+      workspaceId: ctx.ticket.workspaceId,
       task: 'TRIAGE' as const,
       provider,
+      providerId,
       model,
       promptVersion: TRIAGE_PROMPT_VERSION,
     };

@@ -8,14 +8,22 @@ import {
   SENTINEL_KEY,
   type Harness,
 } from './helpers/app.js';
+import { platformCookie, seedSuperAdmin } from './helpers/platform.js';
 
 let h: Harness;
 let priya: string;
 let admin: string;
+/** The super admin console's session: the AI provider screens live there now (U-7). */
+let platform: string;
 
 beforeAll(async () => {
   h = await createHarness();
-  [priya, admin] = await Promise.all([h.login(EMAILS.priya), h.login(EMAILS.admin)]);
+  await seedSuperAdmin(h);
+  [priya, admin, platform] = await Promise.all([
+    h.login(EMAILS.priya),
+    h.login(EMAILS.admin),
+    platformCookie(h),
+  ]);
 });
 afterAll(() => h.close());
 
@@ -29,9 +37,11 @@ describe('API key never leaves the server', () => {
     const id = created.json<{ id: string }>().id;
     await h.drain();
     const responses = await Promise.all([
+      call(h, 'GET', '/platform/ai', platform),
+      call(h, 'GET', '/platform/customers', platform),
+      call(h, 'POST', '/platform/ai/test', platform),
       call(h, 'GET', '/admin/ai/status', admin),
-      call(h, 'GET', '/admin/ai/settings', admin),
-      call(h, 'POST', '/admin/ai/test', admin),
+      call(h, 'GET', '/workspace/settings', admin),
       call(h, 'GET', '/tickets', admin),
       call(h, 'GET', `/tickets/${id}`, admin),
       call(h, 'GET', `/tickets/${id}/draft`, admin),
@@ -44,19 +54,19 @@ describe('API key never leaves the server', () => {
       expect(res.body).not.toContain(SENTINEL_KEY);
       expect(JSON.stringify(res.headers)).not.toContain(SENTINEL_KEY);
     }
-    const status = responses[0]?.json<{ providers: { id: string; configured: boolean }[] }>();
-    expect(status?.providers.find((p) => p.id === 'anthropic')?.configured).toBe(true);
+    const status = responses[0]?.json<{ providers: { id: string; keySource: string }[] }>();
+    expect(status?.providers.find((p) => p.id === 'anthropic')?.keySource).toBe('ENV');
   });
 
   it('the AI test endpoint reports success without echoing provider details', async () => {
-    const res = await call(h, 'POST', '/admin/ai/test', admin);
+    const res = await call(h, 'POST', '/platform/ai/test', platform);
     expect(res.json<{ ok: boolean }>().ok).toBe(true);
   });
 
   it('rejects settings that pick a model outside the allowlist (422)', async () => {
-    const s = await call(h, 'GET', '/admin/ai/settings', admin);
-    const res = await call(h, 'PUT', '/admin/ai/settings', admin, {
-      version: s.json<{ version: number }>().version,
+    const s = await call(h, 'GET', '/platform/ai', platform);
+    const res = await call(h, 'PUT', '/platform/ai/settings', platform, {
+      version: s.json<{ settings: { version: number } }>().settings.version,
       draftModel: 'gpt-4o',
     });
     expect(res.statusCode).toBe(422);

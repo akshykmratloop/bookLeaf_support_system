@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { WIDGET_THEMES } from './ai-behaviour.js';
+import { PlanSchema } from './plans.js';
 
 /** Admin switches for the author-facing assistant channels (chat and voice). */
 export const AssistantSettingsSchema = z.object({
   chatEnabled: z.boolean(),
   voiceEnabled: z.boolean(),
-  chatModel: z.string(),
   version: z.int(),
   updatedAt: z.iso.datetime(),
 });
@@ -15,9 +16,9 @@ export const UpdateAssistantSettingsSchema = z
     version: z.int().min(0),
     chatEnabled: z.boolean().optional(),
     voiceEnabled: z.boolean().optional(),
-    chatModel: z.string().trim().min(1).max(80).optional(),
   })
-  .refine((v) => [v.chatEnabled, v.voiceEnabled, v.chatModel].some((f) => f !== undefined), {
+  .strict()
+  .refine((v) => [v.chatEnabled, v.voiceEnabled].some((f) => f !== undefined), {
     message: 'Provide at least one field to update',
   });
 export type UpdateAssistantSettings = z.infer<typeof UpdateAssistantSettingsSchema>;
@@ -43,16 +44,22 @@ export const AssistantAvailabilitySchema = z.object({
     callsPerHour: z.int(),
     callsPerDay: z.int(),
   }),
-  /** The workspace's name and colour, for the widget and the author screens. */
-  brand: z.object({ name: z.string(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
+  /** The workspace's brand, for the widget and the author screens. */
+  brand: z.object({
+    name: z.string(),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    logoUrl: z.string().nullable(),
+    launcherText: z.string(),
+    theme: z.enum(WIDGET_THEMES),
+  }),
 });
 export type AssistantAvailability = z.infer<typeof AssistantAvailabilitySchema>;
 
-/** Admin view: the switches plus whether each channel could actually run. */
+/** Admin view: the switches, whether each channel could run, and what the plan allows. */
 export const AssistantAdminStatusSchema = z.object({
   settings: AssistantSettingsSchema,
   availability: AssistantAvailabilitySchema,
-  chatModels: z.array(z.object({ id: z.string(), label: z.string(), tier: z.string() })),
+  plan: PlanSchema,
   voiceConfigured: z.boolean(),
 });
 export type AssistantAdminStatus = z.infer<typeof AssistantAdminStatusSchema>;

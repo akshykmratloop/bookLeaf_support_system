@@ -25,3 +25,6 @@ export * from './schemas/provider-keys.js';
 export * from './schemas/webhooks.js';
 export * from './schemas/categories.js';
 export * from './schemas/knowledge.js';
+export * from './schemas/plans.js';
+export * from './schemas/ai-behaviour.js';
+export * from './schemas/platform.js';

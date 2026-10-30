@@ -1,3 +1,4 @@
+import type { ReplyLanguage } from '@bookleaf/shared';
 import { TIME_WARNING } from './lifecycle.js';
 import { workspaceNameText, type WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
 import {
@@ -11,6 +12,15 @@ import type { SpokenLines } from './types.js';
 
 export const VOICE_STYLES = ['hinglish', 'english'] as const;
 export type VoiceStyle = (typeof VOICE_STYLES)[number];
+
+/**
+ * The call's style from the customer's language setting (U-7): English → english, Hinglish and
+ * "match the customer" → hinglish (it mirrors the caller's language). Unset → the server's.
+ */
+export function voiceStyleFor(language: ReplyLanguage | null, fallback: VoiceStyle): VoiceStyle {
+  if (language === null) return fallback;
+  return language === 'ENGLISH' ? 'english' : 'hinglish';
+}
 
 export type GreetingKind = 'new' | 'resumed' | 'chat';
 

@@ -38,16 +38,18 @@ export interface FinishInput {
   maxTurns: number;
 }
 
-/** Saves the ended call (transcript, spoken-figure check, tokens, its chat) and logs its cost. */
-export async function finishCall(db: Db, input: FinishInput): Promise<void> {
+/**
+ * One transaction: a call started from a chat never ends without its lines in that chat.
+ * Returns the call's workspace, for the cost log.
+ */
+async function saveEnded(
+  db: Db,
+  input: FinishInput,
+  failed: boolean,
+  seconds: number,
+): Promise<string> {
   const { outcome } = input;
-  const failed = outcome.reason === 'PROVIDER_ERROR' && outcome.transcript.length === 0;
-  const seconds = Math.max(
-    0,
-    Math.round((outcome.endedAt.getTime() - outcome.startedAt.getTime()) / 1000),
-  );
-  // One transaction: a call started from a chat never ends without its lines in that chat.
-  await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const saved = await tx.voiceSession.update({
       where: { id: input.callId },
       data: {
@@ -60,12 +62,25 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
         inputTokens: outcome.inputTokens,
         outputTokens: outcome.outputTokens,
       },
-      select: { id: true, chatSessionId: true },
+      select: { id: true, chatSessionId: true, workspaceId: true },
     });
     await saveIntoChat(tx, saved, outcome.transcript, input.maxTurns);
+    return saved.workspaceId;
   });
+}
+
+/** Saves the ended call (transcript, spoken-figure check, tokens, its chat) and logs its cost. */
+export async function finishCall(db: Db, input: FinishInput): Promise<void> {
+  const { outcome } = input;
+  const failed = outcome.reason === 'PROVIDER_ERROR' && outcome.transcript.length === 0;
+  const seconds = Math.max(
+    0,
+    Math.round((outcome.endedAt.getTime() - outcome.startedAt.getTime()) / 1000),
+  );
+  const workspaceId = await saveEnded(db, input, failed, seconds);
   await recordRun(db, {
     ticketId: null,
+    workspaceId,
     task: 'VOICE',
     provider: input.providerId,
     model: input.model,

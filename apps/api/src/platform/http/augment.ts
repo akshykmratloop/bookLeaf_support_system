@@ -2,10 +2,13 @@ import '@fastify/cookie';
 import '@fastify/rate-limit';
 import type { Role } from '@bookleaf/shared';
 import type { Session } from '../../modules/auth/session.js';
+import type { PlatformSession } from '../../modules/platform/session.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
     session: Session | null;
+    /** Set on the super admin console's routes only (U-7). */
+    platformAdmin: PlatformSession | null;
   }
   interface FastifyContextConfig {
     /** Route needs no session (login, health, docs). Everything else is denied by default. */

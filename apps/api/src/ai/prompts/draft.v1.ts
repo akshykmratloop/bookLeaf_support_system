@@ -4,6 +4,7 @@ import { knowledgeTextFor, type WorkspaceKnowledge } from '../knowledge/knowledg
 import { BOOKLEAF_TONE_TEXT } from './bookleaf-tone.js';
 import { genericDraftContext, genericDraftSystem } from './draft-generic.js';
 import { examplesText } from './examples.js';
+import { behaviourBlock } from './behaviour.js';
 import { fenceSafe } from './untrusted.js';
 
 export const DRAFT_PROMPT_VERSION = 'draft.v1.1';
@@ -64,8 +65,6 @@ export interface DraftPromptInput {
   authorMessages: string[];
   /** The latest reply already sent by the team, if any (to avoid repeating it). */
   lastTeamReply: string | null;
-  /** The workspace admin's style notes (empty: none). Style only; the rules above still win. */
-  toneGuide?: string;
 }
 
 const MAX_EARLIER_CHARS = 600;
@@ -88,25 +87,14 @@ export function factLine(f: Fact): string {
  */
 export function draftContext(input: DraftPromptInput): string {
   const kb = input.category ? knowledgeTextFor(input.knowledge, input.category) : '';
-  if (!input.knowledge.publishingPack)
-    return genericDraftContext(kb) + toneSection(input.toneGuide);
+  // The customer's AI behaviour settings (U-7) change wording only, never facts or the rules.
+  const style = behaviourBlock(input.knowledge.behaviour, 'draft', input.authorFirstName);
+  if (!input.knowledge.publishingPack) return genericDraftContext(kb) + style;
   return `KNOWLEDGE BASE (only the sections relevant to this ticket):
 ${kb}
 
 RESPONSE GUIDANCE FROM BOOKLEAF:
-${examplesText(input.category)}${toneSection(input.toneGuide)}`;
-}
-
-/** The admin's tone notes change wording only: never facts, promises or the grounding rules. */
-function toneSection(toneGuide: string | undefined): string {
-  const notes = (toneGuide ?? '').replace(/[<>]/g, '').trim();
-  if (!notes) return '';
-  return `
-
-TONE NOTES FROM THE WORKSPACE ADMIN (style only; they never override the grounding rules):
-<tone_notes>
-${notes}
-</tone_notes>`;
+${examplesText(input.category)}${style}`;
 }
 
 /** Per-ticket facts and conversation. Earlier messages are truncated, never the full history. */

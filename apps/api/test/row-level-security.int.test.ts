@@ -69,7 +69,24 @@ describe('row-level security policies (S.8)', () => {
     for (const row of rows) expect(row, row.table).toMatchObject({ enabled: true, forced: true });
     const policies = await h.db.$queryRaw<{ table: string }[]>`
       SELECT tablename AS table FROM pg_policies WHERE policyname = 'workspace_isolation'`;
-    expect(new Set(policies.map((p) => p.table))).toEqual(new Set(rows.map((r) => r.table)));
+    // workspace_plans is a platform table (U-7): RLS on with no policy at all, and no grant, so
+    // the app role never sees a row of it; only the owner connection reads it.
+    const tenantTables = rows.map((r) => r.table).filter((t) => t !== 'workspace_plans');
+    expect(new Set(policies.map((p) => p.table))).toEqual(new Set(tenantTables));
+  });
+
+  it('gives platform tables RLS with no policy at all (deny-all), on top of no grants (U-7)', async () => {
+    const rows = await h.db.$queryRaw<{ table: string; enabled: boolean; forced: boolean }[]>`
+      SELECT c.relname AS table, c.relrowsecurity AS enabled, c.relforcerowsecurity AS forced
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = current_schema()
+        AND c.relname IN ('platform_admins', 'platform_settings', 'platform_provider_keys', 'workspace_plans')`;
+    expect(rows).toHaveLength(4);
+    for (const row of rows) expect(row, row.table).toMatchObject({ enabled: true, forced: true });
+    const policies = await h.db.$queryRaw<unknown[]>`
+      SELECT 1 FROM pg_policies WHERE tablename IN
+        ('platform_admins', 'platform_settings', 'platform_provider_keys', 'workspace_plans')`;
+    expect(policies).toHaveLength(0);
   });
 
   it('serves requests with a role that cannot bypass RLS, and platform work with one that can', async () => {

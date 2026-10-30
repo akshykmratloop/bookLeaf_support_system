@@ -16,6 +16,7 @@ import { HostSignInPage } from '../pages/HostSignInPage';
 import { LoginPage } from '../pages/LoginPage';
 import { SignupPage } from '../pages/workspace/SignupPage';
 import { adminRoutes } from './adminRoutes';
+import { platformRoutes } from './platformRoutes';
 import { HomeRedirect } from './AuthedLayout';
 
 const MAX_RETRIES = 2;
@@ -93,6 +94,7 @@ export function App() {
             {authorRoutes}
             {oldAuthorRoutes}
             {adminRoutes}
+            {platformRoutes}
             <Route path="/" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

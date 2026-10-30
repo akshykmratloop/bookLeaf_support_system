@@ -3,7 +3,7 @@ import type { WorkspaceApiKey } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
-import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { NotFoundError, ValidationError, WorkspaceSuspendedError } from '../../platform/errors.js';
 import { asPlatform } from '../../platform/tenancy.js';
 import type { Session } from '../auth/session.js';
 
@@ -110,8 +110,12 @@ export function verifyApiKey(
 ): Promise<{ workspaceId: string; scopes: string[] } | null> {
   if (!plainKey.startsWith(`${KEY_PREFIX}_`) || plainKey.length > 200) return Promise.resolve(null);
   return asPlatform(async () => {
-    const key = await deps.db.workspaceApiKey.findUnique({ where: { keyHash: hashKey(plainKey) } });
+    const key = await deps.db.workspaceApiKey.findUnique({
+      where: { keyHash: hashKey(plainKey) },
+      include: { workspace: { select: { plan: { select: { suspendedAt: true } } } } },
+    });
     if (!key || key.revokedAt) return null;
+    if (key.workspace.plan?.suspendedAt) throw new WorkspaceSuspendedError();
     await deps.db.workspaceApiKey.update({
       where: { id: key.id },
       data: { lastUsedAt: deps.clock.now() },

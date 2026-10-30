@@ -1,7 +1,6 @@
 import type { AuthUser } from '@bookleaf/shared';
 import {
   BookOpen,
-  Bot,
   Database,
   Inbox,
   KeyRound,
@@ -17,20 +16,16 @@ import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import type { LiveState } from '../../lib/live-updates';
 import { applyTheme, readTheme, type Theme } from '../../lib/theme';
-import { useMyWorkspace } from '../../lib/workspace';
 
 interface NavItem {
   to: string;
   label: string;
   icon: ReactNode;
   end?: boolean;
-  /** Platform-wide screens: only the platform operator's (default) workspace sees them. */
-  platform?: boolean;
 }
 
 const ADMIN_NAV: NavItem[] = [
   { to: '/admin', label: 'Ticket Queue', icon: <Inbox size={16} aria-hidden />, end: true },
-  { to: '/admin/ai', label: 'AI Settings', icon: <Bot size={16} aria-hidden />, platform: true },
   {
     to: '/admin/assistant',
     label: 'Author Assistant',
@@ -109,8 +104,7 @@ interface Props {
  */
 export function AppShell({ user, live, onSignOut, children }: Props) {
   const [theme, setTheme] = useState<Theme>(readTheme);
-  const isPlatform = useMyWorkspace().data?.workspace.isDefault ?? false;
-  const nav = ADMIN_NAV.filter((i) => !i.platform || isPlatform);
+  const nav = ADMIN_NAV;
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);

@@ -4,6 +4,8 @@ import type { Usage } from '../providers/types.js';
 
 export interface RunRecord {
   ticketId: string | null;
+  /** The customer the call was for (usage and cost per customer, U-7). */
+  workspaceId: string | null;
   task: string;
   provider: string;
   model: string;
@@ -24,6 +26,7 @@ export async function recordRun(db: Db, r: RunRecord): Promise<void> {
   await db.aiRun.create({
     data: {
       ticketId: r.ticketId,
+      workspaceId: r.workspaceId,
       task: r.task,
       provider: r.provider,
       model: r.model,

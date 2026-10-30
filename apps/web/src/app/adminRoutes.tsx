@@ -28,9 +28,7 @@ const QueuePage = lazyPage(() => import('../pages/admin/QueuePage').then((m) => 
 const TicketWorkspacePage = lazyPage(() =>
   import('../pages/admin/TicketWorkspacePage').then((m) => m.TicketWorkspacePage),
 );
-const AiSettingsPage = lazyPage(() =>
-  import('../pages/admin/AiSettingsPage').then((m) => m.AiSettingsPage),
-);
+const ManagedPage = lazyPage(() => import('../pages/admin/ManagedPage').then((m) => m.ManagedPage));
 const AssistantSettingsPage = lazyPage(() =>
   import('../pages/admin/AssistantSettingsPage').then((m) => m.AssistantSettingsPage),
 );
@@ -61,7 +59,7 @@ export const adminRoutes = (
   <Route element={<AuthedLayout role="ADMIN" />}>
     <Route path="/admin" element={loading(<QueuePage />)} />
     <Route path="/admin/tickets/:id" element={loading(<TicketWorkspacePage />)} />
-    <Route path="/admin/ai" element={loading(<AiSettingsPage />)} />
+    <Route path="/admin/ai" element={loading(<ManagedPage />)} />
     <Route path="/admin/assistant" element={loading(<AssistantSettingsPage />)} />
     <Route path="/admin/workspace/connection" element={loading(<ConnectorPage />)} />
     <Route path="/admin/workspace/fields" element={loading(<FieldsPage />)} />

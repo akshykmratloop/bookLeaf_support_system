@@ -52,7 +52,7 @@ export const useChatTranscript = (id: string | null) =>
   });
 
 export const saveAssistantSettings = (
-  input: Partial<Pick<AssistantSettings, 'chatEnabled' | 'voiceEnabled' | 'chatModel'>> & {
+  input: Partial<Pick<AssistantSettings, 'chatEnabled' | 'voiceEnabled'>> & {
     version: number;
   },
 ) => api<AssistantSettings>('/admin/assistant/settings', { method: 'PUT', body: input });

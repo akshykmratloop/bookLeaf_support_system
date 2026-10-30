@@ -72,9 +72,8 @@ describe("another workspace's admin", () => {
   });
 
   it('cannot see or change the platform AI settings, or use the platform key (403) (F-03, F-17)', async () => {
-    const { version } = (await call(h, 'GET', '/admin/ai/settings', bookleaf)).json<{
-      version: number;
-    }>();
+    // The platform settings belong to the super admin console now (U-7): every customer gets 403.
+    const { version } = await h.db.platformSettings.findUniqueOrThrow({ where: { id: 1 } });
     const attempts = await Promise.all([
       call(h, 'GET', '/admin/ai/status', acme),
       call(h, 'GET', '/admin/ai/settings', acme),
@@ -82,10 +81,8 @@ describe("another workspace's admin", () => {
       call(h, 'POST', '/admin/ai/test', acme),
     ]);
     expect(attempts.map((r) => r.statusCode)).toEqual([403, 403, 403, 403]);
-    const after = (await call(h, 'GET', '/admin/ai/settings', bookleaf)).json<{
-      simulateOutage: boolean;
-      version: number;
-    }>();
+    expect((await call(h, 'GET', '/admin/ai/settings', bookleaf)).statusCode).toBe(403);
+    const after = await h.db.platformSettings.findUniqueOrThrow({ where: { id: 1 } });
     expect(after).toMatchObject({ version, simulateOutage: false });
   });
 

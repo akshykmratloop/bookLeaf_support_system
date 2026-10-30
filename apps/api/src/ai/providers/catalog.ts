@@ -1,5 +1,5 @@
 /**
- * Providers and models an admin may choose in AI Settings (server-side allowlist).
+ * Providers and models a super admin may choose in the console (server-side allowlist, U-7).
  * Prices are USD per million tokens, used only for cost logging.
  */
 export interface ModelInfo {
@@ -46,11 +46,12 @@ export const PROVIDER_CATALOG: readonly ProviderInfo[] = [
   },
 ];
 
-/** Defaults: a fast model classifies, a balanced model writes customer-facing prose. */
+/** Defaults: a fast model classifies and chats, a balanced model writes customer-facing prose. */
 export const DEFAULT_AI_SETTINGS = {
   provider: 'anthropic',
   triageModel: 'claude-haiku-5-5',
   draftModel: 'claude-sonnet-5-5',
+  chatModel: 'claude-haiku-5-5',
 } as const;
 
 export function findModel(providerId: string, modelId: string): ModelInfo | undefined {

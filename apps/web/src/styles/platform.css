@@ -1,0 +1,98 @@
+/*
+ * The support provider's console (/platform, U-7): its own "control room" look, so nobody mistakes
+ * it for a customer's dashboard. Graphite rail, deep teal accent, cool neutrals. It re-points the
+ * same design tokens inside .platform-theme only, in light and dark.
+ */
+[data-theme='light'] .platform-theme,
+:root:not([data-theme]) .platform-theme {
+  --app-bg: #eef1f4;
+  --panel: #ffffff;
+  --panel-2: #f5f7f9;
+  --panel-inset: #f1f4f7;
+  --sidebar-bg: #ffffff;
+  --border: #dde3ea;
+  --border-strong: #c9d2dc;
+  --text-1: #14202b;
+  --text-2: #4a5866;
+  --text-3: #6b7885;
+  --brand: #0f766e;
+  --brand-strong: #0b5f59;
+  --brand-deep: #0a4f4a;
+  --brand-bright: #14b8a6;
+  --brand-ink: #0f766e;
+  --brand-soft: #e3f4f1;
+  --pf-rail: #0f1a24;
+  --pf-rail-2: #172532;
+  --pf-rail-ink: #e6edf3;
+  --pf-rail-dim: #93a4b4;
+  --pf-glow: rgb(20 184 166 / 0.18);
+  --pf-grid: rgb(15 26 36 / 0.06);
+}
+
+[data-theme='dark'] .platform-theme {
+  --app-bg: #0b121a;
+  --panel: #111c27;
+  --panel-2: #152231;
+  --panel-inset: #0e1822;
+  --sidebar-bg: #0e1822;
+  --border: #1f2e3d;
+  --border-strong: #2b3e51;
+  --text-1: #e8eef4;
+  --text-2: #a9b6c3;
+  --text-3: #7d8c9b;
+  --brand: #0f766e;
+  --brand-strong: #0b5f59;
+  --brand-deep: #0a4f4a;
+  --brand-bright: #2dd4bf;
+  --brand-ink: #5eead4;
+  --brand-soft: rgb(45 212 191 / 0.13);
+  --pf-rail: #070d13;
+  --pf-rail-2: #0f1a24;
+  --pf-rail-ink: #e6edf3;
+  --pf-rail-dim: #8596a6;
+  --pf-glow: rgb(45 212 191 / 0.16);
+  --pf-grid: rgb(230 237 243 / 0.05);
+}
+
+.platform-theme {
+  background: var(--app-bg);
+  color: var(--text-1);
+}
+
+/* Faint engineering grid behind the sign-in and empty states. */
+.pf-grid {
+  background-image:
+    linear-gradient(var(--pf-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pf-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.pf-rail {
+  background: var(--pf-rail);
+  color: var(--pf-rail-ink);
+}
+
+.pf-rail-link {
+  color: var(--pf-rail-dim);
+}
+.pf-rail-link:hover {
+  background: var(--pf-rail-2);
+  color: var(--pf-rail-ink);
+}
+.pf-rail-link[aria-current='page'] {
+  background: var(--pf-rail-2);
+  color: var(--pf-rail-ink);
+  box-shadow: inset 3px 0 0 var(--brand-bright);
+}
+.pf-rail-link:focus-visible,
+.pf-rail-button:focus-visible {
+  outline: 2px solid var(--brand-bright);
+  outline-offset: 2px;
+}
+.pf-rail-button {
+  color: var(--pf-rail-dim);
+}
+.pf-rail-button:hover {
+  background: var(--pf-rail-2);
+  color: var(--pf-rail-ink);
+}

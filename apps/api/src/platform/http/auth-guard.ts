@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, HookHandlerDoneFunction } from 'fastify';
 import fp from 'fastify-plugin';
 import { SESSION_COOKIE, type Session, type SessionCodec } from '../../modules/auth/session.js';
+import { PLATFORM_COOKIE } from '../../modules/platform/session.js';
 import { ForbiddenError, UnauthorizedError } from '../errors.js';
 import { runAsWorkspace } from '../tenancy.js';
 import './augment.js';
@@ -11,7 +12,12 @@ async function sessionFor(req: FastifyRequest, sessions: SessionCodec): Promise<
   // Unknown paths (which 404) need no session.
   if (req.routeOptions.url === undefined || config.public) return null;
   const token = req.cookies[SESSION_COOKIE];
-  if (!token) throw new UnauthorizedError();
+  if (!token) {
+    // A super admin's console session is no customer session (U-7).
+    if (req.cookies[PLATFORM_COOKIE])
+      throw new ForbiddenError('Super admins use the console at /platform, not customer screens.');
+    throw new UnauthorizedError();
+  }
   const session = await sessions.verify(token);
   if (config.roles && !config.roles.includes(session.role)) throw new ForbiddenError();
   return session;

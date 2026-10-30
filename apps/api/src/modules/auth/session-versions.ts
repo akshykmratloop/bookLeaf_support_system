@@ -1,6 +1,6 @@
 import type { Clock } from '../../platform/clock.js';
 import type { Db } from '../../platform/db.js';
-import { UnauthorizedError } from '../../platform/errors.js';
+import { UnauthorizedError, WorkspaceSuspendedError } from '../../platform/errors.js';
 import { asPlatform, withWorkspace } from '../../platform/tenancy.js';
 import {
   createSessionTokens,
@@ -20,6 +20,7 @@ export interface SessionVersions {
   /**
    * The user's current version, or null when the account no longer exists or is a staff account
    * that is no longer a member of the session's workspace (removed staff get no session at all).
+   * Throws WorkspaceSuspendedError (403) while a super admin has suspended the workspace.
    */
   current(user: SessionUser): Promise<number | null>;
   /** Moves the version on, but only if it is still `from` (an ended token cannot end newer ones). */
@@ -44,9 +45,12 @@ export function sessionVersionsIn(db: Db): SessionVersions {
             sessionVersion: true,
             role: true,
             memberships: { where: { workspaceId }, select: { id: true } },
+            workspace: { select: { plan: { select: { suspendedAt: true } } } },
           },
         });
         if (!row || (row.role === 'ADMIN' && row.memberships.length === 0)) return null;
+        // A suspended customer's staff and authors are refused on every request (U-7).
+        if (row.workspace.plan?.suspendedAt) throw new WorkspaceSuspendedError();
         return row.sessionVersion;
       }),
     bumpFrom: ({ userId, workspaceId }, from) =>

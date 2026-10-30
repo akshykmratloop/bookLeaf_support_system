@@ -25,8 +25,8 @@ async function seedFields(db: Db, workspaceId: string): Promise<void> {
 }
 
 /**
- * The support module's own starting data: the support team's admin accounts, the default
- * AI settings and BookLeaf's categories and knowledge base. Authors and books are not seeded here: they belong to the host product and
+ * The support module's own starting data: the support team's admin accounts, the platform's
+ * AI settings, BookLeaf's plan and BookLeaf's categories and knowledge base. Authors and books are not seeded here: they belong to the host product and
  * appear when an author first signs in through it. Idempotent (upserts only).
  */
 export async function seedCore(db: Db, adminPassword: string): Promise<{ admins: number }> {
@@ -57,10 +57,12 @@ export async function seedCore(db: Db, adminPassword: string): Promise<{ admins:
   }
   await seedFields(db, workspaceId);
   await seedBookleafKnowledge(db, workspaceId);
-  await db.aiSettings.upsert({
+  // The platform's shared AI settings (U-7); the migration already made the row on most databases.
+  await db.platformSettings.upsert({
     where: { id: 1 },
     update: {},
     create: { id: 1, ...DEFAULT_AI_SETTINGS },
   });
+  await db.workspacePlan.upsert({ where: { workspaceId }, update: {}, create: { workspaceId } });
   return { admins: DEMO_ADMINS.length };
 }

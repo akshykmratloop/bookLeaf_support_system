@@ -2,9 +2,7 @@ import type { AssistantAdminStatus, ChannelState } from '@bookleaf/shared';
 import { MessagesSquare, Phone } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Card } from '../../components/atoms/Card';
-import { Select } from '../../components/atoms/Input';
 import { Pill, type Tone } from '../../components/atoms/Pill';
-import { Field } from '../../components/molecules/Field';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
@@ -15,6 +13,7 @@ import {
   saveAssistantSettings,
   useAssistantAdmin,
 } from '../../lib/assistant';
+import { lockReason } from '../../lib/planLock';
 import { useApiMutation } from '../../lib/queries';
 
 const TONE: Record<ChannelState, Tone> = {
@@ -32,8 +31,9 @@ interface ChannelProps {
   state: ChannelState;
   limits: string;
   isSaving: boolean;
+  /** Why the switch cannot be turned on (plan or AI off), or undefined. */
+  locked?: string;
   onToggle: (next: boolean) => void;
-  children?: ReactNode;
 }
 
 function ChannelCard(p: ChannelProps) {
@@ -56,8 +56,9 @@ function ChannelCard(p: ChannelProps) {
             type="checkbox"
             role="switch"
             aria-checked={p.enabled}
+            aria-describedby={p.locked ? `${id}-locked` : undefined}
             checked={p.enabled}
-            disabled={p.isSaving}
+            disabled={p.isSaving || Boolean(p.locked)}
             onChange={(e) => p.onToggle(e.target.checked)}
             className="h-4 w-4"
           />
@@ -70,7 +71,11 @@ function ChannelCard(p: ChannelProps) {
         </Pill>
         <span>{p.limits}</span>
       </div>
-      {p.children}
+      {p.locked ? (
+        <p id={`${id}-locked`} className="text-[12px] text-ink-3">
+          {p.locked}
+        </p>
+      ) : null}
     </Card>
   );
 }
@@ -105,27 +110,9 @@ function Settings({ status, reload }: { status: AssistantAdminStatus; reload: ()
         state={chat.state}
         limits={`${chat.maxMessageChars} characters per message · ${chat.messagesPerMinute}/min · ${chat.messagesPerDay}/day · ${chat.maxTurnsPerSession} per conversation`}
         isSaving={save.isPending}
+        locked={lockReason(status.plan.chatAllowed, status.plan.aiEnabled, settings.chatEnabled)}
         onToggle={(chatEnabled) => update({ chatEnabled })}
-      >
-        <Field
-          id="chat-model"
-          label="Chat model"
-          hint="A fast model keeps answers quick and low-cost."
-        >
-          <Select
-            id="chat-model"
-            value={settings.chatModel}
-            disabled={save.isPending}
-            onChange={(e) => update({ chatModel: e.target.value })}
-          >
-            {status.chatModels.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label} · {m.tier}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </ChannelCard>
+      />
       <ChannelCard
         icon={<Phone size={17} aria-hidden />}
         title="Voice support call"
@@ -134,6 +121,7 @@ function Settings({ status, reload }: { status: AssistantAdminStatus; reload: ()
         state={voice.state}
         limits={`${Math.round(voice.maxCallSeconds / 60)} min per call · ${voice.callsPerHour}/hour · ${voice.callsPerDay}/day · one call at a time`}
         isSaving={save.isPending}
+        locked={lockReason(status.plan.voiceAllowed, status.plan.aiEnabled, settings.voiceEnabled)}
         onToggle={(voiceEnabled) => update({ voiceEnabled })}
       />
     </div>

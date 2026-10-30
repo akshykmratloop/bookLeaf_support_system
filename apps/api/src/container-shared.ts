@@ -34,6 +34,7 @@ export function createSharedParts(env: Env, clock: Clock, overrides: SharedOverr
   const channels = [events, draftLive, cacheSync];
   return {
     state,
+    log,
     events: events.bus,
     draftLive,
     cacheSync,

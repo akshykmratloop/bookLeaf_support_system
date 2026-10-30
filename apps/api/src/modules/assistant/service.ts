@@ -20,8 +20,9 @@ export function createAssistantService(deps: AssistantDeps) {
         throw new FeatureDisabledError('Ask BookLeaf chat');
     },
     async requireVoiceEnabled(workspaceId: string): Promise<void> {
-      if (!(await config(workspaceId)).voiceEnabled)
-        throw new FeatureDisabledError('Voice support');
+      const cfg = await config(workspaceId);
+      // Calls are AI too: a customer whose AI is switched off gets no calls (U-7).
+      if (!cfg.voiceEnabled || !cfg.aiEnabled) throw new FeatureDisabledError('Voice support');
     },
     adminStatus: (session: Session) => adminStatus(deps, session),
     update: (s: Session, input: UpdateAssistantSettings) => updateSettings(deps, s, input),

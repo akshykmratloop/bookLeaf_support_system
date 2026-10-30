@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/
 import type {
   AdminTicket,
   AdminTicketListItem,
-  AiSettings,
-  AiStatus,
   AuthUser,
   AuthorTicket,
   AuthorTicketListItem,
@@ -25,7 +23,6 @@ export const keys = {
   tickets: (filters: Record<string, string> = {}) => ['tickets', filters] as const,
   ticket: (id: string) => ['ticket', id] as const,
   draft: (id: string) => ['draft', id] as const,
-  aiStatus: ['ai-status'] as const,
 };
 
 export const useMe = () =>
@@ -77,9 +74,6 @@ export const useDraft = (id: string) =>
     refetchInterval: (q) => (q.state.data?.pending ? 4000 : false),
   });
 
-export const useAiStatus = () =>
-  useQuery({ queryKey: keys.aiStatus, queryFn: () => api<AiStatus>('/admin/ai/status') });
-
 /** Mutation that refreshes the given queries on success. */
 export function useApiMutation<TInput, TResult>(
   fn: (input: TInput) => Promise<TResult>,
@@ -96,6 +90,3 @@ export function useApiMutation<TInput, TResult>(
 
 export const checkReply = (ticketId: string, body: string) =>
   api<CheckResult>(`/tickets/${ticketId}/check`, { method: 'POST', body: { body } });
-
-export const saveAiSettings = (input: Partial<AiSettings> & { version: number }) =>
-  api<AiSettings>('/admin/ai/settings', { method: 'PUT', body: input });

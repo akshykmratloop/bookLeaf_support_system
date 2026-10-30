@@ -33,7 +33,8 @@
     throw new Error('BookLeaf support: data-workspace must be the workspace address name.');
   /** The widget page of this workspace; the app's own pages live under it. */
   const HOME = workspace ? `/embed/${workspace}` : '/embed';
-  const label = script.dataset.label || 'Help';
+  // An explicit data-label wins; otherwise the workspace's launcher text arrives from the frame.
+  let label = script.dataset.label || 'Help';
   // An explicit data-title wins; otherwise the workspace's brand name arrives from the frame.
   let title = script.dataset.title || 'BookLeaf Help';
   const themeMode = ['light', 'dark'].includes(script.dataset.theme)
@@ -42,6 +43,11 @@
   const Z = 2147483000;
   // BookLeaf Publishing coral (bookleafpub.in). The deeper shades keep white text above 4.5:1.
   let BRAND = '#d13f53';
+  /** The workspace's own widget theme ("light"/"dark"), or null to follow the host page. */
+  let brandTheme = null;
+  /** The workspace's logo (an https image address), or null for the BookLeaf mark. */
+  let logo = null;
+  const MAX_LAUNCHER = 30;
   const HEX = /^#[0-9a-f]{6}$/i;
   const MAX_NAME = 60;
   const FONT = "'Avenir Next', Avenir, 'Nunito Sans', system-ui, sans-serif";
@@ -92,9 +98,13 @@
   const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
   const root = document.documentElement;
 
-  /** Which theme the widget wears now: the tag's choice, else the host page's, else the system's. */
+  /**
+   * Which theme the widget wears now: the tag's choice, else the workspace's widget theme, else
+   * the host page's, else the system's.
+   */
   function currentTheme() {
     if (themeMode !== 'auto') return themeMode;
+    if (brandTheme) return brandTheme;
     const mark = root.dataset.theme;
     if (mark === 'dark' || root.classList.contains('dark')) return 'dark';
     if (mark === 'light' || root.classList.contains('light')) return 'light';
@@ -174,6 +184,17 @@
   function mark() {
     const m = document.createElement('span');
     m.setAttribute('aria-hidden', 'true');
+    m.dataset.mark = '';
+    if (logo) {
+      const img = document.createElement('img');
+      img.src = logo;
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      style(img, { width: '28px', height: '28px', objectFit: 'contain', borderRadius: '6px' });
+      m.append(img);
+      style(m, { display: 'grid', flexShrink: '0' });
+      return m;
+    }
     m.innerHTML =
       '<svg width="28" height="28" viewBox="0 0 32 32"><rect width="32" height="32" fill="#f16977"/><path d="M19.6 7.2 12.6 24.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>';
     style(m, { display: 'grid', flexShrink: '0' });
@@ -362,12 +383,42 @@
     void load(isOwnPage(path) ? path : HOME);
   }
 
+  /** An https image address, or null: nothing else is ever loaded as the logo. */
+  function httpsUrl(value) {
+    if (typeof value !== 'string' || value.length > 2048) return null;
+    try {
+      const u = new URL(value);
+      return u.protocol === 'https:' ? u.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The workspace's widget theme, launcher text and logo (U-7), each checked before use. */
+  function applyLook(data) {
+    const theme = data.theme === 'light' || data.theme === 'dark' ? data.theme : null;
+    if (theme !== brandTheme) {
+      brandTheme = theme;
+      repaint();
+    }
+    const words = typeof data.launcherText === 'string' ? data.launcherText.trim() : '';
+    if (words && !script.dataset.label) {
+      label = words.slice(0, MAX_LAUNCHER);
+      if (!state.panel) setLauncher('chat', label);
+    }
+    const next = httpsUrl(data.logoUrl);
+    if (next === logo) return;
+    logo = next;
+    state.panel?.querySelector('[data-mark]')?.replaceWith(mark());
+  }
+
   /** The workspace's colour and name; only a #rrggbb colour and plain text are accepted. */
   function applyBrand(data) {
     if (typeof data.color === 'string' && HEX.test(data.color)) {
       BRAND = data.color;
       launcher.style.background = BRAND;
     }
+    applyLook(data);
     const name = typeof data.name === 'string' ? data.name.trim().slice(0, MAX_NAME) : '';
     if (!name || script.dataset.title) return;
     title = `${name} Help`;

@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @import './tokens.css';
+@import './platform.css';
 
 @theme inline {
   --color-app: var(--app-bg);

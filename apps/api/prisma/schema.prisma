@@ -204,6 +204,8 @@ model Workspace {
   webhooks      WorkspaceWebhook[]
   categories    Category[]
   articles      KnowledgeArticle[]
+  plan          WorkspacePlan?
+  aiRuns        AiRun[]
 
   @@map("workspaces")
 }
@@ -271,8 +273,9 @@ model CustomerField {
   @@map("customer_fields")
 }
 
-/// Per-workspace switches, limits, models, tone and widget settings. A missing row means
-/// "platform defaults" (the singleton settings rows plus env limits).
+/// Per-workspace switches, limits, AI behaviour and widget settings, under RLS. A missing row means
+/// "starting values". The model columns are no longer read or written: models are platform
+/// settings now (U-7 expand step; dropped in a later release).
 model WorkspaceSettings {
   id                 String   @id @default(uuid()) @db.Uuid
   workspaceId        String   @unique @map("workspace_id") @db.Uuid
@@ -294,6 +297,21 @@ model WorkspaceSettings {
   brandColor         String   @default("#2f6b4f") @map("brand_color")
   customerNoun       String   @default("customer") @map("customer_noun")
   itemNoun           String   @default("item") @map("item_noun")
+  /// AI behaviour (U-7): the first line of replies and calls ({name} = the customer's first name).
+  greeting           String   @default("")
+  /// How reply drafts sign off; empty = "Warm regards, <brand> Support".
+  signature          String   @default("")
+  /// Null = not chosen: replies behave as before (English; calls follow VOICE_STYLE).
+  replyLanguage      ReplyLanguage? @map("reply_language")
+  replyLength        ReplyLength?   @map("reply_length")
+  formality          ReplyFormality?
+  /// Subjects the AI must not discuss; it offers a ticket to the team instead.
+  topicsToAvoid      String[] @default([]) @map("topics_to_avoid")
+  /// Shown in the widget header (https only); null = no logo.
+  logoUrl            String?  @map("logo_url")
+  /// The widget launcher's label on the host page; empty = "Help".
+  launcherText       String   @default("") @map("launcher_text")
+  widgetTheme        WidgetTheme @default(AUTO) @map("widget_theme")
   version            Int      @default(0)
   updatedById        String?  @map("updated_by_id") @db.Uuid
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -524,6 +542,8 @@ model AiDraft {
 model AiRun {
   id               String       @id @default(uuid()) @db.Uuid
   ticketId         String?      @map("ticket_id") @db.Uuid
+  /// The customer the call was made for (usage and cost per customer, U-7). Null on older rows.
+  workspaceId      String?      @map("workspace_id") @db.Uuid
   task             String
   provider         String
   model            String
@@ -538,12 +558,15 @@ model AiRun {
   errorCode        String?      @map("error_code")
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  ticket Ticket? @relation(fields: [ticketId], references: [id])
+  ticket    Ticket?    @relation(fields: [ticketId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([ticketId])
+  @@index([workspaceId, createdAt])
   @@map("ai_runs")
 }
 
+/// Legacy (U-7 expand step): replaced by platform_settings, no longer read; dropped later.
 model AiSettings {
   id             Int      @id @default(1)
   provider       String
@@ -577,7 +600,7 @@ model AuditEvent {
   @@map("audit_events")
 }
 
-/// Admin switches for the author-facing assistant channels. Both start OFF.
+/// Legacy (U-7 expand step): replaced by platform_settings and workspace rows, no longer read.
 model AssistantSettings {
   id           Int      @id @default(1)
   chatEnabled  Boolean  @default(false) @map("chat_enabled")
@@ -713,8 +736,8 @@ enum ProviderCapability {
   VOICE
 }
 
-/// A workspace's own AI or voice provider key ("bring your own key"), envelope-encrypted.
-/// Without one, the workspace runs on the platform's key.
+/// Legacy (U-7): customers no longer bring their own keys; every customer runs on the platform's
+/// keys (platform_provider_keys). No longer read or written; dropped in a later release.
 model WorkspaceProviderKey {
   id          String             @id @default(uuid()) @db.Uuid
   workspaceId String             @map("workspace_id") @db.Uuid
@@ -839,4 +862,102 @@ model KnowledgeArticleCategory {
   @@id([articleId, categoryKey])
   @@index([workspaceId, categoryKey])
   @@map("knowledge_article_categories")
+}
+
+enum ReplyLanguage {
+  ENGLISH
+  HINGLISH
+  /// Answer in the language the customer writes or speaks in.
+  MATCH
+}
+
+enum ReplyLength {
+  SHORT
+  MEDIUM
+  DETAILED
+}
+
+enum ReplyFormality {
+  FORMAL
+  NEUTRAL
+  FRIENDLY
+}
+
+enum WidgetTheme {
+  AUTO
+  LIGHT
+  DARK
+}
+
+/// The support provider's own operators (super admins, U-7). No signup: created and updated on
+/// every deploy from PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD. Platform table: the
+/// restricted app role has no grant on it; only the owner connection reads it.
+model PlatformAdmin {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// Trimmed and lowercased.
+  email          String   @unique
+  name           String
+  passwordHash   String   @map("password_hash")
+  /// Bumped on logout and password change: older platform tokens stop working.
+  sessionVersion Int      @default(1) @map("session_version")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_admins")
+}
+
+/// The one row of shared AI settings every customer runs on (U-7): provider, models and the
+/// global outage switch. Replaces the ai_settings / assistant_settings singletons. Platform table.
+model PlatformSettings {
+  id             Int      @id @default(1)
+  provider       String
+  triageModel    String   @map("triage_model")
+  draftModel     String   @map("draft_model")
+  chatModel      String   @map("chat_model")
+  /// Null = VOICE_MODEL from env.
+  voiceModel     String?  @map("voice_model")
+  simulateOutage Boolean  @default(false) @map("simulate_outage")
+  version        Int      @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_settings")
+}
+
+/// An AI or voice provider key saved by a super admin, envelope-encrypted with SECRETS_MASTER_KEY.
+/// It wins over the env key for that provider; without one the env key is used. Platform table.
+model PlatformProviderKey {
+  id         String             @id @default(uuid()) @db.Uuid
+  capability ProviderCapability
+  provider   String
+  keyEnc     String             @map("key_enc")
+  last4      String
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([capability, provider])
+  @@map("platform_provider_keys")
+}
+
+/// What one customer may use (U-7): features and the most it may set its own limits to, AI off
+/// for this customer, and suspension. Set by super admins only. Platform table.
+model WorkspacePlan {
+  workspaceId          String    @id @map("workspace_id") @db.Uuid
+  chatAllowed          Boolean   @default(true) @map("chat_allowed")
+  voiceAllowed         Boolean   @default(true) @map("voice_allowed")
+  aiEnabled            Boolean   @default(true) @map("ai_enabled")
+  maxMessagesPerMinute Int       @default(120) @map("max_messages_per_minute")
+  maxMessagesPerDay    Int       @default(2000) @map("max_messages_per_day")
+  maxTurnsPerSession   Int       @default(200) @map("max_turns_per_session")
+  maxCallsPerHour      Int       @default(60) @map("max_calls_per_hour")
+  maxCallsPerDay       Int       @default(200) @map("max_calls_per_day")
+  maxCallSeconds       Int       @default(300) @map("max_call_seconds")
+  /// Set: the customer's staff, authors and API keys are refused until it is cleared.
+  suspendedAt          DateTime? @map("suspended_at") @db.Timestamptz(3)
+  version              Int       @default(0)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_plans")
 }

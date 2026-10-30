@@ -22,8 +22,6 @@ export interface DraftInput {
   lastTeamReply: string | null;
   /** Book titles across the author's catalogue: their digits are not claims. */
   ignorePhrases: string[];
-  /** The workspace admin's style notes for replies (empty: none). */
-  toneGuide?: string;
 }
 
 export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;

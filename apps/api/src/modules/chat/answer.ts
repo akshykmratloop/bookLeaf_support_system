@@ -102,6 +102,23 @@ async function runModel(
   });
 }
 
+/** The model's answer as saved: the facts it used, the last model and the total time. */
+function toStored(
+  res: Awaited<ReturnType<typeof runModel>>,
+  turn: Awaited<ReturnType<typeof loadTurn>>,
+  fallbackModel: string,
+): StoredAnswer {
+  return {
+    source: res.source,
+    body: res.body,
+    factsUsed: factRefs(res.factIds, turn.facts),
+    check: res.check,
+    draft: res.draft,
+    model: res.runs[res.runs.length - 1]?.model ?? fallbackModel,
+    latencyMs: res.runs.reduce((sum, r) => sum + r.latencyMs, 0),
+  };
+}
+
 /**
  * One assistant turn. Common questions are answered from records without the AI. Otherwise it
  * never throws for AI problems: a missing key, outage switch or provider error becomes an
@@ -114,7 +131,13 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
   if (instant) return instant;
   const access = await deps.assistant.chatAccess(req.workspaceId);
   if (!access.ok) return unavailable();
-  const log = { ticketId: null, task: 'CHAT', provider: access.providerId, model: access.model };
+  const log = {
+    ticketId: null,
+    workspaceId: req.workspaceId,
+    task: 'CHAT',
+    provider: access.providerId,
+    model: access.model,
+  };
   try {
     const res = await runModel(access, req, turn);
     for (const run of res.runs)
@@ -125,15 +148,7 @@ export async function produceAnswer(deps: Deps, req: AnswerRequest): Promise<Sto
         latencyMs: run.latencyMs,
         errorCode: null,
       });
-    return {
-      source: res.source,
-      body: res.body,
-      factsUsed: factRefs(res.factIds, turn.facts),
-      check: res.check,
-      draft: res.draft,
-      model: res.runs[res.runs.length - 1]?.model ?? access.model,
-      latencyMs: res.runs.reduce((sum, r) => sum + r.latencyMs, 0),
-    };
+    return toStored(res, turn, access.model);
   } catch (err) {
     if (!(err instanceof AiError)) throw err;
     await recordRun(deps.db, {

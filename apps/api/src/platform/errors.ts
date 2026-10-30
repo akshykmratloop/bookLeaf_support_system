@@ -23,6 +23,17 @@ export class ForbiddenError extends AppError {
   }
 }
 
+/** A super admin suspended this customer (U-7): every session and API key of it is refused. */
+export class WorkspaceSuspendedError extends AppError {
+  constructor() {
+    super(
+      403,
+      'WORKSPACE_SUSPENDED',
+      'This workspace is suspended. Please contact your support provider.',
+    );
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(resource: string) {
     super(404, 'NOT_FOUND', `${resource} not found`);

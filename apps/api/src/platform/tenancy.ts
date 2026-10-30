@@ -38,6 +38,11 @@ export function runAsWorkspace<T>(workspaceId: string, fn: () => T): T {
   return storage.run({ kind: 'workspace', workspaceId: WorkspaceIdSchema.parse(workspaceId) }, fn);
 }
 
+/** Synchronous form of asPlatform for callback-style code (the platform console's request hook). */
+export function runAsPlatform<T>(fn: () => T): T {
+  return storage.run({ kind: 'platform' }, fn);
+}
+
 /** Runs `fn` on the platform (owner) connection. Only for work that is not one workspace's. */
 export function asPlatform<T>(fn: () => T | PromiseLike<T>): Promise<T> {
   return runIn({ kind: 'platform' }, fn);

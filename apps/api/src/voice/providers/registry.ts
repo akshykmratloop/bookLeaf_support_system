@@ -3,16 +3,21 @@ import { openAiVoiceProvider } from './openai/provider.js';
 import { OPENAI_VOICES } from './openai/voices.js';
 import type { VoiceProvider } from './types.js';
 
-/** Speech providers a workspace may bring its own key for. */
+/** Speech providers a super admin may save a key for in the console (U-7). */
 export const VOICE_PROVIDER_IDS: readonly string[] = ['openai'];
 
 /** Voices a workspace may choose when the platform itself has no voice provider. */
 export const ALL_VOICES: readonly string[] = OPENAI_VOICES;
 
-/** A provider client for one key (the platform's or a workspace's own). */
-export function voiceProviderFor(env: Env, providerId: string, apiKey: string) {
+/** A provider client for one key and model (null model = VOICE_MODEL from env). */
+export function voiceProviderFor(
+  env: Env,
+  providerId: string,
+  apiKey: string,
+  model: string | null = null,
+) {
   if (providerId !== 'openai') return null;
-  return openAiVoiceProvider({ apiKey, model: env.VOICE_MODEL, voice: env.VOICE_NAME });
+  return openAiVoiceProvider({ apiKey, model: model ?? env.VOICE_MODEL, voice: env.VOICE_NAME });
 }
 
 /**

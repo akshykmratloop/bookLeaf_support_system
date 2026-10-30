@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { createContainer } from './container.js';
 import { loadEnv } from './config/index.js';
+import { PROVIDER_CATALOG } from './ai/providers/catalog.js';
 
 /** The standalone server: the support module on its own, with the web app and API docs. */
 async function main(): Promise<void> {
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
   await app.listen({ port: env.PORT, host: env.HOST });
   app.log.info(
     {
-      ai: container.ai.configuredProviders(),
+      ai: await container.ai.configuredProviders(PROVIDER_CATALOG.map((p) => p.id)),
       voice: container.voiceProvider?.id ?? 'not configured',
       worker: env.WORKER_ENABLED,
       sharedState: container.shared.state.backend,

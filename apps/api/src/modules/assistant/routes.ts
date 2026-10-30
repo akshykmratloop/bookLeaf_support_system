@@ -8,6 +8,7 @@ import {
   UpdateAssistantSettingsSchema,
 } from '@bookleaf/shared';
 import { sessionOf } from '../../platform/http/auth-guard.js';
+import { refuseManagedFields } from '../managed/routes.js';
 import type { AssistantService } from './service.js';
 
 const ADMIN = { roles: ['ADMIN'] as const };
@@ -39,7 +40,7 @@ function registerAdminRoutes(app: RouteApp, { assistant }: Deps) {
       config: ADMIN,
       schema: {
         tags: ['assistant'],
-        summary: 'Assistant switches, availability and the chat models allowed',
+        summary: 'Assistant switches, availability and what the plan allows',
         response: { 200: AssistantAdminStatusSchema, ...errors },
       },
     },
@@ -50,9 +51,10 @@ function registerAdminRoutes(app: RouteApp, { assistant }: Deps) {
     '/admin/assistant/settings',
     {
       config: ADMIN,
+      preValidation: refuseManagedFields,
       schema: {
         tags: ['assistant'],
-        summary: 'Switch chat and voice on or off for authors, or choose the chat model',
+        summary: 'Switch chat and voice on or off for authors (as far as the plan allows)',
         body: UpdateAssistantSettingsSchema,
         response: { 200: AssistantSettingsSchema, ...errors },
       },

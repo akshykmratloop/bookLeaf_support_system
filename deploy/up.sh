@@ -75,6 +75,8 @@ log "Starting the apps"
 compose up -d --wait --wait-timeout 300 api host-demo
 compose up -d caddy
 
+# The seed also creates or updates the super admin (/platform) from PLATFORM_ADMIN_EMAIL and
+# PLATFORM_ADMIN_PASSWORD in the env file; with neither set it skips that and says so.
 log "Seeding (idempotent upserts)"
 compose exec -T api node dist/seed.js
 

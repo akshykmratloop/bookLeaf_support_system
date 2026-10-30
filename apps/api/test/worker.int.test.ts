@@ -166,12 +166,9 @@ describe('AI failures degrade gracefully', () => {
   });
 
   it('outage switch: tickets are still created, AI is not called, fallback applies', async () => {
-    const settings = await call(h, 'GET', '/admin/ai/settings', admin);
-    const on = await call(h, 'PUT', '/admin/ai/settings', admin, {
-      version: settings.json<{ version: number }>().version,
-      simulateOutage: true,
-    });
-    expect(on.statusCode).toBe(200);
+    // The global outage switch is the super admin's (U-7, API covered in platform-ai.int.test.ts).
+    await h.db.platformSettings.update({ where: { id: 1 }, data: { simulateOutage: true } });
+    h.container.ai.invalidate();
     try {
       const before = h.aiCalls.length;
       const id = await royaltyTicket();
@@ -184,11 +181,8 @@ describe('AI failures degrade gracefully', () => {
       });
       expect(reply.statusCode).toBe(201);
     } finally {
-      const cur = await call(h, 'GET', '/admin/ai/settings', admin);
-      await call(h, 'PUT', '/admin/ai/settings', admin, {
-        version: cur.json<{ version: number }>().version,
-        simulateOutage: false,
-      });
+      await h.db.platformSettings.update({ where: { id: 1 }, data: { simulateOutage: false } });
+      h.container.ai.invalidate();
     }
   });
 });
@@ -256,26 +250,34 @@ describe('job safety', () => {
   });
 });
 
-describe("the workspace's own AI choices", () => {
-  it('triages and drafts with its chosen models and passes its tone notes as style only', async () => {
+describe("the platform's models and the workspace's own tone (U-7)", () => {
+  it('triages and drafts with the platform models and passes its tone notes as style only', async () => {
     const { settings } = (await call(h, 'GET', '/workspace/settings', admin)).json<{
       settings: { version: number };
     }>();
     const saved = await call(h, 'PUT', '/workspace/settings', admin, {
       version: settings.version,
-      triageModel: 'claude-opus-5-5',
-      draftModel: 'claude-haiku-5-5',
       toneGuide: 'Thank the author for their patience.',
     });
     expect(saved.statusCode).toBe(200);
+    await h.db.platformSettings.update({
+      where: { id: 1 },
+      data: { triageModel: 'claude-opus-5-5', draftModel: 'claude-haiku-5-5' },
+    });
+    h.container.ai.invalidate();
     const before = h.aiCalls.length;
     await settle(await royaltyTicket());
+    await h.db.platformSettings.update({
+      where: { id: 1 },
+      data: { triageModel: 'claude-haiku-5-5', draftModel: 'claude-sonnet-5-5' },
+    });
+    h.container.ai.invalidate();
     const calls = h.aiCalls.slice(before);
     expect(calls.find((c) => c.task === 'TRIAGE')?.model).toBe('claude-opus-5-5');
     const draft = calls.find((c) => c.task === 'DRAFT');
     expect(draft?.model).toBe('claude-haiku-5-5');
     expect(draft?.dynamicSystem).toContain(
-      '<tone_notes>\nThank the author for their patience.\n</tone_notes>',
+      '- Tone and brand voice: Thank the author for their patience.\n</style_settings>',
     );
     expect(draft?.stableSystem).not.toContain('patience');
     // Back to the platform's choices for any later file.

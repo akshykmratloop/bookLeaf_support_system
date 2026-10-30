@@ -1,4 +1,4 @@
-import type { Priority } from '@bookleaf/shared';
+import type { AiBehaviour, Priority } from '@bookleaf/shared';
 
 /** One of the workspace's active categories, as the AI sees it. */
 export interface KnowledgeCategory {
@@ -30,6 +30,8 @@ export interface WorkspaceKnowledge {
   publishingPack: boolean;
   categories: readonly KnowledgeCategory[];
   articles: readonly KnowledgeArticle[];
+  /** How the customer wants its AI to write and speak (U-7); absent = nothing chosen. */
+  behaviour?: AiBehaviour;
 }
 
 /** The workspace's name for prompt text. It is admin input: one line, no angle brackets. */

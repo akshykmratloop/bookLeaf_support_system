@@ -1,16 +1,14 @@
-import { PROVIDER_CATALOG } from './ai/providers/catalog.js';
 import type { HostRecords } from './host/types.js';
 import { ALL_VOICES, VOICE_PROVIDER_IDS } from './voice/providers/registry.js';
-import { createAiAdminService } from './modules/ai-admin/service.js';
 import { createConnectorService } from './modules/connectors/service.js';
 import { connectorDepsFromEnv, ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { createWebhookService } from './modules/webhooks/service.js';
 import { createServerApiService } from './modules/server-api/service.js';
 import { verifyApiKey } from './modules/workspaces/api-keys.js';
-import { createProviderKeyService } from './modules/provider-keys/service.js';
 import { limitsFromEnv, type AssistantLimits } from './modules/assistant/limits.js';
-import { platformSwitches } from './modules/assistant/deps.js';
 import { createAssistantService } from './modules/assistant/service.js';
+import { createPlatformConsole } from './container-platform.js';
+import type { PlanReader } from './modules/platform/plans.js';
 import { createWorkspaceConfigs } from './modules/settings/configs.js';
 import { createEmbedOrigins } from './modules/settings/embed-origins.js';
 import { createAuthService } from './modules/auth/service.js';
@@ -45,13 +43,10 @@ export interface ContainerOverrides extends ProviderOverrides, SharedOverrides {
 function createSettingsCaches(
   { env, db, clock, cacheSync }: { env: Env; db: Db; clock: Clock; cacheSync: CacheSync },
   limits: AssistantLimits,
+  plans: PlanReader,
 ) {
   const embedOrigins = createEmbedOrigins(db, env.HOST_ORIGINS, () => clock.now());
-  const configs = createWorkspaceConfigs(db, {
-    limits,
-    voiceName: env.VOICE_NAME,
-    switches: () => platformSwitches(db),
-  });
+  const configs = createWorkspaceConfigs(db, { limits, voiceName: env.VOICE_NAME, plans });
   return {
     embedOrigins: cacheSync.shared('embed-origins', embedOrigins),
     configs: cacheSync.shared('workspace-configs', configs),
@@ -66,14 +61,16 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     overrides.db ?? createTenantDb({ appUrl: env.DATABASE_URL, adminUrl: env.DATABASE_ADMIN_URL });
   const shared = createSharedParts(env, clock, overrides);
   const { events, cacheSync } = shared;
-  const providerInputs = { env, db, clock, cacheSync };
-  const { voiceProvider, envelope, keyed, ai } = createProviders(providerInputs, overrides);
+  const providerInputs = { env, db, clock, cacheSync, log: shared.log };
+  const providers = createProviders(providerInputs, overrides);
+  const { voiceProvider, envelope, platform, plans, ai } = providers;
   const sessions = createSessions(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock, db);
   const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
   const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };
   const limits = limitsFromEnv(env);
-  const { embedOrigins, configs } = createSettingsCaches({ env, db, clock, cacheSync }, limits);
+  const caches = createSettingsCaches({ env, db, clock, cacheSync }, limits, plans);
+  const { embedOrigins, configs } = caches;
   return {
     env,
     shared,
@@ -90,22 +87,27 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     embedded: env.EMBED_ENABLED || env.HOST_ORIGINS.length > 0,
     embedOrigins,
     envelope,
-    keyed,
+    /** The AI and voice clients every customer runs on (console key, else env key). */
+    platform,
+    plans,
+    envAi: providers.envAi,
     voiceProvider,
+    /** The platform's voice client for a customer's call (every customer uses the same one). */
+    voiceFor: (_workspaceId: string) => platform.voice(),
   };
 }
 
 type Core = ReturnType<typeof createCore>;
 
 /** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
-function createAssistants({ env, db, ai, configs, ticketDeps, keyed, shared: sh }: Core) {
-  const voiceFor = (workspaceId: string) => keyed.voice(workspaceId);
+function createAssistants({ env, db, ai, configs, plans, ticketDeps, voiceFor, shared: sh }: Core) {
   const draftLive = sh.draftLive;
   const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const assistant = createAssistantService({
     db,
     ai,
     configs,
+    plans,
     voiceConfigured: async (ws: string) => (await voiceFor(ws)) !== null,
   });
   const shared = { ...ticketDeps, assistant, drafts: ticketDrafts };
@@ -123,15 +125,9 @@ function createAssistants({ env, db, ai, configs, ticketDeps, keyed, shared: sh 
   };
 }
 
-/** How the workspace's own systems connect: provider keys, webhooks, the server API. */
+/** How the workspace's own systems connect: webhooks and the server API. */
 function createIntegrations(core: Core) {
   return {
-    providerKeys: createProviderKeyService({
-      db: core.db,
-      envelope: core.envelope,
-      keyed: core.keyed,
-      providers: { AI: PROVIDER_CATALOG.map((p) => p.id), VOICE: VOICE_PROVIDER_IDS },
-    }),
     webhooks: createWebhookService({
       db: core.db,
       clock: core.clock,
@@ -160,16 +156,17 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     settings: createSettingsService({
       db: core.db,
       ai: core.ai,
-      voiceConfigured: async (ws: string) => (await core.keyed.voice(ws)) !== null,
+      voiceConfigured: async (ws: string) => (await core.voiceFor(ws)) !== null,
       voices: core.voiceProvider?.voices ?? ALL_VOICES,
       configs: core.configs,
+      plans: core.plans,
       embedOrigins: core.embedOrigins,
     }),
     ...createIntegrations(core),
     books: createBooksService(core),
     categories: createCategoryService({ db: core.db }),
     conversations: createConversationService(core.db),
-    aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),
+    platformConsole: createPlatformConsole(core, VOICE_PROVIDER_IDS),
     ...createAssistants(core),
   };
 }

@@ -13,6 +13,7 @@ import {
 import '../../platform/http/augment.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
 import type { RouteApp } from '../../platform/http/route-app.js';
+import { refuseManagedFields } from '../managed/routes.js';
 import type { SettingsService } from './service.js';
 
 interface Opts {
@@ -30,7 +31,7 @@ function registerSettings(app: RouteApp, { settings }: Opts) {
       config: ADMIN,
       schema: {
         tags,
-        summary: 'Assistant, chat, voice and widget settings of this workspace',
+        summary: 'AI behaviour, chat, voice and widget settings of this workspace, and its plan',
         response: { 200: WorkspaceSettingsStatusSchema, ...errors },
       },
     },
@@ -40,6 +41,7 @@ function registerSettings(app: RouteApp, { settings }: Opts) {
     '/workspace/settings',
     {
       config: ADMIN,
+      preValidation: refuseManagedFields,
       schema: {
         tags,
         summary: 'Change any of the workspace settings (send the version you last saw)',

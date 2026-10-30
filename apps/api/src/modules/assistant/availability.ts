@@ -1,36 +1,24 @@
 import type { AssistantAdminStatus, AssistantAvailability, ChannelState } from '@bookleaf/shared';
-import { PROVIDER_CATALOG, findModel } from '../../ai/providers/catalog.js';
 import type { LlmProvider } from '../../ai/providers/types.js';
+import { AiError } from '../../ai/providers/errors.js';
 import type { Session } from '../auth/session.js';
 import { loadWorkspaceSettings } from '../settings/workspace-settings.js';
-import { loadSettings, toSettingsDto, type AssistantDeps } from './deps.js';
+import { toSettingsDto, type AssistantDeps } from './deps.js';
 
 /** What a chat turn may use right now: a provider + model, or the reason it cannot run. */
 export type ChatAccess =
   | { ok: true; provider: LlmProvider; providerId: string; model: string }
   | { ok: false; state: Exclude<ChannelState, 'AVAILABLE' | 'DISABLED'> };
 
-/** The admin's chat model if it belongs to the active provider, else that provider's fast model. */
-function chatModelFor(providerId: string, wanted: string): string {
-  if (findModel(providerId, wanted)) return wanted;
-  const provider = PROVIDER_CATALOG.find((p) => p.id === providerId);
-  return provider?.models.find((m) => m.tier === 'fast')?.id ?? wanted;
-}
-
-/** The workspace's chat model, else the platform's. */
-async function wantedChatModel(deps: AssistantDeps, workspaceId: string): Promise<string> {
-  const cfg = await deps.configs.forWorkspace(workspaceId);
-  return cfg.chatModel ?? (await loadSettings(deps.db)).chatModel;
-}
-
+/** The platform's chat model on the platform's provider; AI off (globally or for the customer) = outage. */
 export async function chatAccess(deps: AssistantDeps, workspaceId: string): Promise<ChatAccess> {
-  const { ai } = deps;
-  const ai$ = await ai.settings();
-  if (ai$.simulateOutage) return { ok: false, state: 'AI_OUTAGE' };
-  const provider = await ai.providerFor(workspaceId, ai$.provider);
-  if (!provider) return { ok: false, state: 'NOT_CONFIGURED' };
-  const model = chatModelFor(ai$.provider, await wantedChatModel(deps, workspaceId));
-  return { ok: true, provider, providerId: ai$.provider, model };
+  try {
+    const { provider, model, providerId } = await deps.ai.resolve('CHAT', { workspaceId });
+    return { ok: true, provider, providerId, model };
+  } catch (err) {
+    if (!(err instanceof AiError)) throw err;
+    return { ok: false, state: err.code === 'AI_NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'AI_OUTAGE' };
+  }
 }
 
 function chatState(enabled: boolean, access: ChatAccess): ChannelState {
@@ -38,8 +26,9 @@ function chatState(enabled: boolean, access: ChatAccess): ChannelState {
   return access.ok ? 'AVAILABLE' : access.state;
 }
 
-function voiceState(enabled: boolean, configured: boolean): ChannelState {
+function voiceState(enabled: boolean, configured: boolean, aiEnabled: boolean): ChannelState {
   if (!enabled) return 'DISABLED';
+  if (!aiEnabled) return 'AI_OUTAGE';
   return configured ? 'AVAILABLE' : 'NOT_CONFIGURED';
 }
 
@@ -51,6 +40,7 @@ export async function availability(
   const cfg = await deps.configs.forWorkspace(workspaceId);
   const { limits } = cfg;
   const access = await chatAccess(deps, workspaceId);
+  const voiceConfigured = await deps.voiceConfigured(workspaceId);
   return {
     chat: {
       state: chatState(cfg.chatEnabled, access),
@@ -60,29 +50,27 @@ export async function availability(
       messagesPerDay: limits.chat.messagesPerDay,
     },
     voice: {
-      state: voiceState(cfg.voiceEnabled, await deps.voiceConfigured(workspaceId)),
+      state: voiceState(cfg.voiceEnabled, voiceConfigured, cfg.aiEnabled),
       ...limits.voice,
     },
     brand: cfg.brand,
   };
 }
 
-/** The admin screen: this workspace's switches, availability and the chat models allowed. */
+/** The admin screen: this workspace's switches, availability and what its plan allows. */
 export async function adminStatus(
   deps: AssistantDeps,
   session: Session,
 ): Promise<AssistantAdminStatus> {
-  const ai$ = await deps.ai.settings();
-  const provider = PROVIDER_CATALOG.find((p) => p.id === ai$.provider);
   const ws = session.workspaceId;
-  const [row, platform] = await Promise.all([
+  const [row, { plan }] = await Promise.all([
     loadWorkspaceSettings(deps.db, ws, deps.configs.seed),
-    loadSettings(deps.db),
+    deps.plans.forWorkspace(ws),
   ]);
   return {
-    settings: toSettingsDto(row, platform.chatModel),
+    settings: toSettingsDto(row),
     availability: await availability(deps, ws),
-    chatModels: (provider?.models ?? []).map((m) => ({ id: m.id, label: m.label, tier: m.tier })),
+    plan,
     voiceConfigured: await deps.voiceConfigured(ws),
   };
 }

@@ -1,6 +1,8 @@
 # The demo box: two backends, Postgres, Redis and Caddy (HTTPS) on one small server.
 # Started by deploy/up.sh with:  docker compose -f deploy/docker-compose.prod.yml --env-file <env> up -d
 # Every value comes from the env file rendered from AWS Secrets Manager (never committed).
+# That includes PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD (U-7): the super admin account the
+# seed in up.sh creates or updates. Add both keys to the secret; leave both out for no console login.
 name: bookleaf
 
 x-app: &app

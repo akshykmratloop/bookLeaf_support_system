@@ -5,8 +5,11 @@ import type { JobDeps } from '../types.js';
 
 interface CallMeta {
   ticketId: string;
+  workspaceId: string;
   task: 'TRIAGE' | 'DRAFT';
   provider: LlmProvider;
+  /** The platform's provider id (prices the run, U-7 usage); the client's own id otherwise. */
+  providerId?: string;
   model: string;
   promptVersion: string;
 }
@@ -22,8 +25,9 @@ export async function loggedCall<T extends { run: RunInfo }>(
   const started = deps.clock.now().getTime();
   const base = {
     ticketId: meta.ticketId,
+    workspaceId: meta.workspaceId,
     task: meta.task,
-    provider: meta.provider.id,
+    provider: meta.providerId ?? meta.provider.id,
     model: meta.model,
     promptVersion: meta.promptVersion,
   };

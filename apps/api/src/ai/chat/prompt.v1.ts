@@ -4,6 +4,7 @@ import { knowledgeText, type WorkspaceKnowledge } from '../knowledge/knowledge.j
 import { factLine } from '../prompts/draft.v1.js';
 import { DraftOutputSchema } from './draft-action.js';
 import { draftBlock, draftRules } from './draft-prompt.js';
+import { behaviourBlock } from '../prompts/behaviour.js';
 import { fenceSafe } from '../prompts/untrusted.js';
 import { genericChatIntro, genericChatRules } from './prompt-generic.js';
 
@@ -112,7 +113,7 @@ ${books}
 VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 
-${draftBlock(input.draft, input.books, input.knowledge)}`;
+${draftBlock(input.draft, input.books, input.knowledge)}${behaviourBlock(input.knowledge.behaviour, 'chat', input.authorFirstName)}`;
 }
 
 const turnLine = (m: ChatPromptInput['history'][number]) =>

@@ -2,7 +2,7 @@ import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/index.js';
 import { runInBackground } from './background.js';
@@ -18,7 +18,7 @@ import { allowWidgetScript, registerWidgetPages } from './platform/http/embed.js
 import { registerErrorHandler } from './platform/http/error-handler.js';
 import { healthRoutes } from './platform/http/health.js';
 import { registerSpa } from './platform/http/spa.js';
-import { registerRoutes } from './routes.js';
+import { registerPlatformRoutes, registerRoutes } from './routes.js';
 
 export interface SupportPluginOptions {
   /** Validated settings (`loadEnv()`); used when no container is given. */
@@ -66,13 +66,7 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
   await app.register(healthRoutes, { db: c.db });
-  await app.register(
-    async (api) => {
-      await api.register(authGuard, { sessions: c.sessions });
-      await registerRoutes(api, c);
-    },
-    { prefix: '/api/v1' },
-  );
+  await registerApi(app, c);
   if (await registerSpa(app, c.env.WEB_DIST_DIR))
     registerWidgetPages(app, {
       framing: c.embedOrigins,
@@ -80,6 +74,18 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
       embedded: c.embedded,
     });
 };
+
+/** The customer API and, beside it, the super admin console (U-7), each with its own guard. */
+async function registerApi(app: FastifyInstance, c: Container): Promise<void> {
+  await app.register(
+    async (api) => {
+      await api.register(authGuard, { sessions: c.sessions });
+      await registerRoutes(api, c);
+    },
+    { prefix: '/api/v1' },
+  );
+  await app.register((api) => registerPlatformRoutes(api, c), { prefix: '/api/v1/platform' });
+}
 
 function requireEnv(env: Env | undefined): Env {
   if (!env) throw new Error('supportPlugin needs either `env` (from loadEnv()) or `container`');

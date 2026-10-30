@@ -6,10 +6,13 @@ import type { Session } from '../auth/session.js';
 import type { SeedValues } from './configs.js';
 
 export const toSettingsDto = (s: Row): WorkspaceSettings => ({
-  triageModel: s.triageModel,
-  draftModel: s.draftModel,
-  chatModel: s.chatModel,
   toneGuide: s.toneGuide,
+  greeting: s.greeting,
+  signature: s.signature,
+  replyLanguage: s.replyLanguage,
+  replyLength: s.replyLength,
+  formality: s.formality,
+  topicsToAvoid: s.topicsToAvoid,
   chatEnabled: s.chatEnabled,
   messagesPerMinute: s.messagesPerMinute,
   messagesPerDay: s.messagesPerDay,
@@ -24,6 +27,9 @@ export const toSettingsDto = (s: Row): WorkspaceSettings => ({
   brandColor: s.brandColor,
   customerNoun: s.customerNoun,
   itemNoun: s.itemNoun,
+  logoUrl: s.logoUrl,
+  launcherText: s.launcherText,
+  widgetTheme: s.widgetTheme,
   version: s.version,
   updatedAt: s.updatedAt.toISOString(),
 });
@@ -49,7 +55,7 @@ const CONFLICT = () =>
 export async function updateWorkspaceSettings(
   db: Db,
   session: Session,
-  input: UpdateWorkspaceSettings,
+  input: Pick<UpdateWorkspaceSettings, 'version'> & Partial<UpdateWorkspaceSettings>,
   seed: Seed,
 ): Promise<Row> {
   const workspaceId = session.workspaceId;

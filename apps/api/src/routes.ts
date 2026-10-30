@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import type { Container } from './container.js';
-import { aiAdminRoutes } from './modules/ai-admin/routes.js';
 import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { booksRoutes } from './modules/books/routes.js';
@@ -13,7 +12,10 @@ import { eventRoutes } from './modules/events/routes.js';
 import { settingsRoutes } from './modules/settings/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
-import { providerKeyRoutes } from './modules/provider-keys/routes.js';
+import { managedRoutes } from './modules/managed/routes.js';
+import { platformAuthRoutes } from './modules/platform/auth-routes.js';
+import { platformConsoleRoutes } from './modules/platform/console-routes.js';
+import { platformGuard } from './modules/platform/guard.js';
 import { serverApiRoutes } from './modules/server-api/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
 import { voiceRoutes } from './modules/voice/routes.js';
@@ -34,14 +36,14 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(booksRoutes, { books: c.books });
   await api.register(ticketRoutes, { deps: c.ticketDeps });
   await api.register(draftRoutes, { deps: c.ticketDeps });
-  await api.register(aiAdminRoutes, { aiAdmin: c.aiAdmin });
+  await api.register(managedRoutes);
   await api.register(assistantRoutes, { assistant: c.assistant });
   await api.register(chatRoutes, { chat: c.chat, limits: c.limits });
   await api.register(conversationRoutes, { conversations: c.conversations });
   await api.register(ticketDraftRoutes, { drafts: c.ticketDrafts, limits: c.limits });
   await api.register(voiceRoutes, {
     voice: c.voice,
-    voiceFor: (workspaceId: string) => c.keyed.voice(workspaceId),
+    voiceFor: c.voiceFor,
     appOrigin: c.env.APP_ORIGIN,
     now: () => c.clock.now(),
     sessions: c.sessions,
@@ -52,7 +54,6 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(connectorRoutes, { connectors: c.connectors });
   await api.register(settingsRoutes, { settings: c.settings });
   await api.register(categoryRoutes, { categories: c.categories });
-  await api.register(providerKeyRoutes, { providerKeys: c.providerKeys });
   await api.register(webhookRoutes, { webhooks: c.webhooks });
   await api.register(serverApiRoutes, { server: c.serverApi });
   await api.register(apiKeyRoutes, { workspaces: c.workspaces });
@@ -60,4 +61,19 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,
   });
+}
+
+/**
+ * The super admin console's API (U-7), mounted under /api/v1/platform in its own scope: its own
+ * guard and cookie, never the customer session guard. Platform tables are read only here.
+ */
+export async function registerPlatformRoutes(api: FastifyInstance, c: Container) {
+  const pc = c.platformConsole;
+  await api.register(platformGuard, { sessions: pc.sessions });
+  await api.register(platformAuthRoutes, {
+    auth: pc.auth,
+    ttlSeconds: pc.sessions.ttlSeconds,
+    secureCookies: c.env.NODE_ENV === 'production',
+  });
+  await api.register(platformConsoleRoutes, { ai: pc.ai, customers: pc.customers });
 }

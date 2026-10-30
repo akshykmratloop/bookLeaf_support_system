@@ -1,8 +1,20 @@
+import { DEFAULT_AI_BEHAVIOUR } from '@bookleaf/shared';
 import type { WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError, ValidationError } from '../../platform/errors.js';
 
 const ORDER = [{ position: 'asc' as const }, { createdAt: 'asc' as const }];
+
+/** The customer's AI behaviour settings (U-7), read with its knowledge for every prompt. */
+const BEHAVIOUR_SELECT = {
+  toneGuide: true,
+  greeting: true,
+  signature: true,
+  replyLanguage: true,
+  replyLength: true,
+  formality: true,
+  topicsToAvoid: true,
+} as const;
 
 /**
  * One workspace's active categories and articles, in display order: everything the AI may use
@@ -19,6 +31,7 @@ export async function loadWorkspaceKnowledge(
       name: true,
       isDefault: true,
       categories: { where: { isActive: true }, orderBy: ORDER },
+      settings: { select: BEHAVIOUR_SELECT },
       articles: {
         where: { isActive: true },
         orderBy: ORDER,
@@ -43,6 +56,7 @@ export async function loadWorkspaceKnowledge(
       body: a.body,
       categoryKeys: a.categories.map((l) => l.categoryKey).filter((k) => active.has(k)),
     })),
+    behaviour: workspace.settings ?? DEFAULT_AI_BEHAVIOUR,
   };
 }
 

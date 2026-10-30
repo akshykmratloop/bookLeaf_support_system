@@ -49,6 +49,12 @@ export class AiOutageSimulatedError extends AiError {
   readonly retryable = false;
 }
 
+/** A super admin switched AI off for this customer (U-7): rules and templates run instead. */
+export class AiDisabledForWorkspaceError extends AiError {
+  readonly code = 'AI_DISABLED_FOR_CUSTOMER';
+  readonly retryable = false;
+}
+
 /** The workspace has no active category to triage into: the rules fallback runs instead. */
 export class NoCategoriesError extends AiError {
   readonly code = 'NO_CATEGORIES';

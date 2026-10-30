@@ -1,36 +1,43 @@
+import type { Plan, WidgetTheme } from '@bookleaf/shared';
 import type { WorkspaceSettings as Row } from '@prisma/client';
 import type { Db } from '../../platform/db.js';
 import type { AssistantLimits } from '../assistant/limits.js';
+import type { PlanReader } from '../platform/plans.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 import { withWorkspace } from '../../platform/tenancy.js';
+import { capLimits } from './plan-caps.js';
 
-/** What one workspace's chat, voice and AI run with right now. */
+/** What one workspace's chat, voice and AI run with right now (its settings within its plan). */
 export interface WorkspaceConfig {
   limits: AssistantLimits;
+  /** On only when the customer switched it on and its plan allows it. */
   chatEnabled: boolean;
   voiceEnabled: boolean;
-  /** Null: the platform's chat model. */
-  chatModel: string | null;
-  triageModel: string | null;
-  draftModel: string | null;
-  toneGuide: string;
+  /** False when a super admin switched AI off for this customer. */
+  aiEnabled: boolean;
+  plan: Plan;
   voiceName: string;
-  /** What customers see: the brand name (never empty) and its colour (#rrggbb). */
-  brand: { name: string; color: string };
+  /** What customers see in the widget and the author screens. */
+  brand: {
+    name: string;
+    color: string;
+    logoUrl: string | null;
+    launcherText: string;
+    theme: WidgetTheme;
+  };
 }
 
-/** Values a workspace starts with before its owner saves anything (today's env and switches). */
+/** Values a workspace starts with before its owner saves anything (today's env limits). */
 export interface PlatformDefaults {
   limits: AssistantLimits;
   voiceName: string;
-  switches: () => Promise<{ chatEnabled: boolean; voiceEnabled: boolean; chatModel: string }>;
+  plans: PlanReader;
 }
 
-/** The fields a new workspace row starts with. */
+/** The fields a new workspace row starts with: channels off, the env's limits. */
 export interface SeedValues {
   chatEnabled: boolean;
   voiceEnabled: boolean;
-  chatModel: string;
   messagesPerMinute: number;
   messagesPerDay: number;
   maxTurnsPerSession: number;
@@ -41,14 +48,11 @@ export interface SeedValues {
   brandColor: string;
 }
 
-/** A new workspace row starts from the platform values, so nothing changes until someone edits. */
-export async function seedValues(p: PlatformDefaults): Promise<SeedValues> {
+export function seedValues(p: Pick<PlatformDefaults, 'limits' | 'voiceName'>): SeedValues {
   const { chat, voice } = p.limits;
-  const switches = await p.switches();
   return {
-    chatEnabled: switches.chatEnabled,
-    voiceEnabled: switches.voiceEnabled,
-    chatModel: switches.chatModel,
+    chatEnabled: false,
+    voiceEnabled: false,
     messagesPerMinute: chat.messagesPerMinute,
     messagesPerDay: chat.messagesPerDay,
     maxTurnsPerSession: chat.maxTurnsPerSession,
@@ -60,81 +64,58 @@ export async function seedValues(p: PlatformDefaults): Promise<SeedValues> {
   };
 }
 
-type ConfigSource = Pick<
-  Row,
-  | 'chatEnabled'
-  | 'voiceEnabled'
-  | 'chatModel'
-  | 'triageModel'
-  | 'draftModel'
-  | 'toneGuide'
-  | 'voiceName'
-  | 'messagesPerMinute'
-  | 'messagesPerDay'
-  | 'maxTurnsPerSession'
-  | 'maxCallSeconds'
-  | 'callsPerHour'
-  | 'callsPerDay'
-  | 'brandName'
-  | 'brandColor'
->;
+type ConfigSource = SeedValues &
+  Pick<Row, 'brandName' | 'logoUrl' | 'launcherText' | 'widgetTheme'>;
 
-/** Limits come from the row; the platform keeps the hard caps it never hands to a workspace. */
-function toConfig(s: ConfigSource, p: PlatformDefaults, fallbackName: string): WorkspaceConfig {
-  const { chat, voice, drafts } = p.limits;
+/** Limits come from the row, capped by the plan; the platform keeps its own hard caps too. */
+function toConfig(s: ConfigSource, p: PlatformDefaults, plan: Plan, fallbackName: string) {
   return {
-    limits: {
-      chat: {
-        maxMessageChars: chat.maxMessageChars,
-        messagesPerMinute: s.messagesPerMinute,
-        messagesPerDay: s.messagesPerDay,
-        maxTurnsPerSession: s.maxTurnsPerSession,
-        sessionsPerHour: chat.sessionsPerHour,
-      },
-      voice: {
-        maxCallSeconds: Math.min(s.maxCallSeconds, voice.maxCallSeconds),
-        callsPerHour: s.callsPerHour,
-        callsPerDay: s.callsPerDay,
-      },
-      drafts,
-    },
-    chatEnabled: s.chatEnabled,
-    voiceEnabled: s.voiceEnabled,
-    chatModel: s.chatModel,
-    triageModel: s.triageModel,
-    draftModel: s.draftModel,
-    toneGuide: s.toneGuide,
+    limits: capLimits(s, plan, p.limits),
+    chatEnabled: s.chatEnabled && plan.chatAllowed,
+    voiceEnabled: s.voiceEnabled && plan.voiceAllowed,
+    aiEnabled: plan.aiEnabled,
+    plan,
     voiceName: s.voiceName,
-    brand: { name: s.brandName.trim() || fallbackName, color: s.brandColor },
-  };
+    brand: {
+      name: s.brandName.trim() || fallbackName,
+      color: s.brandColor,
+      logoUrl: s.logoUrl,
+      launcherText: s.launcherText,
+      theme: s.widgetTheme,
+    },
+  } satisfies WorkspaceConfig;
 }
 
 /** Without a saved brand name: BookLeaf keeps its short name, other workspaces use theirs. */
 const brandFallback = (workspaceId: string, workspaceName: string | undefined) =>
   workspaceId === DEFAULT_WORKSPACE_ID ? 'BookLeaf' : (workspaceName ?? 'Support');
 
+const BLANK = { brandName: '', logoUrl: null, launcherText: '', widgetTheme: 'AUTO' } as const;
+
 /** Short enough that another server instance sees a change within seconds. */
 const CACHE_MS = 5_000;
 
 /**
  * Every workspace's effective settings, read through a short cache that the settings screens
- * clear on save. A workspace without a saved row runs on the platform values.
+ * (and the console's plan changes) clear on save. A workspace without a saved row runs on the
+ * starting values.
  */
 export function createWorkspaceConfigs(db: Db, platform: PlatformDefaults, now = Date.now) {
   const cache = new Map<string, { at: number; config: Promise<WorkspaceConfig> }>();
   async function load(workspaceId: string): Promise<WorkspaceConfig> {
     // Cached per workspace, so always read as that workspace, whoever asks first (S.8).
-    const ws = await withWorkspace(workspaceId, () =>
-      db.workspace.findUnique({
-        where: { id: workspaceId },
-        select: { name: true, settings: true },
-      }),
-    );
+    const [ws, { plan }] = await Promise.all([
+      withWorkspace(workspaceId, () =>
+        db.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true, settings: true },
+        }),
+      ),
+      platform.plans.forWorkspace(workspaceId),
+    ]);
     const fallbackName = brandFallback(workspaceId, ws?.name);
-    if (ws?.settings) return toConfig(ws.settings, platform, fallbackName);
-    const seed = await seedValues(platform);
-    const blank = { triageModel: null, draftModel: null, toneGuide: '', brandName: '' };
-    return toConfig({ ...seed, ...blank }, platform, fallbackName);
+    const source = ws?.settings ?? { ...seedValues(platform), ...BLANK };
+    return toConfig(source, platform, plan, fallbackName);
   }
   return {
     forWorkspace(workspaceId: string): Promise<WorkspaceConfig> {
@@ -145,8 +126,11 @@ export function createWorkspaceConfigs(db: Db, platform: PlatformDefaults, now =
       config.catch(() => cache.delete(workspaceId));
       return config;
     },
-    invalidate: (workspaceId: string) => void cache.delete(workspaceId),
-    seed: () => seedValues(platform),
+    invalidate: (workspaceId: string) => {
+      if (workspaceId) cache.delete(workspaceId);
+      else cache.clear();
+    },
+    seed: () => Promise.resolve(seedValues(platform)),
   };
 }
 

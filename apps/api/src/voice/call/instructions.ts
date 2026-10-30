@@ -5,6 +5,7 @@ import {
   knowledgeText,
   type WorkspaceKnowledge,
 } from '../../ai/knowledge/knowledge.js';
+import { behaviourBlock } from '../../ai/prompts/behaviour.js';
 import { factLine } from '../../ai/prompts/draft.v1.js';
 import { personaBlock, type VoiceStyle } from './persona.js';
 import { genericIntroAndRules } from './rules-generic.js';
@@ -94,5 +95,5 @@ VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 
 KNOWLEDGE BASE:
-${knowledgeText(input.knowledge)}${earlierBlock(input.earlier, input.earlierFrom)}`;
+${knowledgeText(input.knowledge)}${behaviourBlock(input.knowledge.behaviour, 'voice', input.authorFirstName)}${earlierBlock(input.earlier, input.earlierFrom)}`;
 }

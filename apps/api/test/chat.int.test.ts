@@ -105,15 +105,15 @@ describe('admin control', () => {
     expect(after).toMatchObject({ version: before.version, voiceEnabled: before.voiceEnabled });
   });
 
-  it('rejects a chat model outside the allowlist (422)', async () => {
+  it('refuses a chat model choice: models are managed by the support provider (403, U-7)', async () => {
     const { settings } = (await call(h, 'GET', '/admin/assistant', admin)).json<{
       settings: AssistantSettings;
     }>();
     const res = await call(h, 'PUT', '/admin/assistant/settings', admin, {
       version: settings.version,
-      chatModel: 'gpt-made-up',
+      chatModel: 'claude-opus-5-5',
     });
-    expect(res.statusCode).toBe(422);
+    expect(res.statusCode).toBe(403);
   });
 });
 
@@ -205,21 +205,15 @@ describe('grounded answers', () => {
 
   it('degrades to an "unavailable" answer with a ticket offer when the AI is down', async () => {
     const chat = await startChat(priya);
-    const ai = await h.db.aiSettings.findUniqueOrThrow({ where: { id: 1 } });
-    await call(h, 'PUT', '/admin/ai/settings', admin, {
-      version: ai.version,
-      simulateOutage: true,
-    });
+    // The global outage switch is the super admin's (U-7, covered in platform-ai.int.test.ts).
+    await h.db.platformSettings.update({ where: { id: 1 }, data: { simulateOutage: true } });
+    h.container.ai.invalidate();
     const res = await send(priya, chat.id, 'Is my book available on Flipkart yet?');
     expect(res.statusCode).toBe(200);
     expect(res.json<ChatReply>().reply.source).toBe('UNAVAILABLE');
     expect(res.json<ChatReply>().reply.proposal).toBeNull();
     expect(res.json<ChatReply>().session.draft).toBeNull();
-    const after = await h.db.aiSettings.findUniqueOrThrow({ where: { id: 1 } });
-    await call(h, 'PUT', '/admin/ai/settings', admin, {
-      version: after.version,
-      simulateOutage: false,
-    });
+    await h.db.platformSettings.update({ where: { id: 1 }, data: { simulateOutage: false } });
     h.container.ai.invalidate();
   });
 });

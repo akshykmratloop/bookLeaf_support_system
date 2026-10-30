@@ -4,7 +4,13 @@ import { loadAuthorView } from '../../host/author.js';
 import type { HostRecords } from '../../host/types.js';
 import type { Db } from '../../platform/db.js';
 import { voiceInstructions } from '../../voice/call/instructions.js';
-import { spokenLines, transcriptionLanguage, type VoiceStyle } from '../../voice/call/persona.js';
+import {
+  spokenLines,
+  transcriptionLanguage,
+  voiceStyleFor,
+  type VoiceStyle,
+} from '../../voice/call/persona.js';
+import { greetingFor } from '../../ai/prompts/behaviour.js';
 import type { SpokenLines } from '../../voice/call/types.js';
 import { voiceTools } from '../../voice/call/tool-defs.js';
 import type { VoiceSessionConfig } from '../../voice/providers/types.js';
@@ -47,19 +53,28 @@ export interface CallContextInput {
   voiceName: string;
 }
 
-const greetingFor = (t: ThreadContext) =>
+const greetingKind = (t: ThreadContext) =>
   !t.resumed ? 'new' : t.from === 'chat' ? 'chat' : 'resumed';
+
+/** A new call opens with the customer's own greeting when it set one (U-7). */
+function openingLine(k: WorkspaceKnowledge, t: ThreadContext, style: VoiceStyle, name: string) {
+  const kind = greetingKind(t);
+  const own = kind === 'new' ? greetingFor(k.behaviour, name) : null;
+  return own ?? spokenLines(style, k).greeting[kind](name);
+}
 
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   deps: { db: Db; records: HostRecords },
   input: CallContextInput,
 ): Promise<CallContext> {
-  const { authorId, maxSeconds, thread, turnsLeft, style, limits, voiceName } = input;
+  const { authorId, maxSeconds, thread, turnsLeft, limits, voiceName } = input;
   const [{ facts, books, firstName }, knowledge] = await Promise.all([
     loadAuthorView(deps, authorId),
     loadWorkspaceKnowledge(deps.db, input.workspaceId),
   ]);
+  // The customer's language choice picks the voice style; unset keeps VOICE_STYLE (U-7).
+  const style = voiceStyleFor(knowledge.behaviour?.replyLanguage ?? null, input.style);
   const instructions = voiceInstructions({
     knowledge,
     authorFirstName: firstName,
@@ -71,7 +86,7 @@ export async function buildCallContext(
     earlierFrom: thread.from,
     style,
   });
-  const { greeting, ...lines } = spokenLines(style, knowledge);
+  const { greeting: _greetings, ...lines } = spokenLines(style, knowledge);
   return {
     facts,
     books,
@@ -85,7 +100,7 @@ export async function buildCallContext(
       instructions,
       tools: voiceTools(knowledge),
       language: transcriptionLanguage(style),
-      greeting: greeting[greetingFor(thread)](firstName),
+      greeting: openingLine(knowledge, thread, style, firstName),
       voice: voiceName,
     },
   };

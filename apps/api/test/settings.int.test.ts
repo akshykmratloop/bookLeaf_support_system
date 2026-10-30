@@ -81,19 +81,21 @@ describe('customer-data fields', () => {
 });
 
 describe('workspace settings', () => {
-  it('starts on platform defaults with the allowed models, and saves changes with a version', async () => {
+  it('starts on the starting values with its plan, and saves changes with a version', async () => {
     const res = await call(h, 'GET', '/workspace/settings', acme);
     expect(res.statusCode).toBe(200);
     const status = res.json<{
       settings: { version: number; chatEnabled: boolean };
-      models: unknown[];
+      plan: { chatAllowed: boolean; max: { messagesPerMinute: number } };
     }>();
     expect(status.settings).toMatchObject({
       version: 0,
       chatEnabled: false,
       customerNoun: 'customer',
     });
-    expect(status.models.length).toBeGreaterThan(0);
+    // Models are the support provider's now (U-7); the plan says what the customer may set.
+    expect(status.settings).not.toHaveProperty('chatModel');
+    expect(status.plan).toMatchObject({ chatAllowed: true, max: { messagesPerMinute: 120 } });
 
     const saved = await call(h, 'PUT', '/workspace/settings', acme, {
       version: 0,
@@ -114,17 +116,16 @@ describe('workspace settings', () => {
     });
   });
 
-  it('refuses a stale version (409), an unknown model and out-of-range limits (422)', async () => {
+  it('refuses a stale version (409), a model choice (403, U-7) and out-of-range limits (422)', async () => {
     expect(
       (await call(h, 'PUT', '/workspace/settings', acme, { version: 0, chatEnabled: false }))
         .statusCode,
     ).toBe(409);
     const model = await call(h, 'PUT', '/workspace/settings', acme, {
       version: 1,
-      chatModel: 'gpt-9',
+      chatModel: 'claude-opus-5-5',
     });
-    expect(model.statusCode).toBe(422);
-    expect(model.json<{ errors: { path: string }[] }>().errors[0]?.path).toBe('chatModel');
+    expect(model.statusCode).toBe(403);
     expect(
       (await call(h, 'PUT', '/workspace/settings', acme, { version: 1, maxCallSeconds: 9999 }))
         .statusCode,
@@ -185,6 +186,9 @@ describe('workspace settings', () => {
     expect((await h.container.assistant.availability(acmeId)).brand).toEqual({
       name: 'Acme Lending',
       color: '#112233',
+      logoUrl: null,
+      launcherText: '',
+      theme: 'AUTO',
     });
     const { settings } = (await call(h, 'GET', '/workspace/settings', acme)).json<{
       settings: { version: number };
@@ -197,6 +201,9 @@ describe('workspace settings', () => {
     expect((await h.container.assistant.availability(DEFAULT_WORKSPACE_ID)).brand).toEqual({
       name: 'BookLeaf',
       color: '#d13f53',
+      logoUrl: null,
+      launcherText: '',
+      theme: 'AUTO',
     });
   });
 

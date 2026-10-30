@@ -1,7 +1,12 @@
-import type { UpdateWorkspaceSettings, WorkspaceSettingsStatus } from '@bookleaf/shared';
+import {
+  LIMIT_BOUNDS,
+  type LimitKey,
+  type UpdateWorkspaceSettings,
+  type WorkspaceSettingsStatus,
+} from '@bookleaf/shared';
 import type { ReactNode } from 'react';
 import { Card } from '../atoms/Card';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input } from '../atoms/Input';
 import { Field } from '../molecules/Field';
 
 export type Patch = Omit<UpdateWorkspaceSettings, 'version'>;
@@ -39,28 +44,39 @@ export function Toggle({
   label,
   checked,
   disabled,
+  reason,
   onChange,
 }: {
   id: string;
   label: string;
   checked: boolean;
   disabled: boolean;
+  /** Why the switch is locked (e.g. the plan does not include this), shown under it. */
+  reason?: string;
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label htmlFor={id} className="flex items-center gap-2 text-[12.5px] font-semibold">
-      <input
-        id={id}
-        type="checkbox"
-        role="switch"
-        aria-checked={checked}
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4"
-      />
-      {label}
-    </label>
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="flex items-center gap-2 text-[12.5px] font-semibold">
+        <input
+          id={id}
+          type="checkbox"
+          role="switch"
+          aria-checked={checked}
+          aria-describedby={reason ? `${id}-reason` : undefined}
+          checked={checked}
+          disabled={disabled || Boolean(reason)}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4"
+        />
+        {label}
+      </label>
+      {reason ? (
+        <p id={`${id}-reason`} className="text-[12px] text-ink-3">
+          {reason}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -85,7 +101,7 @@ export function NumberField({
   onCommit: (v: number) => void;
 }) {
   return (
-    <Field id={id} label={label} error={error}>
+    <Field id={id} label={label} hint={`Up to ${max}`} error={error}>
       <Input
         id={id}
         type="number"
@@ -93,6 +109,8 @@ export function NumberField({
         max={max}
         defaultValue={value}
         disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : `${id}-hint`}
         onBlur={(e) => {
           const n = Number(e.target.value);
           if (n !== value) onCommit(n);
@@ -102,93 +120,25 @@ export function NumberField({
   );
 }
 
-function ModelSelect({
-  id,
+/** A customer limit field: the schema's floor up to the plan's maximum (the server enforces it). */
+export function LimitField({
+  name,
   label,
-  value,
-  models,
-  disabled,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string | null;
-  models: WorkspaceSettingsStatus['models'];
-  disabled: boolean;
-  onChange: (v: string | null) => void;
-}) {
+  status,
+  isSaving,
+  update,
+  fieldError,
+}: SectionProps & { name: LimitKey; label: string }) {
   return (
-    <Field id={id} label={label}>
-      <Select
-        id={id}
-        value={value ?? ''}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value || null)}
-      >
-        <option value="">Platform default</option>
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label} · {m.tier}
-          </option>
-        ))}
-      </Select>
-    </Field>
-  );
-}
-
-export function AiSection({ status, isSaving, update, fieldError }: SectionProps) {
-  const s = status.settings;
-  return (
-    <Section
-      title="AI models and tone"
-      description={
-        status.aiConfigured
-          ? 'Which model handles each job, and how replies should sound.'
-          : 'The platform has no AI key configured; tickets use the rule-based fallback.'
-      }
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        <ModelSelect
-          id="triageModel"
-          label="Triage"
-          value={s.triageModel}
-          models={status.models}
-          disabled={isSaving}
-          onChange={(triageModel) => update({ triageModel })}
-        />
-        <ModelSelect
-          id="draftModel"
-          label="Reply drafts"
-          value={s.draftModel}
-          models={status.models}
-          disabled={isSaving}
-          onChange={(draftModel) => update({ draftModel })}
-        />
-        <ModelSelect
-          id="chatModel"
-          label="Chat"
-          value={s.chatModel}
-          models={status.models}
-          disabled={isSaving}
-          onChange={(chatModel) => update({ chatModel })}
-        />
-      </div>
-      <Field
-        id="toneGuide"
-        label="Tone guide"
-        hint="How the assistant should write to your customers. Saved when you leave the box."
-        error={fieldError('toneGuide')}
-      >
-        <Textarea
-          id="toneGuide"
-          rows={4}
-          defaultValue={s.toneGuide}
-          disabled={isSaving}
-          onBlur={(e) => {
-            if (e.target.value !== s.toneGuide) update({ toneGuide: e.target.value });
-          }}
-        />
-      </Field>
-    </Section>
+    <NumberField
+      id={name}
+      label={label}
+      value={status.settings[name]}
+      min={LIMIT_BOUNDS[name].min}
+      max={status.plan.max[name]}
+      disabled={isSaving}
+      error={fieldError(name)}
+      onCommit={(v) => update({ [name]: v })}
+    />
   );
 }

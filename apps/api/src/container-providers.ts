@@ -3,20 +3,23 @@ import { buildProviderRegistry } from './ai/providers/registry.js';
 import type { LlmProvider } from './ai/providers/types.js';
 import type { Env } from './config/index.js';
 import { envelopeFromEnv } from './modules/connectors/from-env.js';
-import { createKeyedProviders } from './modules/provider-keys/keyed.js';
+import { createPlanReader } from './modules/platform/plans.js';
+import { createPlatformProviders } from './modules/platform/providers.js';
 import type { Clock } from './platform/clock.js';
 import type { Db } from './platform/db.js';
 import type { CacheSync } from './platform/shared-state/cache-sync.js';
+import type { SharedStateLog } from './platform/shared-state/types.js';
 import { buildVoiceProvider, voiceProviderFor } from './voice/providers/registry.js';
 import type { VoiceProvider } from './voice/providers/types.js';
 
 export interface ProviderOverrides {
+  /** The AI clients the env keys would give (tests pass a fake). */
   providers?: Map<string, LlmProvider>;
   /** null = no voice provider configured. */
   voiceProvider?: VoiceProvider | null;
-  /** Builds a client from a workspace's own AI key (tests pass a fake). */
+  /** Builds a client from a key saved in the console (tests pass a fake). */
   buildAi?: (providerId: string, apiKey: string) => LlmProvider | undefined;
-  /** Builds a client from a workspace's own voice key (tests pass a fake). */
+  /** Builds a voice client from a saved key (tests pass a fake). */
   buildVoice?: (providerId: string, apiKey: string) => VoiceProvider | null;
 }
 
@@ -25,35 +28,50 @@ interface ProviderInputs {
   db: Db;
   clock: Clock;
   cacheSync: CacheSync;
+  log: SharedStateLog;
 }
 
-/** AI and voice clients: the platform's from env, and each workspace's own from its saved keys. */
+/**
+ * AI and voice clients every customer runs on (U-7): a key saved in the console, else the env
+ * key. Plans and settings are cached per copy and cleared on every copy on save (F-19).
+ */
 export function createProviders(
-  { env, db, clock, cacheSync }: ProviderInputs,
+  { env, db, clock, cacheSync, log }: ProviderInputs,
   overrides: ProviderOverrides,
 ) {
-  const providers =
+  const envAi =
     overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
   const voiceProvider =
     overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
   const envelope = envelopeFromEnv(env);
-  // Saved keys and AI settings are cached per copy and cleared on every copy on save (F-19).
-  const keyed = cacheSync.shared(
-    'provider-keys',
-    createKeyedProviders({
+  const buildVoice = overrides.buildVoice;
+  const platform = cacheSync.shared(
+    'platform-providers',
+    createPlatformProviders({
       db,
       envelope,
       now: () => clock.now(),
-      platformAi: providers,
-      platformVoice: voiceProvider,
+      log,
+      envAi,
+      envVoice: voiceProvider,
+      envVoiceKey: env.OPENAI_API_KEY,
+      voiceProviderId: env.VOICE_PROVIDER,
       buildAi:
         overrides.buildAi ?? ((id, key) => buildProviderRegistry({ anthropicApiKey: key }).get(id)),
-      buildVoice: overrides.buildVoice ?? ((id, key) => voiceProviderFor(env, id, key)),
+      buildVoice: buildVoice
+        ? (id, key) => buildVoice(id, key)
+        : (id, key, model) => voiceProviderFor(env, id, key, model),
     }),
   );
+  const plans = cacheSync.shared('workspace-plans', createPlanReader(db));
   const ai: AiRuntime = cacheSync.shared(
     'ai-settings',
-    createAiRuntime(db, providers, () => clock.now(), keyed.ai),
+    createAiRuntime({
+      db,
+      now: () => clock.now(),
+      provider: (id) => platform.ai(id),
+      aiAllowed: async (workspaceId) => (await plans.forWorkspace(workspaceId)).plan.aiEnabled,
+    }),
   );
-  return { voiceProvider, envelope, keyed, ai };
+  return { voiceProvider, envAi, envelope, platform, plans, ai };
 }

@@ -14,7 +14,7 @@ export const isFramed = (): boolean => {
 
 type HostMessage = 'reauth' | 'escape' | 'expand' | 'close' | 'brand';
 
-export function tellHost(type: HostMessage, extra: Record<string, string> = {}): void {
+export function tellHost(type: HostMessage, extra: Record<string, string | null> = {}): void {
   if (!isFramed()) return;
   // '*': the host's origin is not known here; the message is only a hint and embed.js checks it.
   window.parent.postMessage({ type: `${PREFIX}${type}`, ...extra }, '*');

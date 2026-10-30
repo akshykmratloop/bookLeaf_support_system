@@ -178,9 +178,9 @@ workspace's address name, chosen at signup). Only that workspace's allowed origi
 | --- | --- | --- | --- |
 | `data-workspace` | yes (new tags) | none | Your workspace's slug, e.g. `bookleaf`. The frame opens `/embed/<slug>`. A value that is not a slug makes the script throw an error. Without it (tags written before F-18) the frame opens the old `/embed`, which redirects to the default workspace (BookLeaf) |
 | `data-token-url` | yes | none | An endpoint on **your** origin. It answers `POST` (with your session cookie) with `{ "token": "…" }`. Without it, the script throws an error |
-| `data-label` | no | `Help` | Text on the launcher button |
+| `data-label` | no | workspace launcher text, else `Help` | Text on the launcher button. Without it, the launcher shows the workspace's **Launcher button text** (Settings → Widget) once the panel has loaded |
 | `data-title` | no | workspace brand name + "Help" | Title in the panel header. Without it, the panel shows the workspace's brand name (set in Settings → Widget), and the launcher takes the brand colour |
-| `data-theme` | no | `auto` | `light`, `dark` or `auto`. See "Theme" below. Any other value means `auto` |
+| `data-theme` | no | `auto` | `light`, `dark` or `auto`. See "Theme" below. Any other value means `auto`. With `auto`, a workspace **Widget theme** of "Always light" / "Always dark" wins over the host page |
 
 **What the script does**
 
@@ -331,19 +331,53 @@ everything in **Workspace settings** (admin area) instead of env:
 | --- | --- | --- |
 | Product Connection | the base URL of the customer endpoint (step 2b), the Bearer API key, the HS256 signing secret, sign-in URL, timeout, cache; a **Test** button fetches one customer | `GET/PUT /api/v1/workspace/connector`, `POST …/connector/test` |
 | Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
-| Workspace Settings | models per job, tone guide, chat and voice switches and limits, voice name, widget origins, branding, nouns | `GET/PUT /api/v1/workspace/settings` |
+| Workspace Settings | how the AI writes (tone and brand voice, greeting, signature, language English / Hinglish / match the customer, reply length, formality, topics to avoid), chat and voice switches and limits (up to the plan), voice from the approved list, widget origins, branding (name, colour, https logo, launcher text, widget theme), nouns | `GET/PUT /api/v1/workspace/settings` |
 | API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
-| Provider Keys | the workspace's own AI and voice provider keys (write-only, last 4 shown) | `/api/v1/workspace/provider-keys` |
 | Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed`; signing secret shown once; test delivery; last 20 deliveries | `/api/v1/workspace/webhooks` |
 
-**Platform settings stay with the platform operator.** The platform AI provider, its models and
-the outage switch (`/admin/ai/*`) apply to every workspace, so only admins of the default workspace
-can see or change them; other workspaces get 403 and choose their own models in Workspace
-Settings. Every admin read is limited to the admin's own workspace: chat transcripts, call
-transcripts, tickets, and the live event stream.
+**The AI behaviour settings are used by every AI job.** Triage gets the language and the topics to
+avoid; reply drafts, chat and voice also get the tone, length and formality in a `<style_settings>`
+block placed after the platform's own rules, which it may not override. Drafts open with the
+greeting (`{name}` becomes the customer's first name) and close with the signature; chat greets on
+its first reply, and voice opens the call with the greeting and speaks in the chosen language. A
+setting left on "Not set" changes nothing. The reply checker, `[CONFIRM: …]` placeholders and the
+other safety rules are the platform's and cannot be edited.
+
+**Platform settings belong to the support provider (U-7).** AI providers and their keys, the models
+for triage, drafts, chat and voice, the outage switch, and each customer's plan are set in the
+super admin console at `/platform` (below), never by a customer. The old customer endpoints
+(`/api/v1/admin/ai/*`, `/api/v1/workspace/provider-keys*`) and the managed fields on the settings
+endpoints (`triageModel`, `draftModel`, `chatModel`) answer **403 "Managed by your support
+provider"**, and the old `/admin/ai` page says the same. Every admin read is limited to the
+admin's own workspace: chat transcripts, call transcripts, tickets, and the live event stream.
+
+**Plans.** Each customer has a plan: chat allowed, voice allowed, AI on or off, and the most each
+limit may be set to (messages per minute and per day, turns per conversation, calls per hour and
+per day, longest call). The server refuses a channel the plan does not include (403) and a limit
+above the plan's maximum (422 "Your plan allows at most N"); lowering a maximum caps the
+customer's current value at once. AI off means rule-based triage and template drafts, with chat
+and calls unavailable. A suspended customer's staff are signed out, and its widget tokens and API
+keys are refused (403 `WORKSPACE_SUSPENDED`).
 
 Secrets are encrypted at rest (AES-256-GCM under the server's `SECRETS_MASTER_KEY`) and never
 returned; the screens show a last-4 hint only.
+
+**The super admin console (`/platform`).** The support provider's own operators sign in at
+`/platform/login`: a separate account table (`platform_admins`, no sign-up), a separate cookie
+(`bl_platform`) and a separate token audience. A customer session gets 403 on every
+`/api/v1/platform/*` route, and a super admin session gets 403 on every customer route. The one
+account is created or updated by the seed from `PLATFORM_ADMIN_EMAIL` + `PLATFORM_ADMIN_PASSWORD`
+(set both or neither; changing the password signs old sessions out).
+
+| Screen | What it does | API |
+| --- | --- | --- |
+| Customers | every workspace with status, plan and usage **counts** (tickets all time and last 30 days, chats, calls and call minutes, AI runs, estimated AI cost); create a customer; never any ticket content | `GET/POST /api/v1/platform/customers` |
+| Customer | the plan (chat / voice allowed, AI on, maximum limits) and suspend / resume, saved with a version (409 when stale) | `PUT /api/v1/platform/customers/:id/plan` |
+| AI and keys | provider and models for triage, drafts, chat and voice; the global outage switch; provider keys (encrypted, last 4 shown; with no saved key the server env key is used); **Test connection** | `GET /api/v1/platform/ai`, `PUT …/ai/settings`, `PUT/DELETE …/ai/keys/:capability/:provider`, `POST …/ai/test` |
+
+The platform tables (`platform_admins`, `platform_settings`, `platform_provider_keys`,
+`workspace_plans`) grant nothing to the request role `bookleaf_app`; they are read and written
+only through the owner connection.
 
 **Server API (workspace API keys).** Your server reads its own tickets with a key that has the
 `tickets:read` scope: `Authorization: Bearer blsk_…`.

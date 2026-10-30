@@ -1,4 +1,5 @@
 import type { Fact } from '@bookleaf/shared';
+import { greetingFor, signatureFor } from '../prompts/behaviour.js';
 import { firstName, signOffFor, type DraftInput } from './types.js';
 
 /**
@@ -124,10 +125,14 @@ function bodyFor(input: DraftInput): Body {
   return BODIES[input.category ?? ''] ?? GENERAL_BODY;
 }
 
+/** The customer's own greeting and sign-off (U-7) when set; otherwise "Hi <name>," as before. */
 export function templateBody(input: DraftInput): string {
-  return `Hi ${firstName(input.authorName)},
+  const name = firstName(input.authorName);
+  const behaviour = input.knowledge.behaviour;
+  const greeting = greetingFor(behaviour, name) ?? `Hi ${name},`;
+  return `${greeting}
 
 ${bodyFor(input)(input)}
 
-${signOffFor(input.knowledge)}`;
+${signatureFor(behaviour) ?? signOffFor(input.knowledge)}`;
 }
