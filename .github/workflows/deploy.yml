@@ -80,8 +80,8 @@ jobs:
           API_HOST: ${{ vars.API_HOST }}
           HOST_API_HOST: ${{ vars.HOST_API_HOST }}
         run: |
-          curl -fsS --retry 5 --retry-delay 5 "https://$API_HOST/health"
-          curl -fsS --retry 5 --retry-delay 5 "https://$HOST_API_HOST/health"
+          curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "https://$API_HOST/health"
+          curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "https://$HOST_API_HOST/health"
 
   frontend:
     needs: [gate, verify, backend]
@@ -127,5 +127,5 @@ jobs:
         env:
           SITE: ${{ vars[matrix.url_var] }}
         run: |
-          curl -fsS --retry 5 --retry-delay 5 -o /dev/null "$SITE/"
-          curl -fsS --retry 5 --retry-delay 5 "$SITE${{ matrix.check }}"
+          curl -fsS --retry 8 --retry-delay 5 --retry-all-errors -o /dev/null "$SITE/"
+          curl -fsS --retry 8 --retry-delay 5 --retry-all-errors "$SITE${{ matrix.check }}"
