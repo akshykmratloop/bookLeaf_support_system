@@ -47,3 +47,16 @@ export async function authorCookieOf(h: Harness, slug: string): Promise<string> 
   });
   return `bl_session=${token}`;
 }
+
+/**
+ * A new signup starts with AI, chat and voice off. This turns them on, as the super admin does
+ * when approving a company, for tests about what those features do.
+ */
+export async function allowPaidFeatures(h: Harness, slug: string): Promise<void> {
+  const ws = await h.db.workspace.findUniqueOrThrow({ where: { slug } });
+  await h.db.workspacePlan.update({
+    where: { workspaceId: ws.id },
+    data: { aiEnabled: true, chatAllowed: true, voiceAllowed: true },
+  });
+  h.container.configs.invalidate(ws.id);
+}

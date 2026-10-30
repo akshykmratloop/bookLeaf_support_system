@@ -12,7 +12,13 @@ import {
   EMAILS,
   type Harness,
 } from './helpers/app.js';
-import { authorCookieOf, ownerCookie, ownerOf, signupWorkspace } from './helpers/workspaces.js';
+import {
+  allowPaidFeatures,
+  authorCookieOf,
+  ownerCookie,
+  ownerOf,
+  signupWorkspace,
+} from './helpers/workspaces.js';
 
 /** S.9: the AI uses only the ticket's own workspace's categories and articles. */
 let h: Harness;
@@ -54,6 +60,7 @@ beforeAll(async () => {
   h = await createHarness({ env: { SIGNUPS_PER_HOUR: '10' } });
   await deleteWorkspace(h.db, ACME.slug);
   await signupWorkspace(h, ACME);
+  await allowPaidFeatures(h, ACME.slug);
   [acme, acmeAuthor, bookleafAdmin] = await Promise.all([
     ownerCookie(h, ACME.slug),
     authorCookieOf(h, ACME.slug),

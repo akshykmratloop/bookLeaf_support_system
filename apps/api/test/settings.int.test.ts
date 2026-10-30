@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 import { call, createHarness, deleteWorkspace, EMAILS, type Harness } from './helpers/app.js';
+import { allowPaidFeatures } from './helpers/workspaces.js';
 
 let h: Harness;
 let admin: string;
@@ -17,6 +18,7 @@ const OWNER = {
 beforeAll(async () => {
   h = await createHarness();
   await call(h, 'POST', '/signup', undefined, OWNER);
+  await allowPaidFeatures(h, OWNER.slug);
   [admin, acme] = await Promise.all([h.login(EMAILS.admin), h.login(OWNER.email, OWNER.password)]);
 });
 afterAll(async () => {

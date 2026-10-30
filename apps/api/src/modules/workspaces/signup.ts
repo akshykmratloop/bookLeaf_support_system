@@ -16,6 +16,13 @@ const SLUG_TAKEN = () =>
 const EMAIL_TAKEN = () =>
   new ConflictError('EMAIL_TAKEN', 'That email already has an account. Sign in instead.');
 
+/**
+ * Signup has no email check, and AI and voice run on the platform's paid keys. So a new company
+ * starts with AI, chat and voice off; the super admin turns them on in its plan (U-7). Tickets,
+ * the queue, connectors and settings work from day one.
+ */
+const SIGNUP_PLAN = { aiEnabled: false, chatAllowed: false, voiceAllowed: false } as const;
+
 /** Alike names signing up at once race for one ticket prefix; each retry takes the next free one. */
 const PREFIX_ATTEMPTS = 8;
 const PREFIX_BUSY = () =>
@@ -60,8 +67,9 @@ async function insertWorkspace(tx: Prisma.TransactionClient, o: NewOwner) {
   });
   const user = await createOwner(tx, workspace.id, o);
   await createStarterCategory(tx, workspace.id);
-  // Every new customer starts on the default plan; a super admin may change it (U-7).
-  await tx.workspacePlan.create({ data: { workspaceId: workspace.id, createdAt: o.now } });
+  await tx.workspacePlan.create({
+    data: { workspaceId: workspace.id, createdAt: o.now, ...SIGNUP_PLAN },
+  });
   await tx.auditEvent.create({
     data: {
       workspaceId: workspace.id,

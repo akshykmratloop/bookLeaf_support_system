@@ -9,7 +9,13 @@ import {
   deleteWorkspace,
   type Harness,
 } from './helpers/app.js';
-import { authorCookieOf, ownerCookie, ownerOf, signupWorkspace } from './helpers/workspaces.js';
+import {
+  allowPaidFeatures,
+  authorCookieOf,
+  ownerCookie,
+  ownerOf,
+  signupWorkspace,
+} from './helpers/workspaces.js';
 
 /**
  * S.9 review fix: a category's own SLA hours follow the category the ticket ends up in, whoever
@@ -59,6 +65,7 @@ beforeAll(async () => {
   h = await createHarness({ env: { SIGNUPS_PER_HOUR: '10' } });
   await deleteWorkspace(h.db, ACME.slug);
   await signupWorkspace(h, ACME);
+  await allowPaidFeatures(h, ACME.slug);
   [admin, author] = await Promise.all([ownerCookie(h, ACME.slug), authorCookieOf(h, ACME.slug)]);
   const urgent = await call(h, 'POST', '/workspace/categories', admin, {
     key: 'URGENT',

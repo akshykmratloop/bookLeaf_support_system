@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { AssistantSettings, TicketDraft } from '@bookleaf/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { LOGIN_ATTEMPTS_PER_ACCOUNT } from '../src/modules/auth/login-throttle.js';
 import type { DraftChange } from '../src/modules/ticket-drafts/live.js';
 import { DEFAULT_WORKSPACE_ID } from '../src/modules/workspaces/constants.js';
 import {
@@ -84,7 +85,7 @@ describe('two copies of the API share their state through Redis', () => {
     expect(replay.json<{ title: string }>().title).toMatch(/already been used/);
   });
 
-  it('counts a rate limit once across both copies (5 sign-in tries a minute)', async () => {
+  it('counts sign-in tries for an account once across both copies', async () => {
     const email = `nobody-${randomUUID()}@example.com`;
     // One visitor address of its own, so no other sign-in in this file shares the count.
     const remoteAddress = `203.0.113.${1 + Math.floor(Math.random() * 250)}`;
@@ -96,8 +97,9 @@ describe('two copies of the API share their state through Redis', () => {
         payload: { email, password: 'Wrong-password-1' },
       });
     const statuses: number[] = [];
-    for (const h of [a, b, a, b, a]) statuses.push((await tryOn(h)).statusCode);
-    expect(statuses).toEqual([401, 401, 401, 401, 401]);
+    for (let i = 0; i < LOGIN_ATTEMPTS_PER_ACCOUNT; i += 1)
+      statuses.push((await tryOn(i % 2 ? b : a)).statusCode);
+    expect(new Set(statuses)).toEqual(new Set([401]));
     expect((await tryOn(b)).statusCode).toBe(429);
     expect((await tryOn(a)).statusCode).toBe(429);
   });

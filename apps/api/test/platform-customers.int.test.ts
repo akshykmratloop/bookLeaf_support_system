@@ -67,7 +67,8 @@ describe('customers list (U-7)', () => {
       slug: SLUG,
       suspended: false,
       staff: 1,
-      plan: { chatAllowed: true, voiceAllowed: true, aiEnabled: true },
+      // A new signup starts with the paid features off until the super admin approves it.
+      plan: { chatAllowed: false, voiceAllowed: false, aiEnabled: false },
     });
     expect(res.body).not.toContain(subject);
     expect(res.body).not.toContain('private words here');
@@ -84,6 +85,8 @@ describe('customers list (U-7)', () => {
 
 describe('plans cap what a customer may use (U-7)', () => {
   it('a feature the plan does not allow cannot be switched on (403) and is off for authors', async () => {
+    const approve = { chatAllowed: true, voiceAllowed: true, aiEnabled: true };
+    expect((await updatePlan(h, platform, acmeId, approve)).statusCode).toBe(200);
     expect((await saveSettings(acme, { chatEnabled: true })).statusCode).toBe(200);
     expect((await updatePlan(h, platform, acmeId, { chatAllowed: false })).statusCode).toBe(200);
     expect((await saveSettings(acme, { chatEnabled: true })).statusCode).toBe(403);
