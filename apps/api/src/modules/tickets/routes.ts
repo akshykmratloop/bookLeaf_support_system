@@ -19,6 +19,7 @@ import { sessionOf } from '../../platform/http/auth-guard.js';
 import { idempotencyKey } from '../../platform/http/idempotency.js';
 import { addAdminMessage, addAuthorMessage } from '../messages/service.js';
 import { createTicket } from './create.js';
+import { ticketCustomerRoute } from './customer-route.js';
 import type { TicketDeps } from './deps.js';
 import { getAdminTicket, getAuthorTicket, listAdminTickets, listAuthorTickets } from './queries.js';
 import { solveTicket } from './solve.js';
@@ -150,7 +151,8 @@ function addMessage(app: RouteApp, deps: TicketDeps) {
     {
       schema: {
         tags: ['tickets'],
-        summary: 'Author follow-up, admin reply (checked against verified facts) or internal note',
+        summary:
+          'Author follow-up (409 TICKET_SOLVED once the ticket is solved or closed), admin reply (checked against verified facts) or internal note',
         params: IdParamSchema,
         body: CreateMessageRequestSchema,
         response: { 201: TicketView, ...errors },
@@ -193,4 +195,5 @@ export const ticketRoutes: FastifyPluginAsyncZod<{ deps: TicketDeps }> = async (
   solveOwnTicket(app, deps);
   addMessage(app, deps);
   retryTicketAi(app, deps);
+  ticketCustomerRoute(app, deps);
 };

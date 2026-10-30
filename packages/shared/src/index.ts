@@ -30,3 +30,4 @@ export * from './schemas/plans.js';
 export * from './schemas/ai-behaviour.js';
 export * from './schemas/platform.js';
 export * from './schemas/server-api.js';
+export * from './schemas/ticket-customer.js';

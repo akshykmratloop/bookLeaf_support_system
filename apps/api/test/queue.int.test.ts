@@ -85,13 +85,18 @@ describe('admin queue', () => {
 });
 
 describe('reopening', () => {
-  it('a new author message on a CLOSED ticket reopens it to OPEN', async () => {
+  it('a CLOSED ticket refuses an author message (409); staff reopen it to OPEN (U-2)', async () => {
     const id = await ticketWith({ status: 'CLOSED' });
-    const res = await call(h, 'POST', `/tickets/${id}/messages`, arjun, {
-      body: 'Sorry, this is still not sorted. Could you look again please?',
+    const body = 'Sorry, this is still not sorted. Could you look again please?';
+    const refused = await call(h, 'POST', `/tickets/${id}/messages`, arjun, { body });
+    expect(refused.statusCode).toBe(409);
+    const closed = (await call(h, 'GET', `/tickets/${id}`, admin)).json<{ version: number }>();
+    const reopened = await call(h, 'PATCH', `/tickets/${id}`, admin, {
+      status: 'OPEN',
+      version: closed.version,
     });
-    expect(res.statusCode).toBeLessThan(300);
-    const view = (await call(h, 'GET', `/tickets/${id}`, admin)).json<{ status: string }>();
-    expect(view.status).toBe('OPEN');
+    expect(reopened.json<{ status: string }>().status).toBe('OPEN');
+    const res = await call(h, 'POST', `/tickets/${id}/messages`, arjun, { body });
+    expect(res.statusCode).toBe(201);
   });
 });

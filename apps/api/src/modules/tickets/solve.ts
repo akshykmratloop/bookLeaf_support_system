@@ -40,8 +40,8 @@ async function markSolved(tx: Tx, session: Session, current: Current, now: Date)
 }
 
 /**
- * The author says their issue is solved (an open or in-progress ticket only). A new message from
- * them later reopens it, as for any resolved ticket.
+ * The author says their issue is solved (an open or in-progress ticket only). From then on the
+ * ticket is locked for the author (U-2): only staff can reopen it.
  */
 export async function solveTicket(
   deps: TicketDeps,

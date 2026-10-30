@@ -1,15 +1,20 @@
 import { MESSAGE_LIMITS, type AuthorTicket } from '@bookleaf/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowUp } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { api, errorMessage } from '../../lib/api';
+import { api, errorMessage, isApiError } from '../../lib/api';
 import { newRequestKey } from '../../lib/ids';
 import { keys, useApiMutation } from '../../lib/queries';
 import { Spinner } from '../atoms/Spinner';
 import { useToast } from '../molecules/Toast';
 
-/** The author's reply. On a solved or closed ticket, sending one opens it again. */
-export function TicketReplyBox({ ticketId, closed }: { ticketId: string; closed: boolean }) {
+/**
+ * The author's reply on an open ticket. If the ticket was solved meanwhile (409), the ticket is
+ * reloaded so the page swaps this box for the "Raise a new ticket" note (U-2).
+ */
+export function TicketReplyBox({ ticketId }: { ticketId: string }) {
   const toast = useToast();
+  const qc = useQueryClient();
   const [body, setBody] = useState('');
   const [requestKey, setRequestKey] = useState(newRequestKey);
   const send = useApiMutation(
@@ -30,13 +35,17 @@ export function TicketReplyBox({ ticketId, closed }: { ticketId: string; closed:
         setRequestKey(newRequestKey());
         toast('success', 'Message sent');
       },
-      onError: (err) => toast('error', errorMessage(err)),
+      onError: (err) => {
+        toast('error', errorMessage(err));
+        if (isApiError(err) && err.status === 409)
+          void qc.invalidateQueries({ queryKey: keys.ticket(ticketId) });
+      },
     });
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-1.5">
       <label htmlFor="followup" className="px-1 text-[12.5px] font-semibold text-ink-2">
-        {closed ? 'Need more help? Replying opens this ticket again.' : 'Reply to the team'}
+        Reply to the team
       </label>
       <div className="flex items-end gap-2 rounded-[22px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/60">
         <textarea

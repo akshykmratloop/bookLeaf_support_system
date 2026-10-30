@@ -5,6 +5,7 @@ import { Chip } from '../../components/atoms/Chip';
 import { Pill } from '../../components/atoms/Pill';
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { StatusStepper } from '../../components/molecules/StatusStepper';
+import { TicketSolvedNote } from '../../components/molecules/TicketSolvedNote';
 import { SolveTicketCard } from '../../components/organisms/SolveTicketCard';
 import { TicketConversation } from '../../components/organisms/TicketConversation';
 import { TicketInfoCard } from '../../components/organisms/TicketInfoCard';
@@ -58,7 +59,11 @@ export function TicketDetailPage() {
             createdAt={t.createdAt}
             messages={t.messages}
           />
-          <TicketReplyBox ticketId={t.id} closed={!t.canSolve} />
+          {t.canReply ? (
+            <TicketReplyBox ticketId={t.id} />
+          ) : (
+            <TicketSolvedNote closed={t.status === 'CLOSED'} />
+          )}
         </section>
         <aside className="flex flex-col gap-4">
           {t.canSolve ? <SolveTicketCard ticketId={t.id} /> : null}

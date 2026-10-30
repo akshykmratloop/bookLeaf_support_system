@@ -235,18 +235,21 @@ describe('job safety', () => {
     expect(latest.json<{ draft: { generation: number } }>().draft.generation).toBe(3);
   });
 
-  it('a new author message queues a fresh draft and reopens a resolved ticket', async () => {
+  it('a new author message queues a fresh draft; a resolved ticket refuses one (U-2)', async () => {
     const id = await royaltyTicket();
     await h.drain();
-    const v = (await call(h, 'GET', `/tickets/${id}`, admin)).json<{ version: number }>().version;
-    await call(h, 'PATCH', `/tickets/${id}`, admin, { version: v, status: 'RESOLVED' });
     const msg = await call(h, 'POST', `/tickets/${id}/messages`, priya, {
       body: 'Still not received, please check again.',
     });
     expect(msg.statusCode).toBe(201);
-    expect(msg.json<{ status: string }>().status).toBe('OPEN');
     const drafts = (await jobsOf(id)).filter((j) => j.kind === 'DRAFT');
     expect(drafts.map((j) => j.generation)).toEqual([1, 2]);
+    await h.drain();
+    const v = (await call(h, 'GET', `/tickets/${id}`, admin)).json<{ version: number }>().version;
+    await call(h, 'PATCH', `/tickets/${id}`, admin, { version: v, status: 'RESOLVED' });
+    const locked = await call(h, 'POST', `/tickets/${id}/messages`, priya, { body: 'Hello?' });
+    expect(locked.statusCode).toBe(409);
+    expect((await jobsOf(id)).filter((j) => j.kind === 'DRAFT')).toHaveLength(2);
   });
 });
 
