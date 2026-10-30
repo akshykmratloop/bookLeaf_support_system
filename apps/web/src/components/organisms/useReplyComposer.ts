@@ -38,18 +38,19 @@ function useFactCheck(ticketId: string, text: string, onResult: (r: CheckResult)
 /** State and actions for writing a reply: load the draft, edit, check, send (with audited override). */
 export function useReplyComposer(ticketId: string, draft: Draft | null) {
   const toast = useToast();
-  const reply = useReplyText(draft);
   const [mode, setMode] = useState<Mode>('REPLY');
+  const reply = useReplyText(draft, mode);
   const [overrideReason, setOverrideReason] = useState('');
   const factCheck = useFactCheck(ticketId, reply.text, reply.setCheck);
   const sender = useReplySend(ticketId);
 
   const submit = () => {
-    sender.send(payloadOf(reply.text, mode, overrideReason), {
+    const sent = mode;
+    sender.send(payloadOf(reply.text, sent, overrideReason), {
       onSuccess: () => {
-        toast('success', mode === 'REPLY' ? 'Reply sent to the author' : 'Internal note added');
-        reply.clear();
-        setOverrideReason('');
+        toast('success', sent === 'REPLY' ? 'Reply sent to the author' : 'Internal note added');
+        reply.clear(sent);
+        if (sent === 'REPLY') setOverrideReason('');
       },
       onError: (err) => {
         const details = rejectedCheck(err);

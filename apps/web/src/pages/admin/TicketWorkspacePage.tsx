@@ -7,6 +7,7 @@ import { AiBadge, PriorityPill, StatusPill } from '../../components/molecules/Do
 import { ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
 import { ChatTranscriptPanel } from '../../components/organisms/ChatTranscriptPanel';
+import { CustomerPanel } from '../../components/organisms/CustomerPanel';
 import { VoiceTranscriptPanel } from '../../components/organisms/VoiceTranscriptPanel';
 import { EvidencePanel } from '../../components/organisms/EvidencePanel';
 import { MessageThread } from '../../components/organisms/MessageThread';
@@ -104,7 +105,7 @@ function Workspace({ t, draft }: { t: AdminTicket; draft: ReturnType<typeof useD
           isRegenerating={regenerate.isPending}
         />
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <TicketProperties
           ticket={t}
           user={user}
@@ -113,6 +114,7 @@ function Workspace({ t, draft }: { t: AdminTicket; draft: ReturnType<typeof useD
           onRetryAi={() => retry.mutate(undefined, { onError })}
           isRetrying={retry.isPending}
         />
+        <CustomerPanel ticketId={t.id} />
         {current ? <EvidencePanel facts={current.facts} /> : null}
       </div>
     </div>
@@ -130,7 +132,8 @@ export function TicketWorkspacePage() {
   return (
     <>
       <Header t={ticket.data} />
-      <Workspace t={ticket.data} draft={draft} />
+      {/* Keyed by ticket: moving to another ticket (Customer panel links) starts a fresh composer. */}
+      <Workspace key={ticket.data.id} t={ticket.data} draft={draft} />
     </>
   );
 }

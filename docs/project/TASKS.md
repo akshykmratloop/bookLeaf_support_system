@@ -261,6 +261,9 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | SM.1 | Pin `deepmerge-ts` ≥ 8.0.0 with a pnpm override (Prisma transitive advisory) | ✅ | `497c2d2` |
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
 | SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | `d5ab0d8` |
+| U-2 | Solved locks the ticket. Root cause of the live bug (BL-1001): the author marked it solved, then sent "hey", and an author message reopened Resolved/Closed tickets to Open. Now Resolved/Closed refuse author messages (409 `TICKET_SOLVED`, re-checked inside the write); `canReply` on the author view; widget shows "This ticket is solved" + "Raise a new ticket" instead of the reply box; staff can still reply and reopen. Also fixed: a staff reply sent just after the author solved the ticket wrote back the status it had read earlier (Resolved → In progress); `recordReply` now decides status inside the write | ✅ | (this commit) |
+| U-3 | Staff composer: "Reply to author" and "Internal note" keep separate text (`lib/composerTexts.ts`); sending clears only the box sent | ✅ | (this commit) |
+| U-1 | Staff ticket page: Customer panel (`GET /tickets/:id/customer`, staff only) with profile, account and per-item lines from the customer record labelled by the workspace's customer data fields, and the customer's other tickets in this workspace; draft facts folded into a small "Facts the draft used" section | ✅ | (this commit) |
 | RV.1 | Review fixes: SLA follows the ticket's new category (admin PATCH and re-triage, also when only the category changes); removed staff cannot sign in again (login + per-request membership check); chat and voice prompts, the voice greeting and the chat fallback answer use generic wording for non-BookLeaf workspaces (BookLeaf byte-identical, goldens added) | ✅ | (this commit) |
 
 ---

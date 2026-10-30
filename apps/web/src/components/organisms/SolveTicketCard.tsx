@@ -27,7 +27,7 @@ export function SolveTicketCard({ ticketId }: { ticketId: string }) {
         <CheckCircle2 size={17} aria-hidden className="text-success" /> Is your issue sorted?
       </p>
       <p className="text-[12.5px] text-ink-2">
-        Mark the ticket as solved. If you reply later, it opens again.
+        Mark the ticket as solved. It then closes for replies; you can raise a new ticket any time.
       </p>
       {asking ? (
         <div className="flex gap-2">

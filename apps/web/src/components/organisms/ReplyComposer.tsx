@@ -146,6 +146,7 @@ export function ReplyComposer({
         value={c.text}
         maxLength={MESSAGE_LIMITS.max}
         onChange={(e) => c.setText(e.target.value)}
+        placeholder={isNote ? 'Write a note for the team. The author never sees it.' : undefined}
         className={isNote ? 'border-warning/50' : ''}
       />
       <CheckNotes c={c} />
@@ -160,7 +161,7 @@ export function ReplyComposer({
           >
             New draft
           </Button>
-          {draft ? (
+          {draft && !isNote ? (
             <Button variant="ghost" size="sm" onClick={c.useDraft}>
               Reset to draft
             </Button>

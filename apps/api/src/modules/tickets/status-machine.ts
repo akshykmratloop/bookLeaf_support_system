@@ -16,7 +16,19 @@ export function assertTransition(from: TicketStatus, to: TicketStatus): void {
   }
 }
 
-/** A new author message on a resolved/closed ticket reopens it. */
-export function statusAfterAuthorMessage(current: TicketStatus): TicketStatus {
-  return current === 'RESOLVED' || current === 'CLOSED' ? 'OPEN' : current;
+/** Statuses the author can still write on. Resolved and Closed tickets are locked (U-2). */
+export const AUTHOR_WRITABLE: readonly TicketStatus[] = ['OPEN', 'IN_PROGRESS'];
+
+export const isSolved = (status: TicketStatus): boolean => !AUTHOR_WRITABLE.includes(status);
+
+/** The 409 an author gets for writing on a solved or closed ticket. Only staff can reopen it. */
+export function ticketSolvedError(): ConflictError {
+  return new ConflictError(
+    'TICKET_SOLVED',
+    'This ticket is solved, so it no longer takes replies. Raise a new ticket if you need more help.',
+  );
+}
+
+export function assertAuthorCanWrite(status: TicketStatus): void {
+  if (isSolved(status)) throw ticketSolvedError();
 }

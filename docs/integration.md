@@ -357,6 +357,20 @@ Tickets use your own ids: `customerId` is the customer id your product sends, an
 item id (book), or `null` for account-level tickets. Errors: 401 for a missing, unknown or revoked
 key, 403 for a missing scope, 404 for another workspace's ticket. Limit: 120 requests per minute.
 
+**Customer data on the staff ticket page (U-1).** The ticket page's Customer panel shows the
+record your product sends for the customer: the account `details` and each item's `details` first,
+then the facts your customer data fields describe (Customer data page), under the field's label and
+in the field's order. A per-item field (`book.{id}.status`) is matched to each item by its id, and a
+trailing "(per book)" in its label is dropped inside the item. A fact that repeats a line already
+shown is left out. With no fields defined, the record's own facts are shown under their own labels
+(policy and missing facts excluded). The panel also lists the customer's other tickets in your
+workspace. When your product does not answer, the profile and tickets still show.
+
+**Solved tickets are locked for the customer (U-2).** Once a ticket is Resolved or Closed, the
+customer can no longer write on it: `POST /tickets/:id/messages` from the customer answers
+`409 TICKET_SOLVED`, and the widget offers "Raise a new ticket" instead. Staff can still reply and can
+reopen it from the ticket page.
+
 **Webhooks.** Each event is saved in the same database transaction as the change (an outbox), then
 POSTed as JSON: `{ "id", "type", "createdAt", "data": { "ticket", "message"? } }`. Headers:
 `X-BookLeaf-Event`, `X-BookLeaf-Delivery` (the same id on every retry, so you can drop duplicates)

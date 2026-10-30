@@ -65,6 +65,8 @@ export const AuthorTicketSchema = z.object({
   awaitingYou: z.boolean(),
   /** The author may mark it solved (open or in progress). */
   canSolve: z.boolean(),
+  /** The author may still write on it: false once it is solved or closed (U-2). */
+  canReply: z.boolean(),
   book: BookRefSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

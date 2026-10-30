@@ -1,17 +1,15 @@
 import type { Prisma } from '@prisma/client';
-import { isUniqueViolation } from '../../platform/db.js';
-import type { AuthorTicket, AdminTicket, CheckResult } from '@bookleaf/shared';
+import type { AdminTicket, CheckResult } from '@bookleaf/shared';
 import { canOverride, checkReply } from '../../ai/checker/index.js';
 import { draftInputFromContext } from '../../ai/drafting/from-context.js';
 import { loadTicketContext } from '../../ai/jobs/context.js';
-import { enqueueJob } from '../../ai/jobs/queue.js';
 import { CheckFailedError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
 import type { TicketDeps } from '../tickets/deps.js';
-import { getAdminTicket, getAuthorTicket } from '../tickets/queries.js';
+import { getAdminTicket } from '../tickets/queries.js';
 import { findTicketOrThrow } from '../tickets/repository.js';
-import { statusAfterAuthorMessage } from '../tickets/status-machine.js';
-import { queueTicketEvent } from '../webhooks/outbox.js';
+import { findByKey, writeOnce } from './once.js';
+import { recordReply, type OverrideAudit } from './record-reply.js';
 
 export interface MessageInput {
   body: string;
@@ -30,8 +28,6 @@ export async function checkReplyForTicket(
   const input = draftInputFromContext(await loadTicketContext(deps, ticketId));
   return checkReply({ body, facts: input.facts, ignorePhrases: input.ignorePhrases });
 }
-
-type OverrideAudit = Prisma.AuditEventUncheckedCreateInput;
 
 /**
  * Placeholders always block. Other blocking issues need a written override reason. Returns the
@@ -66,98 +62,7 @@ async function gateReply(
   };
 }
 
-async function findByKey(deps: TicketDeps, ticketId: string, key: string | null) {
-  if (!key) return false;
-  return (await deps.db.ticketMessage.count({ where: { ticketId, clientRequestId: key } })) > 0;
-}
-
-export interface AuthorMessage {
-  body: string;
-  /** Same key again returns the ticket without adding a second message. */
-  idempotencyKey: string | null;
-}
-
 export type AdminMessage = MessageInput & { idempotencyKey: string | null };
-
-/** A replay that lost the insert race is not an error: the first request already wrote it. */
-async function writeOnce(write: () => Promise<void>): Promise<void> {
-  try {
-    await write();
-  } catch (err) {
-    if (!isUniqueViolation(err)) throw err;
-  }
-}
-
-export async function addAuthorMessage(
-  deps: TicketDeps,
-  session: Session,
-  ticketId: string,
-  { body, idempotencyKey: key }: AuthorMessage,
-): Promise<AuthorTicket> {
-  const ticket = await findTicketOrThrow(deps.db, session, ticketId);
-  if (await findByKey(deps, ticketId, key)) return getAuthorTicket(deps, session, ticketId);
-  const now = deps.clock.now();
-  await writeOnce(() =>
-    deps.db.$transaction(async (tx) => {
-      await tx.ticketMessage.create({
-        data: {
-          ticketId,
-          kind: 'AUTHOR',
-          body,
-          senderId: session.userId,
-          clientRequestId: key,
-          createdAt: now,
-        },
-      });
-      await tx.ticket.update({
-        where: { id: ticketId },
-        data: { status: statusAfterAuthorMessage(ticket.status), version: { increment: 1 } },
-      });
-      await enqueueJob(tx, ticketId, 'DRAFT', now);
-    }),
-  );
-  deps.events.publish({
-    type: 'ticket.updated',
-    ticketId,
-    workspaceId: ticket.workspaceId,
-    authorId: ticket.authorId,
-    authorVisible: true,
-  });
-  return getAuthorTicket(deps, session, ticketId);
-}
-
-interface SentReply {
-  ticket: Ticket;
-  now: Date;
-  messageId: string;
-  audit: OverrideAudit | null;
-}
-
-/**
- * Inside the reply's transaction: the override audit, the status change (the first reply moves an
- * open ticket to In progress and stops the first-response clock), and the webhook event.
- */
-async function recordReply(
-  tx: Prisma.TransactionClient,
-  { ticket, now, messageId, audit }: SentReply,
-) {
-  if (audit) await tx.auditEvent.create({ data: audit });
-  await tx.ticket.update({
-    where: { id: ticket.id },
-    data: {
-      status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
-      firstResponseAt: ticket.firstResponseAt ?? now,
-      version: { increment: 1 },
-    },
-  });
-  await queueTicketEvent(tx, {
-    workspaceId: ticket.workspaceId,
-    ticketId: ticket.id,
-    event: 'ticket.replied',
-    now,
-    messageId,
-  });
-}
 
 /** An admin reply is the only way text reaches the author, and it always passes the checker gate. */
 export async function addAdminMessage(
@@ -197,3 +102,5 @@ export async function addAdminMessage(
   });
   return getAdminTicket(deps, session, ticketId);
 }
+
+export { addAuthorMessage, type AuthorMessage } from './author-message.js';

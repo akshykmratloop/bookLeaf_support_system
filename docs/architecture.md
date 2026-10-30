@@ -425,8 +425,8 @@ stateDiagram-v2
     IN_PROGRESS --> CLOSED: admin closes
     RESOLVED --> IN_PROGRESS: admin sets it
     RESOLVED --> CLOSED: admin closes
-    RESOLVED --> OPEN: admin sets it, or the author writes again
-    CLOSED --> OPEN: admin sets it, or the author writes again
+    RESOLVED --> OPEN: admin reopens it
+    CLOSED --> OPEN: admin reopens it
 ```
 
 **CLOSED is not a final state.** The code allows `CLOSED → OPEN`. Nothing else leaves CLOSED.
@@ -444,12 +444,15 @@ Allowed admin changes (`TRANSITIONS`). Any other change is refused with `409` an
 Changes that do not come from the admin status field:
 
 - **First staff reply.** A reply sent on an `OPEN` ticket moves it to `IN_PROGRESS`. A reply on any
-  other status leaves the status as it is (`modules/messages/service.ts`, `recordReply`).
-- **Author writes again.** A new author message on a `RESOLVED` or `CLOSED` ticket sets it back to
-  `OPEN` (`statusAfterAuthorMessage`). It is not blocked for `CLOSED`, so an author can reopen a
-  ticket staff closed as a duplicate or spam. Only the `RESOLVED` case has a test
-  (`apps/api/test/worker.int.test.ts`, "a new author message queues a fresh draft and reopens a
-  resolved ticket"). The `CLOSED` case is behaviour in the code with no test of its own.
+  other status leaves the status as it is (`modules/messages/record-reply.ts`, `recordReply`; it reads
+  the status inside the write, so a ticket the author solved a moment earlier stays `RESOLVED`).
+- **Solved locks the ticket for the author (U-2).** A `RESOLVED` or `CLOSED` ticket refuses author
+  messages with `409 TICKET_SOLVED` (`modules/messages/author-message.ts`; the status is checked again
+  inside the write, so a ticket solved a moment earlier never takes the message). The author view
+  carries `canReply: false` and the widget shows "Raise a new ticket" instead of the reply box. Only
+  staff can reopen it (status field above); staff replies are still allowed. This replaced the old
+  "author writes again → OPEN" rule, which caused the live bug where BL-1001 went back to Open after
+  the author marked it solved and then typed "hey". Tests: `apps/api/test/ticket-solved-lock.int.test.ts`.
 - **Author marks it solved.** `POST /tickets/:id/solve` moves an `OPEN` or `IN_PROGRESS` ticket to
   `RESOLVED` (`modules/tickets/solve.ts`). On a `RESOLVED` or `CLOSED` ticket it answers `409
   ALREADY_SOLVED`. Test: `apps/api/test/author-tickets.int.test.ts`.

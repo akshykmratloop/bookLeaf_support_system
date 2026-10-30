@@ -26,4 +26,12 @@ describe('requesterStatus', () => {
       step: 1,
     });
   });
+
+  it('tells the author a solved or closed ticket is locked and how to get more help (U-2)', () => {
+    for (const status of ['RESOLVED', 'CLOSED'] as const) {
+      const { description } = requesterStatus({ status, awaitingYou: false });
+      expect(description).toMatch(/raise a new ticket/i);
+      expect(description).not.toMatch(/opens again|reply if/i);
+    }
+  });
 });

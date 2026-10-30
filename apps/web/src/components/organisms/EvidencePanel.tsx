@@ -1,6 +1,5 @@
 import type { CheckResult, Fact } from '@bookleaf/shared';
-import { AlertOctagon, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { Card } from '../atoms/Card';
+import { AlertOctagon, AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react';
 
 function sourceText(f: Fact): string {
   switch (f.source.kind) {
@@ -15,31 +14,41 @@ function sourceText(f: Fact): string {
   }
 }
 
-/** What the draft is allowed to say, with where each value came from. */
+/**
+ * What the draft was allowed to say, with where each value came from. A small secondary part of
+ * the ticket page (U-1), folded by default: the Customer panel is the main view of the customer.
+ */
 export function EvidencePanel({ facts }: { facts: Fact[] }) {
   const shown = facts.filter((f) => !f.id.startsWith('kb.'));
   return (
-    <Card className="p-4">
-      <p className="mb-3 text-[11.5px] font-semibold text-ink-3 uppercase">
-        Verified facts used for this draft
-      </p>
-      <ul className="flex flex-col gap-2.5">
-        {shown.map((f) => (
-          <li key={f.id} className="text-[12.5px]">
-            <span className="text-ink-2">{f.label}</span>
-            <span
-              className={`block font-semibold ${f.type === 'UNKNOWN' ? 'text-warning' : 'text-ink'}`}
-            >
-              {f.type === 'UNKNOWN' ? 'Unknown — confirm before stating' : f.display}
-            </span>
-            <span className="block text-[11px] text-ink-3">{sourceText(f)}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 text-[11px] text-ink-3">
-        Policy figures (₹1,000 threshold, 45-day window, timelines) come from the Knowledge Base.
-      </p>
-    </Card>
+    <details className="group rounded-card border border-line bg-panel shadow-soft">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-card px-4 py-3 text-[12px] font-semibold text-ink-2 focus-visible:ring-2 focus-visible:ring-brand/60 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          size={14}
+          aria-hidden
+          className="shrink-0 text-ink-3 transition-transform group-open:rotate-90"
+        />
+        <span className="flex-1">Facts the draft used ({shown.length})</span>
+      </summary>
+      <div className="px-4 pb-4">
+        <ul className="flex flex-col gap-2.5">
+          {shown.map((f) => (
+            <li key={f.id} className="text-[12.5px]">
+              <span className="text-ink-2">{f.label}</span>
+              <span
+                className={`block font-semibold break-words ${f.type === 'UNKNOWN' ? 'text-warning' : 'text-ink'}`}
+              >
+                {f.type === 'UNKNOWN' ? 'Unknown — confirm before stating' : f.display}
+              </span>
+              <span className="block text-[11px] break-words text-ink-3">{sourceText(f)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[11px] text-ink-3">
+          Policy figures come from your Knowledge Base and are checked the same way.
+        </p>
+      </div>
+    </details>
   );
 }
 

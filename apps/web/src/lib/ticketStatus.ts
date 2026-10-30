@@ -27,13 +27,14 @@ const BY_STATUS: Record<TicketStatus, RequesterStatus> = {
   },
   RESOLVED: {
     label: 'Solved',
-    description: 'This is marked solved. Reply if you still need help, and it opens again.',
+    description:
+      'This ticket is solved and closed for replies. Raise a new ticket if you need more help.',
     tone: 'success',
     step: 2,
   },
   CLOSED: {
     label: 'Closed',
-    description: 'This ticket is closed. Raise a new ticket if you need more help.',
+    description: 'This ticket is closed for replies. Raise a new ticket if you need more help.',
     tone: 'neutral',
     step: 2,
   },

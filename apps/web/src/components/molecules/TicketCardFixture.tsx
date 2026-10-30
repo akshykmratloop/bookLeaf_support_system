@@ -16,6 +16,7 @@ const SAMPLE: AuthorTicketListItem = {
   },
   awaitingYou: true,
   canSolve: true,
+  canReply: true,
   book: { id: '00000000-0000-4000-8000-0000000000b1', title: 'Whispers of the Ganges' },
   createdAt: '2026-10-26T10:00:00.000Z',
   updatedAt: '2026-10-27T10:00:00.000Z',

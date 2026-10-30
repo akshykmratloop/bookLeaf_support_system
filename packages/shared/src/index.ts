@@ -25,3 +25,4 @@ export * from './schemas/provider-keys.js';
 export * from './schemas/webhooks.js';
 export * from './schemas/categories.js';
 export * from './schemas/knowledge.js';
+export * from './schemas/ticket-customer.js';

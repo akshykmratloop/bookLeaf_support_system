@@ -36,7 +36,13 @@ export const lastConversationMessage = (messages: readonly PublicMessage[]) =>
 
 type RequesterFields = Pick<
   AuthorTicket,
-  'category' | 'categoryLabel' | 'channel' | 'lastActivity' | 'awaitingYou' | 'canSolve'
+  | 'category'
+  | 'categoryLabel'
+  | 'channel'
+  | 'lastActivity'
+  | 'awaitingYou'
+  | 'canSolve'
+  | 'canReply'
 >;
 
 /** The requester view's status fields: who spoke last, whether it is the author's turn. */
@@ -57,5 +63,6 @@ export function requesterFields(t: TicketFacts, last: PublicMessage | null): Req
     lastActivity,
     awaitingYou: open && fromTeam,
     canSolve: open,
+    canReply: open,
   };
 }
