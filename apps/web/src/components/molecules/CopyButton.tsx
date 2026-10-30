@@ -22,11 +22,14 @@ export function CopyButton({ value, label, text }: Props) {
     const t = window.setTimeout(() => setCopied(false), COPIED_MS);
     return () => window.clearTimeout(t);
   }, [copied]);
+  // Wrapped so a missing clipboard (plain-http page) lands in the same "refused" branch.
   const copy = () => {
-    navigator.clipboard.writeText(value).then(
-      () => setCopied(true),
-      () => toast('error', 'Could not copy. Select the text and copy it yourself.'),
-    );
+    void Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
+      .then(
+        () => setCopied(true),
+        () => toast('error', 'Could not copy. Select the text and copy it yourself.'),
+      );
   };
   const Icon = copied ? Check : Copy;
   return (
