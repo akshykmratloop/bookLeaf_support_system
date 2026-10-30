@@ -72,6 +72,11 @@ describe('keyword fallback', () => {
     expect(classifyByKeywords(text, BOOKLEAF).category).toBe(category);
   });
 
+  it('names the whole words it matched, so staff see "royalty", not "royalt"', () => {
+    const { matched } = classifyByKeywords('My royalty payment of Rs. 4500 is late', BOOKLEAF);
+    expect(matched).toEqual(['royalty', 'payment', 'Rs. 4500']);
+  });
+
   it('marks fallback results for review with source RULES', () => {
     const d = fallbackTriage(input('Wrong ISBN on Amazon'), BOOKLEAF);
     expect(d).toMatchObject({

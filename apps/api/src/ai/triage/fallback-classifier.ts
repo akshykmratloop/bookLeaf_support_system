@@ -63,6 +63,15 @@ export interface KeywordClassification {
   matched: string[];
 }
 
+/** The whole word around a keyword match ("royalt" → "royalty"), for the reason staff see. */
+function matchedWord(text: string, pattern: RegExp): string | undefined {
+  const m = pattern.exec(text);
+  if (!m) return undefined;
+  const before = /[\p{L}\p{N}]*$/u.exec(text.slice(0, m.index))?.[0] ?? '';
+  const after = /^[\p{L}\p{N}]*/u.exec(text.slice(m.index + m[0].length))?.[0] ?? '';
+  return `${before}${m[0]}${after}`;
+}
+
 interface Best {
   category: KnowledgeCategory | null;
   matched: string[];
@@ -72,7 +81,7 @@ function bookleafKeywords(text: string, k: WorkspaceKnowledge): Best {
   let best: Best = { category: fallbackCategory(k), matched: [] };
   for (const category of k.categories) {
     const patterns = KEYWORDS[category.key] ?? [];
-    const hits = patterns.map((p) => text.match(p)?.[0]).filter((m): m is string => Boolean(m));
+    const hits = patterns.map((p) => matchedWord(text, p)).filter((m): m is string => Boolean(m));
     if (hits.length > best.matched.length) best = { category, matched: hits };
   }
   return best;
