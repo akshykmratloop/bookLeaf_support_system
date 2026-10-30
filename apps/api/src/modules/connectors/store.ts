@@ -1,4 +1,6 @@
-import type { WorkspaceConnector } from '@prisma/client';
+import type { WorkspaceConnector, WorkspaceDataSource } from '@prisma/client';
+import { recordMappingOf } from '../../host/sources/mapping.js';
+import type { SourceSpec } from '../../host/sources/types.js';
 import { AppError } from '../../platform/errors.js';
 import { DEFAULT_WORKSPACE_ID } from '../workspaces/constants.js';
 import { aadFor, type ConnectorConfig, type ConnectorDeps } from './deps.js';
@@ -19,8 +21,22 @@ export class SecretsNotConfiguredError extends AppError {
   }
 }
 
+export const toSourceSpec = (s: WorkspaceDataSource): SourceSpec => ({
+  id: s.id,
+  name: s.name,
+  urlTemplate: s.urlTemplate,
+  format: s.format,
+  authHeader: s.authHeader,
+  timeoutMs: s.timeoutMs,
+  cacheSeconds: s.cacheSeconds,
+});
+
 /** Decrypts a row into plain settings. Decrypted values never leave the server process. */
-export function decryptRow(deps: ConnectorDeps, row: WorkspaceConnector): ConnectorConfig {
+export function decryptRow(
+  deps: ConnectorDeps,
+  row: WorkspaceConnector,
+  sources: WorkspaceDataSource[],
+): ConnectorConfig {
   if (!deps.envelope) throw new SecretsNotConfiguredError();
   return {
     baseUrl: row.baseUrl,
@@ -32,6 +48,8 @@ export function decryptRow(deps: ConnectorDeps, row: WorkspaceConnector): Connec
     ),
     timeoutMs: row.timeoutMs,
     cacheSeconds: row.cacheSeconds,
+    sources: sources.map(toSourceSpec),
+    record: recordMappingOf(row.recordMapping),
   };
 }
 
@@ -41,7 +59,13 @@ export async function resolveConnector(
   workspaceId: string,
 ): Promise<Resolved> {
   const row = await deps.db.workspaceConnector.findUnique({ where: { workspaceId } });
-  if (row) return { source: 'WORKSPACE', config: decryptRow(deps, row), row };
+  if (row) {
+    const sources = await deps.db.workspaceDataSource.findMany({
+      where: { workspaceId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    });
+    return { source: 'WORKSPACE', config: decryptRow(deps, row, sources), row };
+  }
   if (workspaceId === DEFAULT_WORKSPACE_ID && deps.envDefaults)
     return { source: 'ENV', config: deps.envDefaults, row: null };
   return { source: 'NONE', config: null, row: null };

@@ -2,11 +2,13 @@ import {
   CUSTOMER_FIELD_TYPES,
   type CustomerField,
   type CustomerFieldInput,
+  type DataSource,
 } from '@bookleaf/shared';
 import { useState, type FormEvent } from 'react';
 import { Button } from '../atoms/Button';
 import { Input, Select, Textarea } from '../atoms/Input';
 import { Field } from '../molecules/Field';
+import { FieldMappingInputs } from '../molecules/FieldMappingInputs';
 
 interface Draft {
   key: string;
@@ -16,6 +18,9 @@ interface Draft {
   allowedValues: string;
   visibleToCustomer: boolean;
   position: string;
+  /** U-9: the data source and path this value is read from ('' = not mapped). */
+  sourceId: string;
+  path: string;
 }
 
 const EMPTY: Draft = {
@@ -26,6 +31,8 @@ const EMPTY: Draft = {
   allowedValues: '',
   visibleToCustomer: true,
   position: '0',
+  sourceId: '',
+  path: '',
 };
 
 const draftOf = (f: CustomerField): Draft => ({
@@ -36,6 +43,8 @@ const draftOf = (f: CustomerField): Draft => ({
   allowedValues: f.allowedValues.join(', '),
   visibleToCustomer: f.visibleToCustomer,
   position: String(f.position),
+  sourceId: f.sourceId ?? '',
+  path: f.path ?? '',
 });
 
 const toInput = (d: Draft): CustomerFieldInput => ({
@@ -49,10 +58,15 @@ const toInput = (d: Draft): CustomerFieldInput => ({
     .filter(Boolean),
   visibleToCustomer: d.visibleToCustomer,
   position: Number(d.position) || 0,
+  // Per-item fields are read inside each item of the list, never from a source of their own.
+  sourceId: d.key.includes('{id}') ? null : d.sourceId || null,
+  path: d.path.trim() || null,
 });
 
 interface Props {
   initial: CustomerField | null;
+  /** The saved data sources a field can be read from. */
+  sources: DataSource[];
   isSaving: boolean;
   fieldError: (path: string) => string | undefined;
   onSubmit: (input: CustomerFieldInput) => void;
@@ -60,7 +74,14 @@ interface Props {
 }
 
 /** Add or edit one customer-data field: what the product sends and what it means. */
-export function CustomerFieldForm({ initial, isSaving, fieldError, onSubmit, onCancel }: Props) {
+export function CustomerFieldForm({
+  initial,
+  sources,
+  isSaving,
+  fieldError,
+  onSubmit,
+  onCancel,
+}: Props) {
   const [d, setD] = useState<Draft>(() => (initial ? draftOf(initial) : EMPTY));
   const set = (patch: Partial<Draft>) => setD((prev) => ({ ...prev, ...patch }));
   const submit = (e: FormEvent) => {
@@ -134,6 +155,13 @@ export function CustomerFieldForm({ initial, isSaving, fieldError, onSubmit, onC
           />
         </Field>
       ) : null}
+      <FieldMappingInputs
+        fieldKey={d.key}
+        sources={sources}
+        value={{ sourceId: d.sourceId, path: d.path }}
+        onChange={(v) => set(v)}
+        fieldError={fieldError}
+      />
       <label className="flex items-center gap-2 text-[12.5px] font-semibold">
         <input
           id="field-visible"

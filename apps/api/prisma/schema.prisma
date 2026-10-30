@@ -204,6 +204,7 @@ model Workspace {
   webhooks      WorkspaceWebhook[]
   categories    Category[]
   articles      KnowledgeArticle[]
+  dataSources   WorkspaceDataSource[]
 
   @@map("workspaces")
 }
@@ -227,7 +228,8 @@ model WorkspaceMember {
 model WorkspaceConnector {
   id                String    @id @default(uuid()) @db.Uuid
   workspaceId       String    @unique @map("workspace_id") @db.Uuid
-  baseUrl           String    @map("base_url")
+  /// Older single-endpoint form; U-9 moved it into a CONTRACT data source. Dropped later (§17).
+  baseUrl           String?   @map("base_url")
   signInUrl         String?   @map("sign_in_url")
   apiKeyEnc         String    @map("api_key_enc")
   apiKeyHint        String    @map("api_key_hint")
@@ -238,6 +240,8 @@ model WorkspaceConnector {
   lastTestAt        DateTime? @map("last_test_at") @db.Timestamptz(3)
   lastTestOk        Boolean?  @map("last_test_ok")
   lastTestDetail    String?   @map("last_test_detail")
+  /// U-9: where name, email and the item list come from in MAPPED sources (RecordMappingSchema).
+  recordMapping     Json?     @map("record_mapping")
   version           Int       @default(0)
   updatedById       String?   @map("updated_by_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -262,13 +266,44 @@ model CustomerField {
   allowedValues     String[]          @default([]) @map("allowed_values")
   visibleToCustomer Boolean           @default(true) @map("visible_to_customer")
   position          Int               @default(0)
+  /// U-9: the MAPPED data source and JSON path holding this value (null = not mapped).
+  sourceId          String?           @map("source_id") @db.Uuid
+  path              String?
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace            @relation(fields: [workspaceId], references: [id])
+  source    WorkspaceDataSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, key])
   @@map("customer_fields")
+}
+
+enum DataSourceFormat {
+  CONTRACT
+  MAPPED
+}
+
+/// U-9: one GET endpoint of the workspace's product (1 to 5 per workspace). `urlTemplate` holds
+/// `{id}` / `{email}`; the connector's API key goes as Bearer, or in `authHeader` when set.
+model WorkspaceDataSource {
+  id           String           @id @default(uuid()) @db.Uuid
+  workspaceId  String           @map("workspace_id") @db.Uuid
+  name         String
+  urlTemplate  String           @map("url_template")
+  format       DataSourceFormat @default(MAPPED)
+  authHeader   String?          @map("auth_header")
+  timeoutMs    Int              @default(3000) @map("timeout_ms")
+  cacheSeconds Int              @default(60) @map("cache_seconds")
+  position     Int              @default(0)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  fields    CustomerField[]
+
+  @@index([workspaceId, position])
+  @@map("workspace_data_sources")
 }
 
 /// Per-workspace switches, limits, models, tone and widget settings. A missing row means

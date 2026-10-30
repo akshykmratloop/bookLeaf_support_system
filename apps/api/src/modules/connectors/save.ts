@@ -1,60 +1,87 @@
-import type { SaveConnectorRequest } from '@bookleaf/shared';
-import type { Prisma } from '@prisma/client';
+import { MAX_DATA_SOURCES, type SaveConnectorRequest } from '@bookleaf/shared';
+import type { Prisma, WorkspaceConnector } from '@prisma/client';
+import { recordMappingOf } from '../../host/sources/mapping.js';
 import { hintOf } from '../../platform/crypto/envelope.js';
 import { ConflictError, ValidationError } from '../../platform/errors.js';
-import { assertSafeUrl, UnsafeUrlError } from '../../platform/net/ssrf.js';
 import type { Session } from '../auth/session.js';
 import { aadFor, type ConnectorDeps } from './deps.js';
+import {
+  applySources,
+  changedList,
+  checkSources,
+  checkUrl,
+  legacyBaseUrl,
+  pruneMapping,
+  requestedChange,
+  type FieldError,
+  type SourcesChange,
+} from './save-sources.js';
 import { SecretsNotConfiguredError } from './store.js';
 
-type FieldError = { path: string; message: string };
+const DEFAULT_TIMEOUT_MS = 3000;
+const DEFAULT_CACHE_SECONDS = 60;
 
-async function checkUrl(deps: ConnectorDeps, path: string, url: string | null | undefined) {
-  if (!url) return null;
-  try {
-    await assertSafeUrl(url, deps.ssrf);
-    return null;
-  } catch (err) {
-    if (err instanceof UnsafeUrlError) return { path, message: err.message };
-    throw err;
-  }
+interface Existing {
+  row: WorkspaceConnector | null;
+  sources: { format: string }[];
 }
 
-/** Both URLs must be safe to fetch; the first save must bring both secrets. */
-async function validate(deps: ConnectorDeps, input: SaveConnectorRequest, isNew: boolean) {
-  const errors: FieldError[] = [];
-  const urls = await Promise.all([
-    checkUrl(deps, 'baseUrl', input.baseUrl),
-    checkUrl(deps, 'signInUrl', input.signInUrl),
-  ]);
-  errors.push(...urls.filter((e): e is FieldError => e !== null));
-  if (isNew && !input.apiKey) errors.push({ path: 'apiKey', message: 'Required the first time' });
-  if (isNew && !input.signingSecret)
-    errors.push({ path: 'signingSecret', message: 'Required the first time' });
+/** Every source URL must be safe; the older form names its single URL `baseUrl`. */
+async function sourceErrors(deps: ConnectorDeps, change: SourcesChange, existing: Existing) {
+  const errors = (await checkSources(deps, changedList(change))).map((e) =>
+    change.kind === 'contract' ? { ...e, path: 'baseUrl' } : e,
+  );
+  const addsContract =
+    change.kind === 'contract' && !existing.sources.some((s) => s.format === 'CONTRACT');
+  if (addsContract && existing.sources.length >= MAX_DATA_SOURCES)
+    errors.push({ path: 'baseUrl', message: `At most ${MAX_DATA_SOURCES} data sources` });
+  return errors;
+}
+
+/** The first save must bring both secrets and at least one source. */
+function firstSaveErrors(input: SaveConnectorRequest, change: SourcesChange): FieldError[] {
+  const required = (path: string, message = 'Required the first time') => ({ path, message });
+  return [
+    ...(change.kind === 'keep' ? [required('sources', 'Add at least one data source')] : []),
+    ...(input.apiKey ? [] : [required('apiKey')]),
+    ...(input.signingSecret ? [] : [required('signingSecret')]),
+  ];
+}
+
+async function validate(
+  deps: ConnectorDeps,
+  input: SaveConnectorRequest,
+  change: SourcesChange,
+  existing: Existing,
+) {
+  const signIn = await checkUrl(deps, 'signInUrl', input.signInUrl);
+  const errors: FieldError[] = [
+    ...(signIn ? [signIn] : []),
+    ...(await sourceErrors(deps, change, existing)),
+    ...(existing.row === null ? firstSaveErrors(input, change) : []),
+  ];
   if (errors.length) throw new ValidationError('Invalid product connection', errors);
 }
 
-function encryptedFields(
-  deps: ConnectorDeps,
-  workspaceId: string,
-  input: SaveConnectorRequest,
-): Prisma.WorkspaceConnectorUncheckedUpdateInput {
+function encryptedFields(deps: ConnectorDeps, workspaceId: string, input: SaveConnectorRequest) {
   const env = deps.envelope;
   if (!env) throw new SecretsNotConfiguredError();
+  const field = (value: string | undefined, name: 'apiKey' | 'signingSecret') =>
+    value
+      ? {
+          [`${name}Enc`]: env.encrypt(value, aadFor(workspaceId, name)),
+          [`${name}Hint`]: hintOf(value),
+        }
+      : {};
   return {
-    ...(input.apiKey
-      ? {
-          apiKeyEnc: env.encrypt(input.apiKey, aadFor(workspaceId, 'apiKey')),
-          apiKeyHint: hintOf(input.apiKey),
-        }
-      : {}),
-    ...(input.signingSecret
-      ? {
-          signingSecretEnc: env.encrypt(input.signingSecret, aadFor(workspaceId, 'signingSecret')),
-          signingSecretHint: hintOf(input.signingSecret),
-        }
-      : {}),
-  };
+    ...field(input.apiKey, 'apiKey'),
+    ...field(input.signingSecret, 'signingSecret'),
+  } as Partial<
+    Pick<
+      Prisma.WorkspaceConnectorUncheckedCreateInput,
+      'apiKeyEnc' | 'apiKeyHint' | 'signingSecretEnc' | 'signingSecretHint'
+    >
+  >;
 }
 
 const CONFLICT = () =>
@@ -63,9 +90,48 @@ const CONFLICT = () =>
     'The product connection was changed by someone else. Reload and try again.',
   );
 
+function plainFields(
+  input: SaveConnectorRequest,
+  change: SourcesChange,
+  session: Session,
+  row: WorkspaceConnector | null,
+) {
+  const list = changedList(change);
+  const was = row ?? {
+    baseUrl: null,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    cacheSeconds: DEFAULT_CACHE_SECONDS,
+  };
+  const baseUrl = list.length ? { baseUrl: legacyBaseUrl(list) ?? was.baseUrl } : {};
+  return {
+    ...baseUrl,
+    signInUrl: input.signInUrl ?? null,
+    timeoutMs: input.timeoutMs ?? was.timeoutMs,
+    cacheSeconds: input.cacheSeconds ?? was.cacheSeconds,
+    updatedById: session.userId,
+  };
+}
+
+async function writeConnector(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  row: WorkspaceConnector | null,
+  data: ReturnType<typeof plainFields> & ReturnType<typeof encryptedFields>,
+) {
+  if (row)
+    return tx.workspaceConnector.update({
+      where: { workspaceId },
+      data: { ...data, version: { increment: 1 } },
+    });
+  // Prisma validates both branches of an upsert, and the create branch needs the secrets.
+  return tx.workspaceConnector.create({
+    data: { ...(data as Prisma.WorkspaceConnectorUncheckedCreateInput), workspaceId },
+  });
+}
+
 /**
- * Creates or updates the workspace's connector. Secrets arrive once, are encrypted at rest and
- * never returned. Stale versions conflict. The save and its audit record are one transaction.
+ * Creates or updates the workspace's connector and its data sources (U-9). Secrets arrive once,
+ * are encrypted at rest and never returned. Stale versions conflict. One transaction, audited.
  */
 export async function saveConnector(
   deps: ConnectorDeps,
@@ -73,35 +139,29 @@ export async function saveConnector(
   input: SaveConnectorRequest,
 ): Promise<void> {
   const workspaceId = session.workspaceId;
-  const existing = await deps.db.workspaceConnector.findUnique({ where: { workspaceId } });
-  await validate(deps, input, existing === null);
-  if (existing && existing.version !== input.version) throw CONFLICT();
+  const [row, sources] = await Promise.all([
+    deps.db.workspaceConnector.findUnique({ where: { workspaceId } }),
+    deps.db.workspaceDataSource.findMany({ where: { workspaceId }, select: { format: true } }),
+  ]);
+  const change = requestedChange(input);
+  await validate(deps, input, change, { row, sources });
+  if (row && row.version !== input.version) throw CONFLICT();
   const secrets = encryptedFields(deps, workspaceId, input);
-  const plain = {
-    baseUrl: input.baseUrl.replace(/\/+$/, ''),
-    signInUrl: input.signInUrl ?? null,
-    timeoutMs: input.timeoutMs ?? existing?.timeoutMs ?? 3000,
-    cacheSeconds: input.cacheSeconds ?? existing?.cacheSeconds ?? 60,
-    updatedById: session.userId,
-  };
+  const plain = plainFields(input, change, session, row);
   await deps.db.$transaction(async (tx) => {
-    // Prisma validates both branches of an upsert, and the create branch needs the secrets.
-    const res = existing
-      ? await tx.workspaceConnector.update({
-          where: { workspaceId },
-          data: { ...plain, ...secrets, version: { increment: 1 } },
-        })
-      : await tx.workspaceConnector.create({
-          data: {
-            ...(secrets as Omit<Prisma.WorkspaceConnectorUncheckedCreateInput, 'workspaceId'>),
-            ...plain,
-            workspaceId,
-          },
-        });
+    const saved = await writeConnector(tx, workspaceId, row, { ...plain, ...secrets });
+    const kept = await applySources(tx, workspaceId, change);
+    if (kept && saved.recordMapping !== null) {
+      const recordMapping = pruneMapping(recordMappingOf(saved.recordMapping), kept);
+      await tx.workspaceConnector.update({ where: { workspaceId }, data: { recordMapping } });
+    }
     await audit(tx, session, {
-      id: res.id,
-      action: existing ? 'connector.updated' : 'connector.created',
-      after: { baseUrl: plain.baseUrl, secretsChanged: Object.keys(secrets).length > 0 },
+      id: saved.id,
+      action: row ? 'connector.updated' : 'connector.created',
+      after: {
+        sources: changedList(change).map((s) => s.urlTemplate),
+        secretsChanged: Object.keys(secrets).length > 0,
+      },
     });
   });
 }

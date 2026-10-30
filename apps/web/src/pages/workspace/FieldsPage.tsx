@@ -1,68 +1,29 @@
-import type { CustomerField, CustomerFieldInput } from '@bookleaf/shared';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import type { CustomerField, CustomerFieldInput, DataSource } from '@bookleaf/shared';
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/atoms/Card';
-import { Pill } from '../../components/atoms/Pill';
+import { CustomerFieldRow } from '../../components/molecules/CustomerFieldRow';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { useToast } from '../../components/molecules/Toast';
 import { CustomerFieldForm } from '../../components/organisms/CustomerFieldForm';
+import { CustomerRecordSection } from '../../components/organisms/CustomerRecordSection';
 import { errorMessage, isApiError } from '../../lib/api';
+import { fieldSourceLabel, mappableSources } from '../../lib/dataSources';
 import { useApiMutation } from '../../lib/queries';
 import {
   createField,
   deleteField,
   updateField,
+  useConnector,
   useCustomerFields,
   workspaceKeys,
 } from '../../lib/workspace';
 
 type Editing = { kind: 'new' } | { kind: 'edit'; field: CustomerField } | null;
 
-function FieldRow({
-  f,
-  onEdit,
-  onDelete,
-}: {
-  f: CustomerField;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <li className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-[13.5px] font-semibold">
-          <code className="font-mono text-[12px]">{f.key}</code>
-          <Pill tone="brand">{f.type}</Pill>
-          {!f.visibleToCustomer ? <Pill>staff only</Pill> : null}
-        </p>
-        <p className="text-[12.5px] text-ink-2">
-          {f.label}
-          {f.description ? ` — ${f.description}` : ''}
-        </p>
-        {f.allowedValues.length ? (
-          <p className="font-mono text-[11px] text-ink-3">{f.allowedValues.join(' · ')}</p>
-        ) : null}
-      </div>
-      <div className="flex gap-1">
-        <Button variant="ghost" size="sm" icon={<Pencil size={14} aria-hidden />} onClick={onEdit}>
-          Edit
-        </Button>
-        <Button
-          variant="danger"
-          size="sm"
-          icon={<Trash2 size={14} aria-hidden />}
-          onClick={onDelete}
-        >
-          Remove
-        </Button>
-      </div>
-    </li>
-  );
-}
-
-function FieldsEditor({ fields }: { fields: CustomerField[] }) {
+function FieldsEditor({ fields, sources }: { fields: CustomerField[]; sources: DataSource[] }) {
   const toast = useToast();
   const [editing, setEditing] = useState<Editing>(null);
   const save = useApiMutation(
@@ -94,6 +55,7 @@ function FieldsEditor({ fields }: { fields: CustomerField[] }) {
           <CustomerFieldForm
             key={editing.kind === 'edit' ? editing.field.id : 'new'}
             initial={editing.kind === 'edit' ? editing.field : null}
+            sources={mappableSources(sources)}
             isSaving={save.isPending}
             fieldError={fieldError}
             onSubmit={onSubmit}
@@ -116,9 +78,10 @@ function FieldsEditor({ fields }: { fields: CustomerField[] }) {
         ) : (
           <ul>
             {fields.map((f) => (
-              <FieldRow
+              <CustomerFieldRow
                 key={f.id}
                 f={f}
+                mappedFrom={fieldSourceLabel(sources, f)}
                 onEdit={() => setEditing({ kind: 'edit', field: f })}
                 onDelete={() => onDelete(f)}
               />
@@ -132,17 +95,25 @@ function FieldsEditor({ fields }: { fields: CustomerField[] }) {
 
 export function FieldsPage() {
   const fields = useCustomerFields();
+  const connector = useConnector();
   return (
     <>
       <PageHeader
         title="Customer data"
-        subtitle="The fields your product sends about each customer. The assistant answers only from these."
+        subtitle="The fields your product sends about each customer, and where each one is read. The assistant answers only from these."
       />
       {fields.isPending ? <LoadingState /> : null}
       {fields.isError ? (
         <ErrorState error={fields.error} onRetry={() => void fields.refetch()} />
       ) : null}
-      {fields.data ? <FieldsEditor fields={fields.data} /> : null}
+      {fields.data ? (
+        <FieldsEditor fields={fields.data} sources={connector.data?.sources ?? []} />
+      ) : null}
+      {connector.data ? (
+        <div className="mt-4 max-w-[960px]">
+          <CustomerRecordSection connector={connector.data} />
+        </div>
+      ) : null}
     </>
   );
 }

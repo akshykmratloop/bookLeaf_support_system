@@ -147,6 +147,55 @@ assistant receives one fact, `host.records_unavailable`. It then says it could n
 from the customer's records, does not guess, and offers to raise a ticket. Tickets, chat and history
 keep working.
 
+## 2c. Or use the API you already have (data sources)
+
+You do not have to build the endpoint in 2b. In a workspace's **Product Connection** screen you can
+list **one to five data sources** instead. Each one is a GET URL template with `{id}` and/or `{email}`
+in the path or query (filled in URL-encoded, e.g. `https://api.x.com/data/customer/{id}` or
+`https://api.x.com/users?email={email}`). Every source gets the connection's API key, as
+`Authorization: Bearer <key>` or in a header the source names (e.g. `X-Api-Key`), and has its own
+timeout and cache time. Each source answers in one of two formats:
+
+- **Full customer shape**: the JSON from 2b. At most one source per workspace.
+- **Any JSON**: you say where each value is on the **Customer Data** screen, as a dotted path into
+  the answer (`data.user.name`, `books.0.title`, `$` for the whole answer).
+
+On the Customer Data screen, *Where the customer record comes from* maps the customer's name, email
+and item list (a path to an array, then the item id and title inside each element). Each field then
+picks a source and a path; a per-item field (`book.{id}.sales`) gives a path inside each item.
+**Test** calls every source for one customer id and shows each raw answer next to the merged record.
+
+When support needs a customer, it calls only the sources that something is mapped to, in parallel,
+and merges the answers into one record. The rest of support sees the same customer record as from
+2b. If one source fails, its fields show as *Unavailable* (a `MISSING` fact the assistant will not
+guess around); the other fields still show. Only the source with the name and email (or the
+full-shape one) is required: if it is down, support behaves as in "If the host is slow or down".
+
+**One source**, e.g. `GET https://api.acme.example/v2/customers/{id}` with
+`Authorization: Bearer <key>` answering `{ "data": { "name": "Ana", "email": "ana@acme.example",
+"plan": { "status": "active" }, "books": [{ "isbn": "978…", "title": "Rivers", "sold": 120 }] } }`:
+
+| Mapped | Source | Path |
+| --- | --- | --- |
+| Customer name / email | Customer | `data.name` / `data.email` |
+| Item list, id, title | Customer | `data.books`, `isbn`, `title` |
+| Field `plan.status` (STATUS) | Customer | `data.plan.status` |
+| Field `book.{id}.sold` (NUMBER) | each item | `sold` |
+
+**Several sources**, e.g. *Profile* `https://api.acme.example/users?email={email}` (key in
+`X-Api-Key`), *Books* `https://books.acme.example/authors/{id}/books`, *Payouts*
+`https://pay.acme.example/v1/payees/{id}/balance`: map name and email to Profile, the item list to
+Books (path `$` when the answer is the array itself), and money fields to Payouts (MONEY values are
+in minor units, e.g. paise). `{email}` is filled with the email support knows for the customer from
+their sign-in. If Payouts times out, the books and profile still show and the payout field says
+*Unavailable*.
+
+Every source URL passes the same address checks as all connector URLs (below) when it is saved and
+again before every call; redirects are refused and answers over 1 MB are dropped. Workspaces that
+had the single endpoint from 2b were moved automatically: their `{base URL}/support/customers/{id}`
+became their first data source in the full customer shape. The BookLeaf demo on server settings
+(`HOST_API_URL`) keeps using that same endpoint.
+
 ---
 
 ## 3. Show support to your users (pick one)
@@ -329,8 +378,8 @@ everything in **Workspace settings** (admin area) instead of env:
 
 | Screen | What it sets | API |
 | --- | --- | --- |
-| Product Connection | the base URL of the customer endpoint (step 2b), the Bearer API key, the HS256 signing secret, sign-in URL, timeout, cache; a **Test** button fetches one customer | `GET/PUT /api/v1/workspace/connector`, `POST …/connector/test` |
-| Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
+| Product Connection | one to five data sources (URL template, format, key header, timeout, cache; steps 2b/2c), the API key, the HS256 signing secret, sign-in URL; a **Test** button calls every source for one customer | `GET/PUT /api/v1/workspace/connector` (`sources`, or the older `baseUrl`), `POST …/connector/test` |
+| Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer), where each is read (source + path), where name, email and the item list come from, and the same **Test** with raw answers and the mapped preview | `/api/v1/workspace/fields`, `PUT /api/v1/workspace/connector/mapping` |
 | Workspace Settings | models per job, tone guide, chat and voice switches and limits, voice name, widget origins, branding, nouns | `GET/PUT /api/v1/workspace/settings` |
 | API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
 | Provider Keys | the workspace's own AI and voice provider keys (write-only, last 4 shown) | `/api/v1/workspace/provider-keys` |
