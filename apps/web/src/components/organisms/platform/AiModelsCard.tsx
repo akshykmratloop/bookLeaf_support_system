@@ -2,11 +2,13 @@ import type { PlatformAiStatus, UpdatePlatformAiSettings } from '@bookleaf/share
 import { useState } from 'react';
 import { Button } from '../../atoms/Button';
 import { Card } from '../../atoms/Card';
-import { Input, Select } from '../../atoms/Input';
+import { Input } from '../../atoms/Input';
+import { Dropdown } from '../../molecules/Dropdown';
 import { Field } from '../../molecules/Field';
 import { useToast } from '../../molecules/Toast';
 import { errorMessage } from '../../../lib/api';
 import { platformKeys, savePlatformAi } from '../../../lib/platform';
+import { modelOptions, providerOptions } from '../../../lib/platformAiOptions';
 import { useApiMutation } from '../../../lib/queries';
 
 type Task = 'triageModel' | 'draftModel' | 'chatModel';
@@ -58,31 +60,21 @@ export function AiModelsCard({ status }: { status: PlatformAiStatus }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="pf-provider" label="AI provider">
-          <Select
+          <Dropdown
             id="pf-provider"
             value={form.provider}
-            onChange={(e) => pickProvider(e.target.value)}
-          >
-            {aiProviders.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </Select>
+            options={providerOptions(aiProviders, s.provider)}
+            onChange={pickProvider}
+          />
         </Field>
         {TASKS.map((t) => (
           <Field key={t.key} id={`pf-${t.key}`} label={t.label}>
-            <Select
+            <Dropdown
               id={`pf-${t.key}`}
               value={form[t.key]}
-              onChange={(e) => setForm((f) => ({ ...f, [t.key]: e.target.value }))}
-            >
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label} · {m.tier}
-                </option>
-              ))}
-            </Select>
+              options={modelOptions(models)}
+              onChange={(v) => setForm((f) => ({ ...f, [t.key]: v }))}
+            />
           </Field>
         ))}
         <Field

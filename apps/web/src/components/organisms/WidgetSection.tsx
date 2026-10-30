@@ -1,5 +1,6 @@
 import { WIDGET_THEMES, type WidgetTheme } from '@bookleaf/shared';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 import { Section, type SectionProps } from './WorkspaceSettingsSections';
 
@@ -83,18 +84,13 @@ function LookFields({ status, isSaving, update, fieldError }: SectionProps) {
         />
       </Field>
       <Field id="widgetTheme" label="Widget theme">
-        <Select
+        <Dropdown<WidgetTheme>
           id="widgetTheme"
           value={s.widgetTheme}
           disabled={isSaving}
-          onChange={(e) => update({ widgetTheme: e.target.value as WidgetTheme })}
-        >
-          {WIDGET_THEMES.map((t) => (
-            <option key={t} value={t}>
-              {THEME_LABEL[t]}
-            </option>
-          ))}
-        </Select>
+          options={WIDGET_THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
+          onChange={(widgetTheme) => update({ widgetTheme })}
+        />
       </Field>
     </div>
   );

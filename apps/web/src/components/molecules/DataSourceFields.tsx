@@ -1,8 +1,14 @@
 import { Trash2 } from 'lucide-react';
 import type { SourceDraft } from '../../lib/dataSources';
 import { Button } from '../atoms/Button';
-import { Input, Select } from '../atoms/Input';
+import { Input } from '../atoms/Input';
+import { Dropdown, type DropdownOption } from './Dropdown';
 import { Field } from './Field';
+
+const FORMAT_OPTIONS: DropdownOption<SourceDraft['format']>[] = [
+  { value: 'MAPPED', label: 'Any JSON — map it on the Customer data page' },
+  { value: 'CONTRACT', label: 'Full customer shape (docs/integration.md)' },
+];
 
 interface Props {
   index: number;
@@ -37,14 +43,12 @@ export function DataSourceFields({ index, draft, canRemove, errorOf, onChange, o
           />
         </Field>
         <Field id={id('format')} label="Answer format" error={errorOf('format')}>
-          <Select
+          <Dropdown<SourceDraft['format']>
             id={id('format')}
             value={draft.format}
-            onChange={(e) => onChange({ format: e.target.value as SourceDraft['format'] })}
-          >
-            <option value="MAPPED">Any JSON — map it on the Customer data page</option>
-            <option value="CONTRACT">Full customer shape (docs/integration.md)</option>
-          </Select>
+            options={FORMAT_OPTIONS}
+            onChange={(format) => onChange({ format })}
+          />
         </Field>
       </div>
       <Field

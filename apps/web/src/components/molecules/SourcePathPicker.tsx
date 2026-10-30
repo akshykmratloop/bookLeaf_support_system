@@ -1,6 +1,7 @@
 import type { DataSource } from '@bookleaf/shared';
 import type { RefDraft } from '../../lib/dataSources';
-import { Input, Select } from '../atoms/Input';
+import { Input } from '../atoms/Input';
+import { Dropdown } from './Dropdown';
 import { Field } from './Field';
 
 interface Props {
@@ -30,18 +31,15 @@ export function SourcePathPicker({
   return (
     <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_1fr]">
       <Field id={`${id}-source`} label={label} error={sourceError}>
-        <Select
+        <Dropdown
           id={`${id}-source`}
           value={value.sourceId}
-          onChange={(e) => onChange({ ...value, sourceId: e.target.value })}
-        >
-          <option value="">Not mapped</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
+          options={[
+            { value: '', label: 'Not mapped' },
+            ...sources.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+          onChange={(sourceId) => onChange({ ...value, sourceId })}
+        />
       </Field>
       <Field id={`${id}-path`} label={pathLabel} hint={pathHint} error={pathError}>
         <Input

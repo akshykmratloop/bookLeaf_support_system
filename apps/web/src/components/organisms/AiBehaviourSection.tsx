@@ -7,7 +7,8 @@ import {
   REPLY_LENGTHS,
   REPLY_LENGTH_LABEL,
 } from '@bookleaf/shared';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 import { Section, type Patch, type SectionProps } from './WorkspaceSettingsSections';
 
@@ -95,21 +96,16 @@ export function AiBehaviourSection({ status, isSaving, update, fieldError }: Sec
       <div className="grid gap-4 md:grid-cols-3">
         {CHOICES.map((c) => (
           <Field key={c.key} id={c.key} label={c.label}>
-            <Select
+            <Dropdown
               id={c.key}
               value={s[c.key] ?? ''}
               disabled={isSaving}
-              onChange={(e) =>
-                update({ [c.key]: e.target.value === '' ? null : e.target.value } as Patch)
-              }
-            >
-              <option value="">Not set</option>
-              {c.options.map((o) => (
-                <option key={o} value={o}>
-                  {c.labels[o]}
-                </option>
-              ))}
-            </Select>
+              options={[
+                { value: '', label: 'Not set' },
+                ...c.options.map((o) => ({ value: o, label: c.labels[o] ?? o })),
+              ]}
+              onChange={(v) => update({ [c.key]: v === '' ? null : v } as Patch)}
+            />
           </Field>
         ))}
       </div>

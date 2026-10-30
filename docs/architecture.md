@@ -874,6 +874,8 @@ Keyboard: ↓ ↑ Enter Space open on the current value; in the list ↓ ↑ Hom
 Alt+↑ pick, Escape closes, Tab closes and moves on, typed letters jump to a label. A press outside
 closes it. The list is a solid `bg-panel` surface with `text-ink` in both themes and opens upwards
 when there is no room below. The key logic is pure (`lib/listbox.ts`, unit tested); state lives in
-`lib/useDropdown.ts`. **After merging U-7**, the `/platform` pages must use this `Dropdown` for every
-select (provider, models, plans), and their provider options mark a provider without a platform key
-as `disabled` with a `disabledReason`.
+`lib/useDropdown.ts`. The `/platform` pages (U-7) use this `Dropdown` for every select: the AI
+provider list marks a provider with no saved or env key as `disabled` with a `disabledReason` (the
+provider already chosen stays pickable), and the models show their tier as the hint
+(`lib/platformAiOptions.ts`). The customer AI behaviour choices, the widget theme and the U-9 data
+source format and source pickers use it too.
