@@ -489,7 +489,9 @@ in the field's order. A per-item field (`book.{id}.status`) is matched to each i
 trailing "(per book)" in its label is dropped inside the item. A fact that repeats a line already
 shown is left out. With no fields defined, the record's own facts are shown under their own labels
 (policy and missing facts excluded). The panel also lists the customer's other tickets in your
-workspace. When your product does not answer, the profile and tickets still show.
+workspace. When your product does not answer, the profile and tickets still show. With data
+sources (U-9) the panel shows the one merged record: name, email and items from the sources you
+mapped, and when one source fails only the lines it feeds read "Unavailable".
 
 **Solved tickets are locked for the customer (U-2).** Once a ticket is Resolved or Closed, the
 customer can no longer write on it: `POST /tickets/:id/messages` from the customer answers

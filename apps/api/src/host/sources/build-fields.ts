@@ -1,4 +1,5 @@
 import type { Fact, HostDetail, HostItem } from '@bookleaf/shared';
+import { itemLabelOf } from '../item-label.js';
 import { readPath } from './path.js';
 import type { FieldSpec, MappingSpec, SourceResult, SourceSpec, Unavailable } from './types.js';
 import { factTypeOf, toFactValue } from './values.js';
@@ -30,11 +31,15 @@ export const lookupIn = (res: SourceResult | undefined, path: string): Lookup =>
   return res.ok ? { ok: true, raw: readPath(res.json, path) } : { ok: false, reason: res.reason };
 };
 
-/** One field's value as a fact (and a detail the customer may see), or marked unavailable. */
+/**
+ * One field's value as a fact (and a detail the customer may see), or marked unavailable. Inside
+ * an item the detail drops a trailing "(per book)", like the staff Customer panel does.
+ */
 export function readField(field: FieldSpec, lookup: Lookup, where: Where): Built {
   const value = lookup.ok ? toFactValue(field.type, lookup.raw, field.allowedValues) : lookup;
+  const label = isItemField(field) ? itemLabelOf(field.label) : field.label;
   const show = (display: string) =>
-    field.visibleToCustomer ? [{ label: field.label, display: display.slice(0, 300) }] : [];
+    field.visibleToCustomer ? [{ label, display: display.slice(0, 300) }] : [];
   if (value.ok) {
     const source = {
       kind: 'RECORD' as const,

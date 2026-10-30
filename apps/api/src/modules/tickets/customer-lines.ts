@@ -1,4 +1,5 @@
 import type { CustomerLine, Fact, HostDetail } from '@bookleaf/shared';
+import { itemLabelOf } from '../../host/item-label.js';
 
 /** The part of a workspace customer data field the Customer panel needs. */
 export interface FieldLabel {
@@ -8,8 +9,6 @@ export interface FieldLabel {
 }
 
 const ID_MARK = '{id}';
-/** "Royalty status (per book)" reads as "Royalty status" inside the book it belongs to. */
-const PER_ITEM_SUFFIX = /\s*\(per [^)]*\)\s*$/i;
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -43,7 +42,7 @@ function factLines(facts: readonly Fact[], fields: readonly FieldLabel[], itemId
   return ordered.flatMap((field) => {
     const fact = facts.find((f) => fieldMatches(field, f.id, itemId));
     if (!fact) return [];
-    const label = itemId === null ? field.label : field.label.replace(PER_ITEM_SUFFIX, '');
+    const label = itemId === null ? field.label : itemLabelOf(field.label);
     return [{ label, display: fact.display }];
   });
 }

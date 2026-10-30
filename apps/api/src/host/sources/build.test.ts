@@ -93,6 +93,16 @@ describe('buildCustomer', () => {
     ]);
   });
 
+  it('drops a trailing "(per book)" from a per-item field label inside its item', () => {
+    const perItem: MappingSpec = {
+      ...MAPPED,
+      fields: [field('book.{id}.stage', { label: 'Stage (per book)', path: 'stage' })],
+    };
+    const { customer } = build(answers(), perItem);
+    expect(customer.items[0]?.details).toEqual([{ label: 'Stage', display: 'printing' }]);
+    expect(customer.items[0]?.facts[0]?.label).toBe('Stage (per book)');
+  });
+
   it('keeps the other fields when one source fails, marking its fields unavailable', () => {
     const { customer, unavailable } = build(answers({ payouts: down }));
     expect(customer.items).toHaveLength(1);
