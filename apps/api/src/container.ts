@@ -1,39 +1,23 @@
-import { createAiRuntime, type AiRuntime } from './ai/jobs/runtime.js';
 import { PROVIDER_CATALOG } from './ai/providers/catalog.js';
-import { buildProviderRegistry } from './ai/providers/registry.js';
-import type { LlmProvider } from './ai/providers/types.js';
 import type { HostRecords } from './host/types.js';
-import {
-  ALL_VOICES,
-  buildVoiceProvider,
-  VOICE_PROVIDER_IDS,
-  voiceProviderFor,
-} from './voice/providers/registry.js';
-import type { VoiceProvider } from './voice/providers/types.js';
+import { ALL_VOICES, VOICE_PROVIDER_IDS } from './voice/providers/registry.js';
 import { createAiAdminService } from './modules/ai-admin/service.js';
 import { createConnectorService } from './modules/connectors/service.js';
-import {
-  connectorDepsFromEnv,
-  envelopeFromEnv,
-  ssrfPolicyFromEnv,
-} from './modules/connectors/from-env.js';
+import { connectorDepsFromEnv, ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { createWebhookService } from './modules/webhooks/service.js';
 import { createServerApiService } from './modules/server-api/service.js';
 import { verifyApiKey } from './modules/workspaces/api-keys.js';
-import { createKeyedProviders } from './modules/provider-keys/keyed.js';
 import { createProviderKeyService } from './modules/provider-keys/service.js';
-import { limitsFromEnv } from './modules/assistant/limits.js';
+import { limitsFromEnv, type AssistantLimits } from './modules/assistant/limits.js';
 import { platformSwitches } from './modules/assistant/deps.js';
 import { createAssistantService } from './modules/assistant/service.js';
 import { createWorkspaceConfigs } from './modules/settings/configs.js';
 import { createEmbedOrigins } from './modules/settings/embed-origins.js';
-import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createSessions } from './modules/auth/session-versions.js';
 import { createBooksService } from './modules/books/service.js';
 import { createChatService } from './modules/chat/service.js';
 import { createConversationService } from './modules/conversations/service.js';
-import { draftLiveUpdates } from './modules/ticket-drafts/live.js';
 import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
 import { createSettingsService } from './modules/settings/service.js';
@@ -43,54 +27,23 @@ import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
 import { createCategoryService } from './modules/categories/service.js';
 import type { Env } from './config/index.js';
-import { inMemoryEventBus, type EventBus } from './platform/event-bus.js';
 
-export interface ContainerOverrides {
+import { createProviders, type ProviderOverrides } from './container-providers.js';
+import { createSharedParts, type SharedOverrides } from './container-shared.js';
+import type { CacheSync } from './platform/shared-state/cache-sync.js';
+
+export interface ContainerOverrides extends ProviderOverrides, SharedOverrides {
   clock?: Clock;
   db?: Db;
-  providers?: Map<string, LlmProvider>;
   /** The host product's records; tests pass a real demo host or a fake. */
   records?: HostRecords;
-  /** null = no voice provider configured. */
-  voiceProvider?: VoiceProvider | null;
-  /** Builds a client from a workspace's own AI key (tests pass a fake). */
-  buildAi?: (providerId: string, apiKey: string) => LlmProvider | undefined;
-  /** Builds a client from a workspace's own voice key (tests pass a fake). */
-  buildVoice?: (providerId: string, apiKey: string) => VoiceProvider | null;
 }
 
-/** AI and voice clients: the platform's from env, and each workspace's own from its saved keys. */
-function createProviders(env: Env, db: Db, clock: Clock, overrides: ContainerOverrides) {
-  const providers =
-    overrides.providers ?? buildProviderRegistry({ anthropicApiKey: env.ANTHROPIC_API_KEY });
-  const voiceProvider =
-    overrides.voiceProvider === undefined ? buildVoiceProvider(env) : overrides.voiceProvider;
-  const envelope = envelopeFromEnv(env);
-  const keyed = createKeyedProviders({
-    db,
-    envelope,
-    now: () => clock.now(),
-    platformAi: providers,
-    platformVoice: voiceProvider,
-    buildAi:
-      overrides.buildAi ?? ((id, key) => buildProviderRegistry({ anthropicApiKey: key }).get(id)),
-    buildVoice: overrides.buildVoice ?? ((id, key) => voiceProviderFor(env, id, key)),
-  });
-  const ai: AiRuntime = createAiRuntime(db, providers, () => clock.now(), keyed.ai);
-  return { voiceProvider, envelope, keyed, ai };
-}
-
-/** Shared infrastructure every module uses: clock, database, events, AI runtime, sessions. */
-function createCore(env: Env, overrides: ContainerOverrides) {
-  const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
-  const db = overrides.db ?? createDb(env.DATABASE_URL);
-  const events: EventBus = inMemoryEventBus();
-  const { voiceProvider, envelope, keyed, ai } = createProviders(env, db, clock, overrides);
-  const sessions = createSessions(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock, db);
-  const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
-  const records = overrides.records ?? connectors.records;
-  const ticketDeps = { db, clock, events, records };
-  const limits = limitsFromEnv(env);
+/** Settings caches stay per copy and are cleared on every copy when a setting is saved (F-19). */
+function createSettingsCaches(
+  { env, db, clock, cacheSync }: { env: Env; db: Db; clock: Clock; cacheSync: CacheSync },
+  limits: AssistantLimits,
+) {
   const embedOrigins = createEmbedOrigins(db, env.HOST_ORIGINS, () => clock.now());
   const configs = createWorkspaceConfigs(db, {
     limits,
@@ -98,7 +51,28 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     switches: () => platformSwitches(db),
   });
   return {
+    embedOrigins: cacheSync.shared('embed-origins', embedOrigins),
+    configs: cacheSync.shared('workspace-configs', configs),
+  };
+}
+
+/** Shared infrastructure every module uses: clock, database, events, AI runtime, sessions. */
+function createCore(env: Env, overrides: ContainerOverrides) {
+  const clock = overrides.clock ?? systemClock(env.DATA_AS_OF);
+  const db = overrides.db ?? createDb(env.DATABASE_URL);
+  const shared = createSharedParts(env, clock, overrides);
+  const { events, cacheSync } = shared;
+  const providerInputs = { env, db, clock, cacheSync };
+  const { voiceProvider, envelope, keyed, ai } = createProviders(providerInputs, overrides);
+  const sessions = createSessions(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock, db);
+  const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
+  const records = overrides.records ?? connectors.records;
+  const ticketDeps = { db, clock, events, records };
+  const limits = limitsFromEnv(env);
+  const { embedOrigins, configs } = createSettingsCaches({ env, db, clock, cacheSync }, limits);
+  return {
     env,
+    shared,
     clock,
     db,
     events,
@@ -120,9 +94,9 @@ function createCore(env: Env, overrides: ContainerOverrides) {
 type Core = ReturnType<typeof createCore>;
 
 /** The author assistant: switches and limits, chat, voice calls and the shared ticket draft. */
-function createAssistants({ env, db, ai, configs, ticketDeps, keyed }: Core) {
+function createAssistants({ env, db, ai, configs, ticketDeps, keyed, shared: sh }: Core) {
   const voiceFor = (workspaceId: string) => keyed.voice(workspaceId);
-  const draftLive = draftLiveUpdates();
+  const draftLive = sh.draftLive;
   const ticketDrafts = createTicketDraftService({ ...ticketDeps, live: draftLive });
   const assistant = createAssistantService({
     db,
@@ -135,7 +109,7 @@ function createAssistants({ env, db, ai, configs, ticketDeps, keyed }: Core) {
     assistant,
     draftLive,
     ticketDrafts,
-    chat: createChatService(shared),
+    chat: createChatService({ ...shared, queues: sh.state.queues }),
     voice: createVoiceService({
       ...shared,
       voiceFor,
@@ -169,7 +143,7 @@ function createIntegrations(core: Core) {
 /** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
 export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const core = createCore(env, overrides);
-  const hostSignIn = { ...core, usedTokens: usedTokenIds(core.clock) };
+  const hostSignIn = { ...core, usedTokens: core.shared.usedTokens.host };
   return {
     ...core,
     auth: createAuthService(core.db, core.sessions),

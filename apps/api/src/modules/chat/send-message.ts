@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { ChatReply } from '@bookleaf/shared';
 import { ConflictError, UsageLimitError } from '../../platform/errors.js';
-import { QueueFullError } from '../../platform/keyed-queue.js';
+import { QueueFullError } from '../../platform/shared-state/errors.js';
 import { startOfUtcDay, type AssistantLimits } from '../assistant/limits.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';

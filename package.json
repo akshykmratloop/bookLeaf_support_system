@@ -8,7 +8,7 @@
   },
   "scripts": {
     "local": "node scripts/local/run.mjs",
-    "local:stop": "docker compose stop db",
+    "local:stop": "docker compose stop db redis",
     "dev": "pnpm --parallel --filter @bookleaf/api --filter @bookleaf/web --filter @bookleaf/host-demo --filter @bookleaf/host-web dev",
     "build": "pnpm --filter @bookleaf/web build && pnpm --filter @bookleaf/api build",
     "start": "pnpm --filter @bookleaf/api start",
@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm -r test",
-    "db:up": "docker compose up -d db",
+    "db:up": "docker compose up -d db redis",
     "db:migrate": "pnpm --filter @bookleaf/api db:migrate",
     "db:seed": "pnpm --filter @bookleaf/api db:seed",
     "eval": "pnpm --filter @bookleaf/api eval",

@@ -27,8 +27,8 @@ export function runInBackground(app: FastifyInstance, c: Container): { stop(): P
     { pollMs: c.env.WORKER_POLL_MS },
   );
   app.addHook('onReady', async () => {
-    // Single instance: calls live in this process, so any left PENDING or ACTIVE died with the
-    // last one. Running two instances would need this scoped to calls older than the time cap.
+    // Calls live in the process that holds their socket, so any left PENDING or ACTIVE died with
+    // the last one. With several copies this must be scoped first (docs/architecture.md §21).
     const interrupted = await failInterruptedCalls(c.db, c.clock.now());
     if (interrupted.count) app.log.warn({ count: interrupted.count }, 'marked interrupted calls');
     if (!c.env.WORKER_ENABLED) return;

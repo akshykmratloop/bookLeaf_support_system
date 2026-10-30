@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { keyedQueue, QueueFullError } from './keyed-queue.js';
+import { QueueFullError } from '../errors.js';
+import { keyedQueue } from './keyed-queue.js';
 
 const later = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { DEFAULT_WORKSPACE_ID } from '../../src/modules/workspaces/constants.js';
 import { inject } from 'vitest';
@@ -104,6 +105,8 @@ export interface Harness {
   login(email: string, password?: string): Promise<string>;
   /** Base URL of the running demo host. */
   hostUrl: string;
+  /** This harness's Redis key prefix: pass it as `sharedPrefix` to act as a second server. */
+  redisPrefix: string;
   /** Stops the demo host, to test what happens when the product is down. */
   stopHost(): Promise<void>;
   drain(max?: number): Promise<number>;
@@ -156,10 +159,16 @@ export interface HarnessOptions {
   env?: Record<string, string>;
   /** Keep BookLeaf's saved settings from earlier in the file (a second harness mid-file). */
   keepSettings?: boolean;
+  /**
+   * Another harness's `redisPrefix`: both then share live updates, rate limits and one-use
+   * tokens, like two copies of the API behind a load balancer. Default: a fresh prefix.
+   */
+  sharedPrefix?: string;
 }
 
 export async function createHarness(opts: HarnessOptions = {}): Promise<Harness> {
   const { host, url: hostUrl } = await startHost();
+  const redisPrefix = opts.sharedPrefix ?? `test-${randomUUID()}`;
   const env = loadEnv({
     NODE_ENV: 'test',
     APP_ORIGIN: ORIGIN,
@@ -174,6 +183,8 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     // Workspace secrets are encrypted with a throwaway master key; the demo host is local.
     SECRETS_MASTER_KEY: TEST_MASTER_KEY,
     CONNECTOR_ALLOW_PRIVATE_HOSTS: 'true',
+    REDIS_URL: inject('redisUrl'),
+    REDIS_KEY_PREFIX: redisPrefix,
     ...opts.env,
   });
   const db = createDb(env.DATABASE_URL);
@@ -224,6 +235,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     voice,
     ownKeyUses,
     hostUrl,
+    redisPrefix,
     stopHost: () => host.close(),
     setAi: (h) => {
       handler = h;
@@ -244,6 +256,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     },
     async close() {
       await app.close();
+      await container.shared.close();
       await host.close();
       await db.$disconnect();
     },

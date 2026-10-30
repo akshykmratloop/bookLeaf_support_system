@@ -12,6 +12,7 @@ import { DEFAULT_WORKSPACE_SLUG } from './modules/workspaces/constants.js';
 import { authGuard } from './platform/http/auth-guard.js';
 import { cspDirectives } from './platform/http/csp.js';
 import { csrfGuard } from './platform/http/csrf.js';
+import { sharedRateLimitStore } from './platform/http/rate-limit-store.js';
 import { allowWidgetScript, registerWidgetPages } from './platform/http/embed.js';
 import { registerErrorHandler } from './platform/http/error-handler.js';
 import { healthRoutes } from './platform/http/health.js';
@@ -36,10 +37,14 @@ export interface SupportPluginOptions {
  */
 export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (app, opts) => {
   const c = opts.container ?? createContainer(requireEnv(opts.env));
+  // Refuses to start when Redis (REDIS_URL) cannot be reached: shared state is not optional.
+  await c.shared.ready();
   const background = runInBackground(app, c);
   app.addHook('onClose', async () => {
     await background.stop();
-    if (!opts.container) await c.db.$disconnect();
+    if (opts.container) return;
+    await c.shared.close();
+    await c.db.$disconnect();
   });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -49,7 +54,11 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   });
   if (c.embedded) allowWidgetScript(app);
   await app.register(cookie);
-  await app.register(rateLimit, { global: false });
+  // Counted in shared state, so every copy of the API adds up to one limit (F-19).
+  await app.register(rateLimit, {
+    global: false,
+    store: sharedRateLimitStore(c.shared.state.counters),
+  });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
   await app.register(healthRoutes, { db: c.db });

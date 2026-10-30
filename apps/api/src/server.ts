@@ -14,6 +14,7 @@ async function main(): Promise<void> {
     stopping = true;
     app.log.info({ signal }, 'shutting down');
     await app.close(); // also stops the AI worker
+    await container.shared.close();
     await container.db.$disconnect();
     process.exit(0);
   };
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
       ai: container.ai.configuredProviders(),
       voice: container.voiceProvider?.id ?? 'not configured',
       worker: env.WORKER_ENABLED,
+      sharedState: container.shared.state.backend,
     },
     'BookLeaf support ready',
   );

@@ -264,8 +264,8 @@ Reading: the only production advisory is the `deepmerge-ts` one, reached through
 ## 7. Gaps noticed (no fixes made)
 
 - There is no `/ready` route. `/health` checks the database but is the only probe, so liveness and readiness are not separated.
-- The event bus and live draft updates live in one process (`platform/event-bus.ts`, `modules/ticket-drafts/live.ts`), so the API only works correctly as a single instance.
-- Rate limits are in server memory (no shared store), so they reset on restart and are per instance.
+- The event bus and live draft updates live in one process (`platform/event-bus.ts`, `modules/ticket-drafts/live.ts`), so the API only works correctly as a single instance. (Fixed by F-19 on 2026-10-30: both go through Redis pub/sub.)
+- Rate limits are in server memory (no shared store), so they reset on restart and are per instance. (Fixed by F-19 on 2026-10-30: counted in Redis.)
 - Many routes have no rate limit (all admin settings routes, `/events`, `GET /tickets`, ticket creation, ticket messages, `/auth/logout`).
 - `POST /tickets` and `POST /tickets/{id}/messages` each start paid AI jobs with no route-level limit.
 - The voice WebSocket `/voice/calls/{id}/stream` is not in the OpenAPI document, so API-doc based tests will miss it.

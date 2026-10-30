@@ -1,21 +1,17 @@
 import type { Clock } from '../../platform/clock.js';
+import type { OneTimeClaims } from '../../platform/shared-state/types.js';
 
 /**
- * Remembers the ids (`jti`) of host sign-in tokens until they expire, so each token signs in
- * once. Kept in memory: the module runs as a single instance (see docs/architecture.md).
+ * Remembers the ids (`jti`) of one-use tokens until they expire, so each token works once on the
+ * whole platform, whichever copy of the API it reaches (F-19). `kind` keeps the host sign-in
+ * tokens and the voice call tickets apart.
  */
-export function usedTokenIds(clock: Clock) {
-  const expiresAt = new Map<string, number>();
-  const forgetExpired = (nowSeconds: number) => {
-    for (const [id, exp] of expiresAt) if (exp <= nowSeconds) expiresAt.delete(id);
-  };
+export function usedTokenIds(claims: OneTimeClaims, clock: Clock, kind: string) {
   return {
     /** True the first time an id is seen; false for a replay. */
-    claim(id: string, exp: number): boolean {
-      forgetExpired(Math.floor(clock.now().getTime() / 1000));
-      if (expiresAt.has(id)) return false;
-      expiresAt.set(id, exp);
-      return true;
+    claim(id: string, exp: number): Promise<boolean> {
+      const nowSeconds = Math.floor(clock.now().getTime() / 1000);
+      return claims.claim(`used-token:${kind}:${id}`, Math.max(1, exp - nowSeconds));
     },
   };
 }

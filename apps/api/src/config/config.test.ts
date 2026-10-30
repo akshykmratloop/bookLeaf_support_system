@@ -57,4 +57,25 @@ describe('loadEnv', () => {
     const same = { ...REQUIRED, HOST_SIGNING_SECRET: REQUIRED.JWT_SECRET };
     expect(() => loadEnv(same)).toThrow(/HOST_SIGNING_SECRET/);
   });
+
+  it('refuses to start in production without REDIS_URL (shared state for every copy)', () => {
+    const production = {
+      ...REQUIRED,
+      NODE_ENV: 'production',
+      SECRETS_MASTER_KEY: Buffer.alloc(32, 1).toString('base64'),
+    };
+    expect(() => loadEnv(production)).toThrow(/REDIS_URL: is required in production/);
+    expect(loadEnv({ ...production, REDIS_URL: 'redis://redis:6379' })).toMatchObject({
+      REDIS_URL: 'redis://redis:6379',
+      REDIS_KEY_PREFIX: 'bookleaf',
+    });
+  });
+
+  it('reads REDIS_URL only as a redis:// address; empty means not set outside production', () => {
+    expect(loadEnv({ ...REQUIRED, REDIS_URL: '' }).REDIS_URL).toBeUndefined();
+    expect(() => loadEnv({ ...REQUIRED, REDIS_URL: 'http://localhost:6379' })).toThrow(/REDIS_URL/);
+    expect(() => loadEnv({ ...REQUIRED, REDIS_KEY_PREFIX: 'bad prefix' })).toThrow(
+      /REDIS_KEY_PREFIX/,
+    );
+  });
 });

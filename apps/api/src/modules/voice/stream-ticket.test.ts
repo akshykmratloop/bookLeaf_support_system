@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { usedTokenIds } from '../auth/used-tokens.js';
 import { createSessionTokens, type Session } from '../auth/session.js';
 import { UnauthorizedError } from '../../platform/errors.js';
+import { memoryBackend } from '../../platform/shared-state/memory/index.js';
 import { createStreamTickets, STREAM_TICKET_SECONDS } from './stream-ticket.js';
 
 const SECRET = 'unit-test-jwt-secret-that-is-long-enough-123';
@@ -19,7 +20,8 @@ const SESSION: Session = {
 function setup() {
   let now = new Date('2026-10-29T10:00:00Z');
   const clock = { now: () => now, dataAsOf: () => new Date('2025-12-31T00:00:00Z') };
-  const tickets = createStreamTickets(SECRET, clock, usedTokenIds(clock));
+  const used = usedTokenIds(memoryBackend(() => now.getTime()).claims, clock, 'voice-stream');
+  const tickets = createStreamTickets(SECRET, clock, used);
   const advance = (seconds: number) => {
     now = new Date(now.getTime() + seconds * 1000);
   };

@@ -35,7 +35,7 @@ host when it is needed; support stores only reference rows (§9).
 
 ---
 
-## 2. Runtime parts (one Node process)
+## 2. Runtime parts (one Node process per copy)
 
 ```mermaid
 flowchart TB
@@ -45,7 +45,7 @@ flowchart TB
         sse["SSE hub<br/>/api/v1/events"]
         ws["Voice WebSocket<br/>/api/v1/voice/calls/:id/stream"]
         worker["AI worker<br/>polls ai_jobs (SKIP LOCKED + lease)"]
-        bus["EventBus (in memory)"]
+        bus["EventBus<br/>local listeners + Redis pub/sub"]
         host["Host connector<br/>http · 3 s timeout · 60 s cache"]
     end
     db[("PostgreSQL")]
@@ -63,9 +63,9 @@ flowchart TB
 
 All of this is `supportPlugin` (`apps/api/src/plugin.ts`). The standalone server (`server.ts`) adds a
 logger and API docs and listens on a port. A Fastify host can register the same plugin under its
-own prefix instead (§15). The worker starts and stops with the plugin (`background.ts`). More than
-one instance would move `EventBus` to Postgres `LISTEN/NOTIFY` (not built). See §21 for everything
-that is kept in one process's memory.
+own prefix instead (§15). The worker starts and stops with the plugin (`background.ts`). Several
+copies can run side by side: everything they must share (events, rate limits, one-use tokens,
+the chat queue, settings-cache clearing) goes through Redis (§21).
 
 ---
 
@@ -752,28 +752,66 @@ Colours in `embed.js` are kept equal to the support app's tokens (`apps/web/src/
 
 ## 21. Running more than one instance
 
-Today the module is built and tested to run as **one Node process**. The database (Postgres) is the
-only shared state. Some small pieces of state live in the memory of the process instead. With two
-or more copies behind a load balancer each copy has its own memory, so these pieces stop working as
-intended. Nothing here is a problem for a single instance.
+Since F-19 (2026-10-30) the API can run as **several copies** behind a load balancer. Postgres holds
+the data; **Redis** holds the small pieces of state every copy must see the same way. Each piece sits
+behind a small interface in `apps/api/src/platform/shared-state/` (CLAUDE.md §21): `types.ts` is the
+only thing the rest of the code imports, `registry.ts` picks the backend once at startup, and the
+Redis client (`ioredis`) is imported only in `shared-state/redis/` (a lint rule checks this).
 
-| In-memory state | File | What breaks with 2+ copies | Move to |
+| Shared state | Interface | Redis | Where it is used |
 | --- | --- | --- | --- |
-| Host sign-in token replay cache (`usedTokenIds`) | `apps/api/src/modules/auth/used-tokens.ts` | A host token is meant to work once. Each copy remembers its own used tokens, so the same token can be used once on every copy during its 5-minute life. | A Postgres table keyed by the token id with its expiry (insert-or-fail), or Redis `SET NX` with a TTL |
-| Per-key queue (`keyedQueue`), used to answer messages in one chat conversation in order | `apps/api/src/platform/keyed-queue.ts` | Two messages of the same conversation that reach different copies can run at the same time, so the "each answer sees the one before" order is no longer guaranteed. The waiting-line limit is also counted per copy. | A Postgres advisory lock per conversation, or route a conversation to one copy |
-| Workspace settings cache, 5 seconds (`createWorkspaceConfigs`) | `apps/api/src/modules/settings/configs.ts` | A saved setting is dropped from the cache only on the copy that handled the save. Other copies keep the old value for up to 5 seconds (chat and voice switches, limits, models). | Nothing urgent. It fixes itself after 5 seconds. Shorten the time if that is too slow. |
-| Rate-limit counters (`@fastify/rate-limit`, registered with `global: false`) | `apps/api/src/plugin.ts` | Each copy counts on its own, so a limit such as 5 logins a minute becomes up to 5 per copy. | The plugin's Redis store, or a Postgres counter |
-| In-process event bus behind Server-Sent Events (`inMemoryEventBus`) | `apps/api/src/platform/event-bus.ts` | An event is published only to listeners on the same copy. A browser connected to copy B never hears about a ticket changed on copy A, and the live screens stay stale. | Postgres `LISTEN/NOTIFY` (the interface already allows another bus), or Redis pub/sub |
+| Live ticket events behind Server-Sent Events | `PubSub` + `sharedChannel` | pub/sub channel `ticket-events` | `platform/event-bus.ts` (`sharedEventBus`) |
+| Live draft changes for a call (author edits on any copy reach the call's copy) | `PubSub` + `sharedChannel` | channel `draft-changes` | `modules/ticket-drafts/live.ts` |
+| One-use token ids: host sign-in tokens and voice call tickets | `OneTimeClaims` | `SET key 1 NX EX <seconds left>` | `modules/auth/used-tokens.ts` |
+| Every `@fastify/rate-limit` limit (sign-in, sign-up, chat, voice, tickets, drafts, server API) | `RateCounters` | `INCR` + `PEXPIRE` in one Lua script (fixed window) | `platform/http/rate-limit-store.ts` |
+| Chat: one conversation answered in order, at most 3 waiting | `KeyedQueues` | a first-come, first-served line per key (Lua: tail, head, lease) | `modules/chat/service.ts` |
+| Settings caches: workspace settings (5 s), widget origins (30 s), provider keys (30 s), AI settings (2 s) | `CacheSync` | channel `cache-drop` | `container.ts`, `container-providers.ts` |
 
-Also in the process: live voice calls (an open WebSocket and a provider connection per call). The
-README lists them with the event bus as the reason for "one instance only". A call cannot move to
-another copy mid-call.
+**How each works.**
+
+- **Channels.** A message reaches this copy's listeners at once (as before Redis) and is also
+  published. Other copies check it with a Zod schema; anything else is logged and dropped. A copy
+  ignores its own messages coming back. Events are hints only, so a message lost during a Redis
+  blip loses nothing: browsers refetch through REST.
+- **Settings caches** stay in each copy's memory, because they are read on every request. Saving a
+  setting clears the entry on every copy through the `cache-drop` channel; the short time limits
+  stay as a safety net.
+- **The chat queue** hands out numbers in arrival order. The task holding the head of the line
+  renews a 15-second lease while it runs. If its copy dies, the lease runs out and the next task
+  goes ahead, so a crash never blocks a conversation for good.
+- **All keys and channels** start with `REDIS_KEY_PREFIX` (default `bookleaf`), so several apps or
+  test runs can share one Redis. Nothing in Redis needs to survive a restart.
+
+**Startup and failure.** `REDIS_URL` is required in production; without it the API refuses to start
+(`config/index.ts`). At startup the plugin pings Redis and subscribes to the channels; if Redis does
+not answer, startup fails with `Cannot reach Redis at … (REDIS_URL)`. While running, a rate-limit
+check or a one-use token check that cannot reach Redis fails the request (never a silent bypass),
+and Redis connection errors are logged. Outside production, a missing `REDIS_URL` falls back to the
+in-memory backend with a loud warning; it is correct for one copy only. `npm run local` and the
+Compose stacks always set it. The in-memory backend (`shared-state/memory/`) exists for unit tests.
+
+**Tests.** One contract suite (`apps/api/test/helpers/shared-state-contract.ts`) runs against both
+backends: in memory (unit) and real Redis from testcontainers (`shared-state-redis.int.test.ts`).
+`multi-instance.int.test.ts` runs two copies of the API on one Postgres and one Redis: a staff reply
+on copy A reaches an author listening on copy B; a host token used on A is refused on B; 5 sign-in
+tries a minute stay 5 across both; a setting saved on A is not served stale on B; a draft change on
+A reaches a call watching on B.
+
+**Still tied to one copy.**
+
+- **Live voice calls.** A call is an open WebSocket plus a provider connection inside one process,
+  so it stays on the copy that holds the connection and cannot move mid-call. The load balancer
+  does not need sticky sessions for this: the socket itself stays where it was opened. Draft edits
+  made through other copies still reach it (table above).
+- **The startup sweep of open calls** (`background.ts`, `failInterruptedCalls`) marks every call
+  that is still PENDING or ACTIVE as failed, because it assumes those calls died with the last
+  process. With several copies, a copy that restarts would also end calls that live on another copy.
+  Before a rolling restart with more than one copy, scope that sweep (for example to calls older
+  than the call time cap). The demo box runs one API copy, so this does not happen there today.
+- **Read caches of customer data** from the host product (`host/workspaces.ts`, `host/http/cache.ts`,
+  60 s by default) are per copy on purpose. They are only faster reads; a copy may show data up to
+  that age, as a single copy already did.
 
 Already safe with several copies, because they use the database: the AI job worker and the webhook
-sender (both claim work with `SKIP LOCKED` leases), and the chat turn counter and call claiming
-(single atomic updates).
-
-**What to move first.** (1) The host token replay cache, because it is a security rule and
-silently weakens with a second copy. (2) The event bus, because live ticket updates are a
-requirement of the product and fail without any error. (3) The rate-limit store. (4) The
-conversation queue. The settings cache needs no change.
+sender (both claim work with `SKIP LOCKED` leases), the chat message limits per minute and per day,
+the chat turn counter, the voice call quotas and call claiming (single atomic updates or counts).

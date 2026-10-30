@@ -6,6 +6,7 @@ import { DatabaseConfig } from './database.js';
 import { HostConfig } from './host.js';
 import { PlatformConfig } from './platform.js';
 import { ServerConfig } from './server.js';
+import { SharedStateConfig } from './shared-state.js';
 import { VoiceConfig } from './voice.js';
 
 /** Every runtime setting, one small schema per area, validated once at startup. */
@@ -19,6 +20,7 @@ const EnvSchema = z
     ...VoiceConfig.shape,
     ...HostConfig.shape,
     ...PlatformConfig.shape,
+    ...SharedStateConfig.shape,
   })
   .refine((env) => env.HOST_SIGNING_SECRET !== env.JWT_SECRET, {
     path: ['HOST_SIGNING_SECRET'],
@@ -27,6 +29,11 @@ const EnvSchema = z
   .refine((env) => env.NODE_ENV !== 'production' || env.SECRETS_MASTER_KEY !== undefined, {
     path: ['SECRETS_MASTER_KEY'],
     message: 'is required in production (workspace secrets are encrypted with it)',
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.REDIS_URL !== undefined, {
+    path: ['REDIS_URL'],
+    message:
+      'is required in production (every copy of the API shares live updates, rate limits and one-use tokens through Redis)',
   })
   .refine((env) => env.NODE_ENV !== 'production' || !env.CONNECTOR_ALLOW_PRIVATE_HOSTS, {
     path: ['CONNECTOR_ALLOW_PRIVATE_HOSTS'],

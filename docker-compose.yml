@@ -1,4 +1,4 @@
-# Local development database. Tests use their own throwaway container (testcontainers).
+# Local development database and Redis. Tests use their own throwaway containers (testcontainers).
 services:
   db:
     image: postgres:16-alpine
@@ -12,6 +12,17 @@ services:
       - bookleaf-db:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U bookleaf']
+      interval: 5s
+      retries: 10
+  # Shared state for every copy of the API (F-19): live updates, rate limits, one-use tokens.
+  # Nothing in it needs to survive a restart, so it is not saved to disk.
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       retries: 10
 volumes:

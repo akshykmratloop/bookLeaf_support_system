@@ -240,7 +240,7 @@ workspace #1, seeded from env and unchanged in behaviour. Not merged. Plan: `doc
 | S.6 | Docs: integration guide section, README, TASKS, SHARED_PLAN | ✅ | (this commit) |
 | S.7 | Wire chat/voice limits, switches, prompts and the fact checker to the workspace rows (readers still use the singleton settings + env for every workspace) | ✅ | `3c9632f` `b703316` `de3c2fd` `278dd13` `58698d2` |
 | S.8 | Postgres RLS policies + per-request Prisma client (`SET LOCAL app.workspace_id`); SQL in `docs/saas/PLAN.md` §5.2 | 🔄 | locked 2026-10-29; on `feature/locked-fixes` |
-| S.9 | Ticket categories and knowledge-base articles per workspace: `ticket_categories`, `knowledge_articles` (+ links), tickets/drafts move to `category_key` (expand → backfill; old enum column dropped in a later release), admin pages Categories + Knowledge Base, triage/drafts/chat/voice use the workspace's own rows (drafts: only articles linked to the ticket's category), BookLeaf seeded so its prompts are byte-identical | ✅ | (this commit) |
+| S.9 | Ticket categories and knowledge-base articles per workspace: `ticket_categories`, `knowledge_articles` (+ links), tickets/drafts move to `category_key` (expand → backfill; old enum column dropped in a later release), admin pages Categories + Knowledge Base, triage/drafts/chat/voice use the workspace's own rows (drafts: only articles linked to the ticket's category), BookLeaf seeded so its prompts are byte-identical | ✅ | `20b0fc9` |
 | S.10 | Server-to-server endpoints that accept workspace API keys; signed webhooks | ✅ | `b7e2c88` |
 | S.11 | Member management and invitations; email verification at signup | ⬜ | skipped for now (decided 2026-10-29); build later — see README "Known limitations" |
 
@@ -257,10 +257,10 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | F-12.2 | End sessions early: `users.session_version` checked on every request; bumped on logout, password change and removal from a workspace | ✅ | `700a107` |
 | F-13 | Ticket numbers per workspace (`next_ticket_number` from 1001, fixed platform-unique `ticket_prefix`, `@@unique([workspaceId, number])`) | ✅ | `414fb28` |
 | F-18 | Per-workspace widget address `/embed/<slug>` with that workspace's own `frame-ancestors`; old `/embed` redirects; host token must match the slug; Vercel forwards `/embed` to the API | ✅ | `3fec9e4` |
-| F-19 | Shared state on Redis (event bus, host-token replay cache, rate limits, config cache, per-ticket lock); `REDIS_URL` required in production | 🔄 | |
+| F-19 | Shared state on Redis (event bus, host-token replay cache, rate limits, config cache, per-ticket lock); `REDIS_URL` required in production | ✅ | (this commit) |
 | SM.1 | Pin `deepmerge-ts` ≥ 8.0.0 with a pnpm override (Prisma transitive advisory) | ✅ | `497c2d2` |
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
-| SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | (this commit) |
+| SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | `d5ab0d8` |
 
 ---
 

@@ -42,7 +42,7 @@ That one command does everything, and is safe to run again:
 1. Checks Node, pnpm and Docker.
 2. Creates `.env` from `.env.example` with fresh random secrets. If `.env` already exists, it only
    adds missing settings and never changes your values.
-3. Installs packages, starts Postgres in Docker, applies migrations and seeds the demo data.
+3. Installs packages, starts Postgres and Redis in Docker, applies migrations and seeds the demo data.
 4. Starts all four apps and prints the links and demo logins.
 
 | Open | URL | Sign in with |
@@ -54,7 +54,7 @@ That one command does everything, and is safe to run again:
 AI keys are optional. Add `ANTHROPIC_API_KEY` (AI triage, drafts, chat) and `OPENAI_API_KEY`
 (voice) to `.env` to turn them on; without them the app uses its rule-based fallback.
 
-Stop the apps with `Ctrl+C`, and the database with `npm run local:stop`.
+Stop the apps with `Ctrl+C`, and the database and Redis with `npm run local:stop`.
 
 ## Branches
 
@@ -88,7 +88,7 @@ infra/           Terraform for the AWS demo server, plus apply / destroy scripts
 ```bash
 cp .env.example .env    # then replace each replace-with-... value (openssl rand -base64 48)
 pnpm install
-pnpm db:up              # Postgres 16 on localhost:5433 (docker compose)
+pnpm db:up              # Postgres 16 on localhost:5433 + Redis 7 on 6380 (docker compose)
 pnpm db:migrate         # prisma migrate deploy (export the .env values first)
 pnpm db:seed            # support staff accounts + AI settings (safe to re-run)
 pnpm dev                # runs the four apps in watch mode
@@ -99,6 +99,7 @@ pnpm dev                # runs the four apps in watch mode
 | What | Port | Notes |
 | --- | --- | --- |
 | Postgres | 5433 | `docker-compose.yml`; the container listens on 5432 |
+| Redis | 6380 | `docker-compose.yml`; shared state for every copy of the API (`REDIS_URL`) |
 | Support app + API | **3300** | `pnpm build && pnpm start`: one Node process. The API serves the built web app (`apps/web/dist`) |
 | BookLeaf host demo | **3400** | `pnpm host:build && pnpm host:start`. It serves the built author dashboard (`apps/host-web/dist`) and BookLeaf's own API |
 
@@ -126,13 +127,13 @@ and open BookLeaf at http://localhost:5174.
 | Script | What it does |
 | --- | --- |
 | `npm run local` | One command: setup, database, migrations, seed, and all four apps |
-| `npm run local:stop` | Stops the Postgres container (data is kept) |
+| `npm run local:stop` | Stops the Postgres and Redis containers (database data is kept) |
 | `pnpm dev` | API, support web, host demo and dashboard in watch mode |
 | `pnpm build` | Builds the support web app, then the API |
 | `pnpm start` | Starts the built API (and the web app it serves) |
 | `pnpm host:build` | Builds the author dashboard (`apps/host-web`) |
 | `pnpm host:start` | Starts the BookLeaf host demo |
-| `pnpm db:up` · `db:migrate` · `db:seed` | Postgres in Docker · apply migrations · seed staff accounts and AI settings |
+| `pnpm db:up` · `db:migrate` · `db:seed` | Postgres and Redis in Docker · apply migrations · seed staff accounts and AI settings |
 | `pnpm typecheck` · `lint` · `format:check` · `test` · `eval` | Checks (see below) |
 
 ### Important settings
@@ -143,6 +144,7 @@ stored in the repo. The ones you will most likely change:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `JWT_SECRET` | none | Signs the session cookie. At least 32 random characters |
+| `REDIS_URL` | `redis://localhost:6380` in `.env.example` | Shared state for every copy of the API (live updates, rate limits, one-use tokens). Required in production |
 | `HOST_API_KEY` · `HOST_SIGNING_SECRET` | none | Shared with the host product. Generate each with `openssl rand -base64 48` |
 | `ANTHROPIC_API_KEY` | empty | Triage, reply drafts and chat. Empty means the rule-based fallback |
 | `OPENAI_API_KEY` | empty | Voice. Empty means voice is unavailable |
@@ -362,7 +364,11 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 
 - **Not deployed yet.** The Dockerfile builds one image and runs `prisma migrate deploy` before
   starting.
-- One instance only: the event bus and live calls are in memory.
+- **Several copies of the API can run side by side (F-19).** Live updates, rate limits, one-use
+  tokens, the chat queue and settings-cache clearing are shared through Redis. A live voice call
+  stays on the copy that holds its connection, and the startup clean-up of open calls still
+  assumes one copy (scope it before rolling restarts with several copies; see
+  `docs/architecture.md` §21).
 - Signed webhooks (`ticket.created`, `ticket.replied`, `ticket.status_changed`) and a server API on workspace API keys
   are built; see the integration guide. The full route list is in `docs/qa/baseline.md`.
 - **Categories and knowledge base are per company (S.9)**, edited under Categories and Knowledge
@@ -390,6 +396,9 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 The live demo's setup (AWS + Vercel, Terraform, the `-deploy` flags, teardown) is in
 [docs/deploy.md](docs/deploy.md). For any other host: two services plus Postgres, support
 (`deploy/Dockerfile.api`) and the host product (`deploy/Dockerfile.host-demo`). Support needs
-`DATABASE_URL`, `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings,
-`SECRETS_MASTER_KEY`, `NODE_ENV=production`, and optionally the AI keys. Seed staff accounts once
+`DATABASE_URL`, `REDIS_URL` (Redis 7 in the Compose stacks; the API refuses to start in production
+without it), `JWT_SECRET`, `APP_ORIGIN` (its public URL), the `HOST_*` settings, `SECRETS_MASTER_KEY`,
+`NODE_ENV=production`, and optionally the AI keys. To run more than one copy of the API, point every
+copy at the same Postgres and the same Redis; nothing else is needed (live voice calls stay on the
+copy that opened them). Seed staff accounts once
 with `SEED_ADMIN_PASSWORD=… pnpm db:seed`.

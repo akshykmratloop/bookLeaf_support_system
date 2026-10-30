@@ -1,4 +1,4 @@
-import type { keyedQueue } from '../../platform/keyed-queue.js';
+import type { KeyedQueue, KeyedQueues } from '../../platform/shared-state/types.js';
 import type { AssistantService } from '../assistant/service.js';
 import type { TicketDeps } from '../tickets/deps.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
@@ -7,9 +7,11 @@ import type { TicketDraftService } from '../ticket-drafts/service.js';
 export interface ChatDeps extends TicketDeps {
   assistant: AssistantService;
   drafts: TicketDraftService;
+  /** Shared by every copy of the API, so one conversation is answered in order everywhere. */
+  queues: KeyedQueues;
 }
 
 /** Chat deps plus the per-conversation queue the service owns. */
 export interface ChatContext extends ChatDeps {
-  inOrder: ReturnType<typeof keyedQueue>;
+  inOrder: KeyedQueue;
 }

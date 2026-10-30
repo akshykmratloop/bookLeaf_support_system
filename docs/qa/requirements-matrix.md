@@ -156,7 +156,8 @@ Deferred, not fixed:
   Fixed on 2026-10-30: each workspace now has its own counter from 1001 and its own fixed prefix; BookLeaf's labels did not change.
 - **F-18** The `/embed` page may be framed by the union of every workspace's allowed origins.
   Fixed on 2026-10-30: each workspace's widget is now at `/embed/<slug>` and only that workspace's origins may frame it; the old `/embed` redirects to BookLeaf's.
-- **F-19** Some state lives in one process's memory. Now documented in `docs/architecture.md` section 21.
+- **F-19** Some state lives in one process's memory (replay cache, rate limits, event bus, settings cache).
+  Fixed on 2026-10-30: all of it is now shared by every copy of the API through Redis (`docs/architecture.md` section 21).
 
 ## 6. Not verified by anyone
 

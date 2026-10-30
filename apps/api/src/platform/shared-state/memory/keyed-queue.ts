@@ -1,16 +1,11 @@
-/** Too many requests are already waiting for the same key. */
-export class QueueFullError extends Error {
-  constructor(readonly key: string) {
-    super('Too many requests waiting for the same key');
-    this.name = 'QueueFullError';
-  }
-}
+import { QueueFullError } from '../errors.js';
+import type { KeyedQueue } from '../types.js';
 
 /**
  * Runs tasks for the same key one at a time, in arrival order; different keys run in parallel.
- * In-process only: correct while the API runs as a single instance (as it does today).
+ * In-process only: the unit-test backend. Running copies use the Redis queue (redis/keyed-queue.ts).
  */
-export function keyedQueue(maxWaiting: number) {
+export function keyedQueue(maxWaiting: number): KeyedQueue {
   const tails = new Map<string, Promise<void>>();
   const depth = new Map<string, number>();
 

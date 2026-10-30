@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // `npm run local` — one command from a fresh clone to a running app:
-// check tools → .env → install → Postgres (Docker) → migrate → seed → start every app.
+// check tools → .env → install → Postgres + Redis (Docker) → migrate → seed → start every app.
 import { spawn, spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +49,17 @@ function waitForDatabase() {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DB_WAIT_INTERVAL_MS);
   }
   fail('Postgres did not accept connections in time. Check `docker compose logs db`.');
+}
+
+/** Redis answers PING once it accepts commands; the API refuses to start before that. */
+function waitForRedis() {
+  const check = ['compose', 'exec', '-T', 'redis', 'redis-cli', 'ping'];
+  for (let attempt = 0; attempt < DB_WAIT_ATTEMPTS; attempt += 1) {
+    const result = spawnSync('docker', check, { cwd: ROOT, encoding: 'utf8', shell: IS_WINDOWS });
+    if (result.status === 0 && result.stdout.includes('PONG')) return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DB_WAIT_INTERVAL_MS);
+  }
+  fail('Redis did not answer in time. Check `docker compose logs redis`.');
 }
 
 /** pnpm runs the workspace; fall back to corepack (bundled with Node) when it is not installed. */
@@ -100,13 +111,14 @@ function main() {
   prepareEnv();
   step('Installing packages');
   run(pnpm, [...pnpmArgs, 'install', '--frozen-lockfile'], 'Installing packages');
-  step('Starting Postgres in Docker');
+  step('Starting Postgres and Redis in Docker');
   run(
     'docker',
-    ['compose', 'up', '-d', '--wait', 'db'],
-    'Starting Postgres (if port 5433 is already in use, stop the other database first)',
+    ['compose', 'up', '-d', '--wait', 'db', 'redis'],
+    'Starting Postgres and Redis (if port 5433 or 6380 is already in use, stop the other service first)',
   );
   waitForDatabase();
+  waitForRedis();
   for (const script of SETUP_SCRIPTS) {
     step(`Running ${script}`);
     run(pnpm, [...pnpmArgs, script], script);

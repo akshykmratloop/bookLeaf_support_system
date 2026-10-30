@@ -64,7 +64,7 @@ export function createStreamTickets(
       const claims = await verify(key, token, clock).catch(() => {
         throw refused();
       });
-      if (claims.cid !== callId || !used.claim(claims.jti, claims.exp)) throw refused();
+      if (claims.cid !== callId || !(await used.claim(claims.jti, claims.exp))) throw refused();
       const { sub, workspaceId, role, authorId, name, email } = claims;
       return { userId: sub, workspaceId, role, authorId, name, email };
     },

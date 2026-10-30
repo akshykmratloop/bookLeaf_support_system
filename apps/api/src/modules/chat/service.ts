@@ -1,6 +1,5 @@
 import type { ChatTicketRequestSchema } from '@bookleaf/shared';
 import type { z } from 'zod';
-import { keyedQueue } from '../../platform/keyed-queue.js';
 import type { Session } from '../auth/session.js';
 import type { ChatDeps } from './deps.js';
 import { raiseChatTicket } from './raise-ticket.js';
@@ -13,7 +12,7 @@ const MAX_WAITING_PER_CONVERSATION = 3;
 /** The author chat: conversations, grounded answers, and the conversation's ticket. */
 export function createChatService(deps: ChatDeps) {
   // One conversation is answered in order, so each answer sees the exchange before it.
-  const ctx = { ...deps, inOrder: keyedQueue(MAX_WAITING_PER_CONVERSATION) };
+  const ctx = { ...deps, inOrder: deps.queues.create('chat', MAX_WAITING_PER_CONVERSATION) };
   return {
     current: (s: Session) => currentChat(deps, s),
     start: (s: Session) => startChat(deps, s),

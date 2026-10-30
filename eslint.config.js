@@ -6,6 +6,7 @@ import tseslint from 'typescript-eslint';
 /**
  * Lint rules, including the architecture boundaries from docs/project/PLAN.md §5.2:
  * - the Anthropic SDK is imported only inside its provider adapter;
+ * - the Redis client is imported only inside platform/shared-state/redis/ (F-19);
  * - route files never touch Prisma; AI and service code never imports Fastify at runtime;
  * - the API reads the time only through platform/clock.ts.
  */
@@ -48,6 +49,7 @@ export default tseslint.config(
       'apps/api/src/host/workspaces.ts',
       'apps/api/src/host/http/**',
       'apps/api/src/host/fake/**',
+      'apps/api/src/platform/shared-state/redis/**',
       'apps/api/src/**/*.test.ts',
     ],
     rules: {
@@ -58,6 +60,11 @@ export default tseslint.config(
             {
               name: '@anthropic-ai/sdk',
               message: 'Vendor SDKs live only in ai/providers/<vendor>/.',
+            },
+            {
+              name: 'ioredis',
+              message:
+                'Redis is reached only through platform/shared-state (types.ts + registry.ts).',
             },
           ],
           patterns: [

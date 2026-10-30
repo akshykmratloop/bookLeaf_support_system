@@ -16,7 +16,6 @@ import { ticketRoutes } from './modules/tickets/routes.js';
 import { providerKeyRoutes } from './modules/provider-keys/routes.js';
 import { serverApiRoutes } from './modules/server-api/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
-import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { voiceRoutes } from './modules/voice/routes.js';
 import { createStreamTickets } from './modules/voice/stream-ticket.js';
 import { apiKeyRoutes } from './modules/workspaces/api-key-routes.js';
@@ -46,7 +45,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     appOrigin: c.env.APP_ORIGIN,
     now: () => c.clock.now(),
     sessions: c.sessions,
-    tickets: createStreamTickets(c.env.JWT_SECRET, c.clock, usedTokenIds(c.clock)),
+    tickets: createStreamTickets(c.env.JWT_SECRET, c.clock, c.shared.usedTokens.voiceStream),
     publicWsOrigin: c.env.PUBLIC_API_WS_ORIGIN ?? null,
   });
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });

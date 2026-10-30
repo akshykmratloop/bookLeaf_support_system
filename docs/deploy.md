@@ -41,7 +41,8 @@ profile `loopmethods`), tagged `Project=bookleaf`:
   80 and 443 are open. There is no SSH: shell access is through SSM.
 - **Docker Compose** ([`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml)):
   Caddy (HTTPS with free Let's Encrypt certificates on `sslip.io` names), api, host-demo,
-  Postgres 16, Redis 7.
+  Postgres 16, Redis 7. The compose file gives the api `REDIS_URL=redis://redis:6379` (the API
+  refuses to start in production without it; F-19), so the secret does not need to carry it.
 - **Secrets Manager** `bookleaf/demo/env`: the whole production env as one JSON secret. Terraform
   generates the passwords and keys. The box renders it to `/opt/bookleaf/.env.prod`.
 - **S3** `bookleaf-demo-releases-533063875346`: one tarball per deployed commit (kept 14 days).

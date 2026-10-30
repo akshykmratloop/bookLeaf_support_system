@@ -39,7 +39,7 @@ export async function signInFromHost(
   token: string,
 ): Promise<{ user: AuthUser; token: string }> {
   const claims = await verifyHostToken(token, deps.signingSecret, deps.clock.now());
-  if (!deps.usedTokens.claim(claims.jti, claims.exp))
+  if (!(await deps.usedTokens.claim(claims.jti, claims.exp)))
     throw new UnauthorizedError('This sign-in link has already been used');
   const customer = await customerFor(deps.records, claims.sub, deps.workspaceId);
   const { userId, authorId } = await syncCustomer(deps.db, deps.workspaceId, customer);
