@@ -56,3 +56,43 @@ run (`docs/qa/browser-journeys.md`) and a run of the production Docker image. No
 - Behaviour on a hosted environment (TLS termination, real domains, real cookies across sites). Deployment is blocked
   until the user provides an account.
 - A live voice call. Voice security tests use the fake voice provider.
+
+## 2026-10-31 re-audit
+
+Scope: `main` at `27c4843` (the deployed code), local stack and the live demo. Method: full history scan for secrets,
+dependency audit, a black-box security script against the local stack, a live header check, and an AI eval re-run.
+
+### Results
+
+| Check | Result |
+| --- | --- |
+| Quality gates (typecheck, lint, format, build) | Pass |
+| Tests on `27c4843` | API 731, web 176, shared 46, host-demo 31, host-web 4 (988 in total), all passing. After the fixes below the API has 762 tests, all passing. |
+| `pnpm audit --prod` | No known vulnerabilities |
+| Secrets in git history | Only fake test keys. No real key was ever committed. |
+| Secrets in the live and local JS bundles | None found |
+| `.env.example` | Every key in it is used by the code |
+| Black-box security script (local stack) | 66 checks passed: sign-in and permissions on every route, author A against author B, cross-workspace access, CSRF and Origin checks, SSRF, XSS payloads, rate limits, security headers, API key scopes, webhook SSRF |
+| Spoofed `X-Forwarded-For` on the live API | No effect (Caddy overwrites the header) |
+| AI eval on current code | Triage category 45/46 (98%), priority 46/46, macro-F1 0.972 (`docs/eval-results.md`) |
+
+AI provider keys can be set in env (defaults) or stored encrypted per workspace from the platform console.
+
+### Fixed on 2026-10-31
+
+| Commit | Problem | Fix |
+| --- | --- | --- |
+| `8e2f845` | A caller who was not signed in and sent bad input got 422, which reveals the request schema. | Sign-in is checked before the body is validated, so they get 401 (customer, platform and server-API routes). |
+| `46712c8` | Sign-in guessing was limited per address only. Behind Vercel many users share one address. | Per-account lock: 10 attempts per account per 15 minutes across all addresses and all API copies (shared Redis counters), for staff and super-admin sign-in. The per-address limit is now a loose backstop (20 per minute). Unknown emails count the same, so the answer never shows whether an account exists. |
+| `64e6da1` | A tenant-supplied URL (connector data source, webhook) could point at a name that later resolves to an internal address (DNS rebinding). | Every connection's DNS answer is checked at connect time and refused if any address is private or internal (127.x, 10.x, 169.254.169.254, ::1, IPv4-mapped IPv6 and so on). This is on top of the URL check and no redirects. |
+| `ac33a65` | Self-signup has no email check, and AI and voice run on the platform's paid keys. | New companies start with AI, chat and voice off until the super admin approves them in the plan. Tickets, queue, connectors and settings work from day one. |
+| `c768c84` | `.env.example` carried no placeholder for `SECRETS_MASTER_KEY`. | It now has a `replace-with-...` placeholder (`npm run local` swaps it for a random key). Production refuses to start if `JWT_SECRET`, `HOST_API_KEY`, `HOST_SIGNING_SECRET` or `SECRETS_MASTER_KEY` is still a placeholder. |
+
+### Open, accepted low-risk items
+
+- Demo passwords are published. The brief requires reviewers to have logins.
+- Swagger docs are public in production. It is a read-only schema with no data.
+- The Vercel HTML has no `script-src` CSP.
+- The host hand-over token `jti` is not scoped to a workspace. Tokens are signed per host and can be used once.
+- The `customers:read` API scope also returns ticket summaries.
+- The voice ticket in the URL can appear in access logs.

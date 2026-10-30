@@ -25,8 +25,9 @@ BookLeaf's product.
 | BookLeaf author dashboard (with the Help widget) | https://bookleaf-authors.vercel.app | `priya.sharma@email.com` / `Author@BookLeaf1` |
 | Support app (staff) | https://bookleaf-support-ak.vercel.app/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
 | API docs (Swagger) | https://bookleaf-support-ak.vercel.app/api/docs | none |
+| API (AWS server) | https://api.35-154-85-87.sslip.io | none |
 
-Frontends run on Vercel and the two backends on one small AWS server. How it is deployed, and how
+The source repository is **private** on GitHub; collaborators are added by invitation. Frontends run on Vercel and the two backends on one small AWS server. How it is deployed, and how
 to redeploy with `-deploy` in a commit message: [docs/deploy.md](docs/deploy.md).
 
 ## Quick start
@@ -80,6 +81,31 @@ packages/shared/  Zod contracts used by all of them, including the host contract
 deploy/          production images, Compose stack, Caddy, Vercel settings and CI deploy scripts
 infra/           Terraform for the AWS demo server, plus apply / destroy scripts
 ```
+
+## Architecture decisions
+
+Each line is: the decision, why, and what it costs. Full detail in [docs/architecture.md](docs/architecture.md).
+
+- **Support is a module that reads the product's data, it does not copy it.** The host product
+  answers one signed HTTP endpoint for facts (cached 60 s). Why: no second copy of money figures to
+  go stale, and the module can be attached or detached. Cost: one extra call per answer.
+- **Code computes facts, the AI only writes prose.** A checker compares every amount, date and
+  timeline in a draft with the facts, and `[CONFIRM: ...]` placeholders block sending. Why: a wrong
+  number to an author is worse than a slow reply. Cost: the checker sometimes blocks a correct
+  figure, and an admin must override it with a reason.
+- **The ticket never depends on the AI.** A ticket and its AI job are saved in one transaction; a
+  worker retries and falls back to keyword rules. Why: support keeps working when the AI is down.
+  Cost: the fallback is less accurate (87% category accuracy against 98% for the AI on the eval set).
+- **A jobs table in Postgres (`SKIP LOCKED`) instead of a queue service.** Why: atomic with the
+  ticket, crash recovery, nothing extra to run. Cost: it will not scale like a dedicated queue.
+- **Companies are separated by Postgres row-level security as well as by the code.** Why: one missed
+  filter cannot leak another company's data. Cost: more setup (an owner role and a restricted app role).
+- **Redis holds shared state** (rate limits, one-use tokens, live events, chat queue). Why: several
+  copies of the API give the same answers. Cost: Redis is required in production.
+- **Live updates send hints, not data.** The browser refetches through the normal API. Why:
+  permissions are checked on every read and a missed event loses nothing. Cost: a few more requests.
+- **Every vendor sits behind an interface** (AI text, voice), and lint blocks vendor imports outside
+  the vendor's folder. Why: swapping a vendor is a config change. Cost: a second vendor is not built yet.
 
 ## Running it another way
 
@@ -402,8 +428,9 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 
 ## Known limitations
 
-- **Not deployed yet.** The Dockerfile builds one image and runs `prisma migrate deploy` before
-  starting.
+- **Demo deployment.** The frontends run on Vercel and the backends on one small AWS server (see
+  [docs/deploy.md](docs/deploy.md)). The Dockerfile builds one image and runs `prisma migrate deploy`
+  before starting.
 - **Several copies of the API can run side by side (F-19).** Live updates, rate limits, one-use
   tokens, the chat queue and settings-cache clearing are shared through Redis. A live voice call
   stays on the copy that holds its connection, and the startup clean-up of open calls still

@@ -1,6 +1,6 @@
 # Requirements-to-evidence matrix
 
-Date: 2026-10-28. Branch: `feature/support-saas`.
+Date: 2026-10-28; rows T1, T3 and the totals updated 2026-10-31. Branch: `feature/support-saas` (since merged into `main`).
 
 **Source of truth:** the original assignment, `BookLeaf_Technical_Assignment_1.pdf` (BookLeaf Publishing, "Author Support & Communication Portal", Assignment 1 of 2). Every row below is a requirement, deliverable or scoring rule the PDF states, written in short form.
 
@@ -78,16 +78,16 @@ The assignment describes one app with an author portal and an admin portal. This
 
 | # | Requirement (from the PDF) | Status | Evidence | Notes |
 | --- | --- | --- | --- | --- |
-| T1 | Deploy the application to a live URL, pre-seeded, with test logins in the README. | Not met | `Dockerfile` exists. `README.md` says "Not deployed yet." | There is no live URL. Blocked on the owner's hosting account. Test logins are in the README for local use only. |
-| T2 | The Dockerfile builds and the container starts and migrates the database. | Met | `Dockerfile`, `README.md` section "Deployment". | Built locally on 2026-10-28 (`docker build`, exit 0) and run against an empty throwaway database: all 10 migrations applied, `/health` reported the database OK, the app, `/admin`, `embed.js` and the API docs answered 200, and the CSP/HSTS headers were present. The production config refused to start without `HOST_API_URL` and with private connector hosts allowed, as intended. Not run on a hosted environment (see T1). |
-| T3 | Source code in a private GitHub/GitLab repository with the reviewer added. | Not met | `git remote -v` prints nothing on this branch. | No remote is configured, so nothing is pushed (the baseline also records that all commits are local). |
+| T1 | Deploy the application to a live URL, pre-seeded, with test logins in the README. | Met | Web https://bookleaf-support-ak.vercel.app, authors' dashboard https://bookleaf-authors.vercel.app, API https://api.35-154-85-87.sslip.io (AWS box, Caddy, deployed by GitHub Actions). `README.md` "Live demo" lists the links and demo logins; `docs/deploy.md` is the runbook. | Checked 2026-10-31: the live site answers and spoofing `X-Forwarded-For` has no effect (Caddy overwrites it). The demo passwords are published on purpose, as the brief requires. |
+| T2 | The Dockerfile builds and the container starts and migrates the database. | Met | `Dockerfile`, `README.md` section "Deployment". | Built locally on 2026-10-28 (`docker build`, exit 0) and run against an empty throwaway database: all 10 migrations applied, `/health` reported the database OK, the app, `/admin`, `embed.js` and the API docs answered 200, and the CSP/HSTS headers were present. The production config refused to start without `HOST_API_URL` and with private connector hosts allowed, as intended. Since 2026-10-31 it also runs on the live AWS box (see T1). |
+| T3 | Source code in a private GitHub/GitLab repository with the reviewer added. | Met | The repository is private on GitHub and the work is pushed. Collaborators are added. | Checked 2026-10-31. BookLeaf's reviewer will be added when they send an email address; until then the owner's collaborators have access. |
 | T4 | Clean commit history showing progression. | Met | `git log --oneline`: 116 commits on this branch, 102 since `main`, in `type(scope): message` form. Commit bodies explain each fix. | Judged from the history. A repository check or test does not apply. |
 | T5 | README: local setup, architecture decisions, how the AI works (prompts, errors, cost), API docs, known limitations. | Met | `README.md` (Run locally, How the AI works, API, Known limitations), `docs/architecture.md` (21 sections), `docs/integration.md`. | The two out-of-date statements (webhooks "not built"; "26 cases, 26/26") were corrected in commit `4960a04`. |
-| T6 | Write-up of at most 1 page: priorities, trade-offs, path to production. | Partly | `docs/write-up.md` has the three parts the PDF asks for. | It is 733 words, which is more than one page at normal size. Page length was not measured exactly. |
+| T6 | Write-up of at most 1 page: priorities, trade-offs, path to production. | Partly | `docs/write-up.md` has the three parts the PDF asks for. | It is 761 words (2026-10-31), which is more than one page at normal size; a tighter draft of about 500 words waits for the owner's approval. Page length was not measured exactly. |
 
 ### Assignment table totals
 
-30 rows. **Met 27. Partly 1 (T6). Not met 2 (T1, T3). Not verified 0.** (Updated after the Docker run and the queue tests; first pass was Met 23, Partly 4, Not met 2, Not verified 1.)
+30 rows. **Met 29. Partly 1 (T6). Not met 0. Not verified 0.** (Updated 2026-10-31 after the deployment and the private repo; on 2026-10-28 it was Met 27, Partly 1, Not met 2.)
 
 ## 3. How the PDF scores the work
 
@@ -98,7 +98,7 @@ The PDF lists six scoring areas with weights. This is where the evidence stands 
 | AI Integration Quality (25%): prompt design, Knowledge Base use, response quality, classification accuracy, graceful degradation, cost | Partly | Rows B2, B3, B4, D1 to D5, K1, K2 above. Evals: `docs/eval-results.md`, `docs/qa/draft-eval.md`. | Design, fallback and cost are strong and tested. Classification scored 98% on a developer-written set. Draft quality is the weak point: 10 of 24 drafts pass the checker first time. Real chat answers were never seen in a browser (no AI key; chat is off by default, `docs/qa/browser-journeys.md` D1). |
 | Architecture & Code Quality (25%) | Met | Layers and boundaries: `docs/architecture.md` sections 2 and 3. ESLint enforces file size, function size and complexity limits. Baseline (`docs/qa/baseline.md` section 2): typecheck, lint, format and build all pass; 524 tests pass. | Known weaknesses are listed in section 5 below. |
 | API Design (15%) | Met | Rows C1 to C5. | README API table is behind the real routes. |
-| Functionality & Completeness (15%): both portals, ticket lifecycle, real-time, edge cases | Partly | Rows A1 to A5, B1 to B5, S0, S1. Real-browser run: `docs/qa/browser-journeys.md`. | Real-time delivery is not proven by a test (A5). Queue filters are mostly untested (B1). Not deployed (T1). Chat and voice are off by default in the demo workspace. |
+| Functionality & Completeness (15%): both portals, ticket lifecycle, real-time, edge cases | Partly | Rows A1 to A5, B1 to B5, S0, S1. Real-browser run: `docs/qa/browser-journeys.md`. | Real-time delivery is tested (`apps/api/test/live-events.int.test.ts`), and queue order, filters and the oldest/newest sort are tested (`apps/api/test/queue.int.test.ts`, 2026-10-31). Chat and voice are off by default in the demo workspace. |
 | Product Thinking (10%) | Not verified | Browser run `docs/qa/browser-journeys.md` (6 journeys, no P0 or P1 defects, 8 minor defects D1 to D8). | This is a judgement for the reviewers. The only evidence here is the browser run. |
 | Documentation & Communication (10%) | Partly | Row T4 to T6. | The out-of-date statements are fixed (T5); the write-up is still longer than one page (T6). |
 
@@ -163,7 +163,7 @@ Deferred, not fixed:
 ## 6. Not verified by anyone
 
 - A live voice call with a real microphone and the real voice service (only a fake provider is tested).
-- Deployment to a hosted environment (the Docker image itself was built and run locally; see T2).
+- Deployment: now live (see T1, 2026-10-31). The 2026-10-28 run itself used the Docker image locally.
 - Real chat answers and chat-made ticket drafts in a browser (no AI key was set; chat is off by default).
 - Real AI draft quality as a person would grade it, and the widget reply box in dark mode.
 - Any live Server-Sent Events delivery end to end (see A5).
