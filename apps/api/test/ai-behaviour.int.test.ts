@@ -62,6 +62,9 @@ describe('AI behaviour settings: validation (U-7)', () => {
 
 describe('AI behaviour settings reach every prompt (U-7)', () => {
   it('triage and the reply draft use them; safety rules stay', async () => {
+    // Jobs left queued by an earlier test file (other customers' tickets) run first, so the
+    // prompts read below are this ticket's own.
+    while ((await h.drain()) > 0);
     const before = h.aiCalls.length;
     const res = await createTicket(h, priya, {
       bookId: null,
