@@ -3,8 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowUp } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { api, errorMessage, isApiError } from '../../lib/api';
+import { useAssistantAvailability } from '../../lib/assistant';
 import { newRequestKey } from '../../lib/ids';
 import { keys, useApiMutation } from '../../lib/queries';
+import { replyBoxCopy } from '../../lib/replyBoxCopy';
 import { Spinner } from '../atoms/Spinner';
 import { useToast } from '../molecules/Toast';
 
@@ -17,6 +19,7 @@ export function TicketReplyBox({ ticketId }: { ticketId: string }) {
   const qc = useQueryClient();
   const [body, setBody] = useState('');
   const [requestKey, setRequestKey] = useState(newRequestKey);
+  const copy = replyBoxCopy(useAssistantAvailability().data?.brand.name);
   const send = useApiMutation(
     (text: string) =>
       api<AuthorTicket>(`/tickets/${ticketId}/messages`, {
@@ -33,7 +36,7 @@ export function TicketReplyBox({ ticketId }: { ticketId: string }) {
       onSuccess: () => {
         setBody('');
         setRequestKey(newRequestKey());
-        toast('success', 'Message sent');
+        toast('success', copy.sent);
       },
       onError: (err) => {
         toast('error', errorMessage(err));
@@ -44,18 +47,24 @@ export function TicketReplyBox({ ticketId }: { ticketId: string }) {
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-1.5">
-      <label htmlFor="followup" className="px-1 text-[12.5px] font-semibold text-ink-2">
-        Reply to the team
-      </label>
+      <div className="px-1">
+        <label htmlFor="followup" className="text-[12.5px] font-semibold text-ink-2">
+          {copy.label}
+        </label>
+        <p id="followup-note" className="text-[12px] text-ink-3">
+          {copy.note}
+        </p>
+      </div>
       <div className="flex items-end gap-2 rounded-[22px] border border-line bg-panel p-2 pl-4 shadow-lift focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/60">
         <textarea
           id="followup"
           name="body"
+          aria-describedby="followup-note"
           rows={2}
           value={body}
           maxLength={MESSAGE_LIMITS.max}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Write a message…"
+          placeholder={copy.placeholder}
           className="max-h-48 min-h-12 flex-1 resize-none bg-transparent py-2 text-[14px] leading-snug [field-sizing:content] placeholder:text-ink-3 focus:outline-none"
         />
         <button
