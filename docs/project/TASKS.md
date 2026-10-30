@@ -2,6 +2,8 @@
 
 > Ledger: status + commit SHA. Design: `PLAN.md` (requirement IDs R1–R30 in §2). Diagrams:
 > `docs/architecture.md`. Statuses below were updated on 2026-10-27 07:30 IST from real test runs; see `IMPLEMENTATION_STATUS.md`.
+> Refreshed 2026-10-30: Phase QA (Q.0–Q.11), S.7 and S.10 are done on `main`; the locked fixes (F-12, F-13, F-18,
+> F-19, S.8, S.9) are in progress on `feature/locked-fixes` (see "Phase 6" below).
 > Status: ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 > Working deadline: 2026-10-27 23:59 IST (PLAN §0). Order = priority. Cut lines: PLAN §14.
 > **Core (M0–M5) comes first and is complete on its own.** Phase 2 and Phase 3 tasks stay ⛔ BLOCKED
@@ -92,18 +94,18 @@
 
 | ID | Task | Status |
 | --- | --- | --- |
-| Q.0 | Baseline: read docs + code, run every suite, record current failures, flaky tests and timings before changing anything | ⬜ |
-| Q.1 | Requirements-to-evidence matrix (every brief requirement → code → test → status) in `docs/qa-report.md` | ⬜ |
-| Q.2 | Functional sweep: auth/session/CSRF/RBAC/IDOR on every route; author data vs sample JSON; full ticket lifecycle incl. duplicates and concurrent updates | ⬜ |
-| Q.3 | Real-browser E2E: find and use the existing `tester-army/e2e` setup (check it exists and how it runs; otherwise ego-browser per global rules); journeys 1–8 from the brief, repeated; screenshots + console + network evidence | ⬜ |
-| Q.4 | Adversarial tests: malformed/oversized/Unicode/RTL input, invalid JSON and content types, XSS/SQLi/HTML/prompt injection, brute force and AI-endpoint abuse, provider failures, DB outage and recovery; seeded randomized tests; a regression test for every defect found | ⬜ |
-| Q.5 | AI evaluation: versioned dataset (held-out split), category + priority accuracy / per-class P/R/F1 / confusion matrix, critical misclassification rate, unsupported-claim rate, injection robustness, schema-failure rate, repeat-run stability → `docs/eval-results.md` | ⬜ |
-| Q.6 | AI latency and cost: p50/p95/p99 end to end and per stage, tokens and cost per call from `ai_runs`, concurrency behaviour; optimise only with before/after numbers | ⬜ |
-| Q.7 | API/DB/security/reliability: status codes and schemas, constraints and indexes, migration on a disposable DB, headers/cookies/rate limits, dependency audit, graceful shutdown | ⬜ |
-| Q.8 | Independent UI/UX review (author + ops team perspectives, accessibility, responsive, states); implement evidence-backed fixes; re-run affected journeys | ⬜ |
-| Q.9 | Independent top-model quality gate (architecture, code quality, security, AI) within the 30% budget; verify each finding against the repo; fix substantiated ones | ⬜ |
-| Q.10 | The pasted brief was cut off in §11 ("…failure"). Check whether the user sent the rest; if not, finish §11 from its evident intent and record that assumption in the report | ⬜ |
-| Q.11 | Final QA report: what was tested, what passed, what failed and was fixed, what was not tested, what remains uncertain (no claims of 100% correctness) | ⬜ |
+| Q.0 | Baseline: read docs + code, run every suite, record current failures, flaky tests and timings before changing anything | ✅ `1fb093e` |
+| Q.1 | Requirements-to-evidence matrix (every brief requirement → code → test → status) in `docs/qa-report.md` | ✅ `26c48fc` `d577f30` |
+| Q.2 | Functional sweep: auth/session/CSRF/RBAC/IDOR on every route; author data vs sample JSON; full ticket lifecycle incl. duplicates and concurrent updates | ✅ `e78f78d` `c250422` `9c13173` |
+| Q.3 | Real-browser E2E: find and use the existing `tester-army/e2e` setup (check it exists and how it runs; otherwise ego-browser per global rules); journeys 1–8 from the brief, repeated; screenshots + console + network evidence | ✅ `838c3a7` |
+| Q.4 | Adversarial tests: malformed/oversized/Unicode/RTL input, invalid JSON and content types, XSS/SQLi/HTML/prompt injection, brute force and AI-endpoint abuse, provider failures, DB outage and recovery; seeded randomized tests; a regression test for every defect found | ✅ `2d4f284` `9b21695` `8f57d60` `eade68f` |
+| Q.5 | AI evaluation: versioned dataset (held-out split), category + priority accuracy / per-class P/R/F1 / confusion matrix, critical misclassification rate, unsupported-claim rate, injection robustness, schema-failure rate, repeat-run stability → `docs/eval-results.md` | ✅ `5b0cbf3` `26c48fc` |
+| Q.6 | AI latency and cost: p50/p95/p99 end to end and per stage, tokens and cost per call from `ai_runs`, concurrency behaviour; optimise only with before/after numbers | ✅ `26c48fc` |
+| Q.7 | API/DB/security/reliability: status codes and schemas, constraints and indexes, migration on a disposable DB, headers/cookies/rate limits, dependency audit, graceful shutdown | ✅ `6571e52` `f8a70e0` |
+| Q.8 | Independent UI/UX review (author + ops team perspectives, accessibility, responsive, states); implement evidence-backed fixes; re-run affected journeys | ✅ `838c3a7` `0bfdaaf` |
+| Q.9 | Independent top-model quality gate (architecture, code quality, security, AI) within the 30% budget; verify each finding against the repo; fix substantiated ones | ✅ `b7e2c88` `51cf329` `6bf254e` |
+| Q.10 | The pasted brief was cut off in §11 ("…failure"). Check whether the user sent the rest; if not, finish §11 from its evident intent and record that assumption in the report | ✅ `117b7bb` |
+| Q.11 | Final QA report: what was tested, what passed, what failed and was fixed, what was not tested, what remains uncertain (no claims of 100% correctness) | ✅ `77031c6` |
 
 ## Phase 2 — AI chat · built on branch `feature/chat` (27 Oct) · not merged to `main` (your instruction)
 
@@ -236,11 +238,29 @@ workspace #1, seeded from env and unchanged in behaviour. Not merged. Plan: `doc
 | S.4 | Web: signup page, Product Connection, Customer Data, Workspace Settings pages; verified in a browser | ✅ | `4c9c75f` |
 | S.5 | API keys (hashed, shown once, revoke, audit) + page | ✅ | `2a52d9a` |
 | S.6 | Docs: integration guide section, README, TASKS, SHARED_PLAN | ✅ | (this commit) |
-| S.7 | Wire chat/voice limits, switches, prompts and the fact checker to the workspace rows (readers still use the singleton settings + env for every workspace) | ⬜ | |
-| S.8 | Postgres RLS policies + per-request Prisma client (`SET LOCAL app.workspace_id`); SQL in `docs/saas/PLAN.md` §5.2 | ⬜ | |
-| S.9 | Ticket categories and knowledge-base articles per workspace (replace the hard-coded enum/KB) | ⬜ | |
-| S.10 | Server-to-server endpoints that accept workspace API keys; signed webhooks | ⬜ | |
-| S.11 | Member management and invitations; email verification at signup | ⬜ | |
+| S.7 | Wire chat/voice limits, switches, prompts and the fact checker to the workspace rows (readers still use the singleton settings + env for every workspace) | ✅ | `3c9632f` `b703316` `de3c2fd` `278dd13` `58698d2` |
+| S.8 | Postgres RLS policies + per-request Prisma client (`SET LOCAL app.workspace_id`); SQL in `docs/saas/PLAN.md` §5.2 | 🔄 | locked 2026-10-29; on `feature/locked-fixes` |
+| S.9 | Ticket categories and knowledge-base articles per workspace (replace the hard-coded enum/KB) | 🔄 | locked 2026-10-29 (category-only selection; RAG later); on `feature/locked-fixes` |
+| S.10 | Server-to-server endpoints that accept workspace API keys; signed webhooks | ✅ | `b7e2c88` |
+| S.11 | Member management and invitations; email verification at signup | ⬜ | skipped for now (decided 2026-10-29); build later — see README "Known limitations" |
+
+---
+
+## Phase 6 — Locked fixes from the QA audit · branch `feature/locked-fixes` (30 Oct)
+
+Decisions locked with the user on 28–29 Oct (`docs/qa/repair-plan.md`, `docs/qa/security-report.md`), implemented
+together on one branch. S.8 and S.9 above are part of this pass.
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| F-12.1 | Staff email unique across the platform (`users.login_email`); login by email + password only; signup refuses an email that already has an account (409) | 🔄 | |
+| F-12.2 | End sessions early: `users.session_version` checked on every request; bumped on logout, password change and removal from a workspace | 🔄 | |
+| F-13 | Ticket numbers per workspace (`next_ticket_number` from 1001, fixed platform-unique `ticket_prefix`, `@@unique([workspaceId, number])`) | 🔄 | |
+| F-18 | Per-workspace widget address `/embed/<slug>` with that workspace's own `frame-ancestors`; old `/embed` redirects | 🔄 | |
+| F-19 | Shared state on Redis (event bus, host-token replay cache, rate limits, config cache, per-ticket lock); `REDIS_URL` required in production | 🔄 | |
+| SM.1 | Pin `deepmerge-ts` ≥ 8.0.0 with a pnpm override (Prisma transitive advisory) | ✅ | `497c2d2` |
+| SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
+| SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | (this commit) |
 
 ---
 

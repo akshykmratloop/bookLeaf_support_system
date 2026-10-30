@@ -357,6 +357,11 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
   the files.
 - The evaluation set (46 triage cases incl. Hinglish, Hindi and adversarial; 24 draft cases) was written by the
   developer; results in `docs/qa/ai-benchmark.md`.
+- **Team members come later (S.11).** Staff accounts come only from sign-up or the seed; there is
+  no way yet to add members from the app. Adding members, roles (Owner/Admin/Agent), sign-in codes
+  and "forgot password" are planned but not built.
+- **Sign-up emails are not verified yet.** Self-serve sign-up is open and does not confirm that the
+  email address belongs to the person signing up. Verification comes with S.11.
 
 ## Deployment
 
