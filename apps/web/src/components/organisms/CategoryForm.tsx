@@ -10,8 +10,9 @@ import {
 import { useState, type FormEvent } from 'react';
 import { keyFromLabel } from '../../lib/categories';
 import { Button } from '../atoms/Button';
-import { Input, Select, Textarea } from '../atoms/Input';
+import { Input, Textarea } from '../atoms/Input';
 import { CheckboxField } from '../molecules/CheckboxField';
+import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
 
 interface Draft {
@@ -33,6 +34,8 @@ const EMPTY: Draft = {
   slaHours: '',
   isActive: true,
 };
+
+const PRIORITY_OPTIONS = PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] }));
 
 const draftOf = (c: Category): Draft => ({
   ...c,
@@ -95,18 +98,13 @@ export function CategoryForm({ initial, isSaving, fieldError, onSubmit, onCancel
           />
         </Field>
         <Field id="category-priority" label="Usual priority" error={fieldError('defaultPriority')}>
-          <Select
+          <Dropdown
             id="category-priority"
             name="defaultPriority"
             value={d.defaultPriority}
-            onChange={(e) => set({ defaultPriority: e.target.value as Priority })}
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABELS[p]}
-              </option>
-            ))}
-          </Select>
+            options={PRIORITY_OPTIONS}
+            onChange={(defaultPriority) => set({ defaultPriority })}
+          />
         </Field>
         <Field
           id="category-sla"

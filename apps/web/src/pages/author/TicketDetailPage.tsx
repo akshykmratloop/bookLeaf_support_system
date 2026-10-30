@@ -52,7 +52,7 @@ export function TicketDetailPage() {
         </div>
         <StatusStepper status={status} />
       </Card>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="flex min-w-0 flex-col gap-5" aria-label="Messages">
           <TicketConversation
             description={t.description}

@@ -16,7 +16,7 @@ export function QueuedBubble({
   return (
     <li className="flex animate-fade-up flex-col items-end gap-1">
       <p
-        className={`max-w-[82%] rounded-[20px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap shadow-soft ${
+        className={`max-w-[82%] rounded-[20px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap shadow-soft ${
           failed ? 'border border-danger/40 bg-danger-bg text-ink' : 'bg-brand text-white'
         } ${item.status === 'waiting' ? 'opacity-60' : ''}`}
       >

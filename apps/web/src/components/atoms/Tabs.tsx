@@ -13,7 +13,10 @@ interface Props<T extends string> {
   onChange: (value: T) => void;
 }
 
-/** Segmented tabs; arrow keys move between them (WAI-ARIA tabs pattern, manual activation). */
+/**
+ * Segmented tabs; arrow keys move between them (WAI-ARIA tabs pattern, manual activation). In a
+ * narrow panel they wrap onto a second row instead of scrolling sideways (U-5).
+ */
 export function Tabs<T extends string>({ label, items, value, onChange }: Props<T>) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const move = (e: KeyboardEvent, index: number) => {
@@ -26,7 +29,7 @@ export function Tabs<T extends string>({ label, items, value, onChange }: Props<
     <div
       role="tablist"
       aria-label={label}
-      className="flex gap-1 overflow-x-auto rounded-full bg-panel-2 p-1"
+      className="flex flex-wrap gap-1 rounded-[20px] bg-panel-2 p-1"
     >
       {items.map((item, i) => {
         const selected = item.value === value;

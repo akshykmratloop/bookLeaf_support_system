@@ -50,7 +50,7 @@ export function ChatBubble({ message, pending = false }: { message: Message; pen
     return (
       <li className="flex animate-fade-up justify-end">
         <p
-          className={`max-w-[82%] rounded-[20px] rounded-br-md bg-brand px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap text-white shadow-soft ${pending ? 'opacity-70' : ''}`}
+          className={`max-w-[82%] rounded-[20px] rounded-br-md bg-brand px-4 py-2.5 text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap text-white shadow-soft ${pending ? 'opacity-70' : ''}`}
         >
           <SpokenMark channel={message.channel} />
           {message.body}
@@ -61,7 +61,7 @@ export function ChatBubble({ message, pending = false }: { message: Message; pen
     <li className="flex animate-fade-up items-end gap-2">
       <AssistantAvatar size={28} />
       <div className="max-w-[86%] rounded-[20px] rounded-bl-md border border-line bg-panel px-4 py-3 shadow-soft">
-        <p className="text-[14px] leading-relaxed whitespace-pre-wrap">
+        <p className="text-[14px] leading-relaxed wrap-anywhere whitespace-pre-wrap">
           <SpokenMark channel={message.channel} />
           {message.body}
         </p>

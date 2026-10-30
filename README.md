@@ -217,7 +217,8 @@ so far, and what is said is saved into the chat. `VOICE_STYLE=hinglish` (default
 polite mix of Hindi and English that follows the author's language. `VOICE_STYLE=english` is plain
 English. Calls last at most `VOICE_MAX_CALL_SECONDS` (300).
 
-**Support staff** sign in at `/login` on the support app, then use:
+**Support staff** sign in at `/login` on the support app (its own "support desk" page; customers
+and authors get help inside the product they use, so it has no link to BookLeaf), then use:
 
 | URL | What it is |
 | --- | --- |

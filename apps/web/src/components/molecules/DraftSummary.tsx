@@ -9,7 +9,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-3">{label}</dt>
-      <dd className="mt-0.5 whitespace-pre-wrap text-[13px]">{value || '—'}</dd>
+      <dd className="mt-0.5 text-[13px] wrap-anywhere whitespace-pre-wrap">{value || '—'}</dd>
     </div>
   );
 }

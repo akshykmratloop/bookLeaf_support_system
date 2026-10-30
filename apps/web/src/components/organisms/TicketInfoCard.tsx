@@ -7,8 +7,8 @@ import { Chip } from '../atoms/Chip';
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 py-2.5 text-[13px]">
-      <dt className="text-ink-3">{label}</dt>
-      <dd className="text-right font-semibold">{children}</dd>
+      <dt className="shrink-0 text-ink-3">{label}</dt>
+      <dd className="min-w-0 text-right font-semibold wrap-anywhere">{children}</dd>
     </div>
   );
 }

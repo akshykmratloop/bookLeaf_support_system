@@ -85,7 +85,10 @@ export function EmbedShell({ user }: { user: AuthUser }) {
           <div className="shrink-0 px-3 pt-3 lg:hidden">
             <EmbedNav awaiting={awaiting} rail={false} />
           </div>
-          <main key={pathname} className="min-h-0 flex-1 overflow-y-auto overscroll-none">
+          <main
+            key={pathname}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
+          >
             <div className="mx-auto flex min-h-full w-full max-w-[1100px] flex-col px-4 py-4 lg:px-8 lg:py-7">
               <Outlet context={user} />
             </div>

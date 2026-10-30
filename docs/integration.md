@@ -244,6 +244,9 @@ workspace's address name, chosen at signup). Only that workspace's allowed origi
 - `window.BookLeafSupport` has `open()`, `close()`, `expand()` and `collapse()` if you want your
   own buttons. `expand()` opens the panel first if it is closed.
 - Remove the tag and the widget is gone. Nothing else needs to be undone.
+- Inside the panel the app scrolls up and down only, never sideways: cards, badges and long
+  words (a long subject, book title or message) shrink, truncate or wrap at the docked width
+  (about 420 px) and in full screen (U-5).
 
 **The token hand-over.** The token travels in the iframe address as `#t=…`, the URL fragment, so it
 is never sent to a server or logged. The support app reads it and exchanges it at

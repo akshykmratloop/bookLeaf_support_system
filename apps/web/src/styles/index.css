@@ -47,6 +47,12 @@
   --color-cat-production-bg: var(--cat-production-bg);
   --color-cat-general: var(--cat-general);
   --color-cat-general-bg: var(--cat-general-bg);
+  --color-console: var(--console-bg);
+  --color-console-raised: var(--console-raised);
+  --color-console-line: var(--console-line);
+  --color-console-ink: var(--console-ink);
+  --color-console-ink-2: var(--console-ink-2);
+  --color-console-glow: var(--console-glow);
   --font-sans: 'Avenir Next', Avenir, 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --font-serif: 'Lora', ui-serif, Georgia, serif;

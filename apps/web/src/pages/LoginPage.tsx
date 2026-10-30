@@ -1,86 +1,49 @@
-import { LogIn } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { homeFor } from '../app/user';
-import { Button } from '../components/atoms/Button';
-import { Card } from '../components/atoms/Card';
-import { Input } from '../components/atoms/Input';
-import { AuthorSignInNote } from '../components/molecules/AuthorSignInNote';
-import { DemoAccounts } from '../components/molecules/DemoAccounts';
-import { Field } from '../components/molecules/Field';
+import { DeskPanel } from '../components/organisms/DeskPanel';
+import { StaffSignInForm } from '../components/organisms/StaffSignInForm';
 import { useMe } from '../lib/queries';
 import { useLogin } from '../lib/useLogin';
 
+/**
+ * Support staff sign-in (U-4): its own "support desk" look, split in two on wide screens (the
+ * desk picture on the left, the form on the right) and the form alone on small ones.
+ */
 export function LoginPage() {
   const me = useMe();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const { login, error, isSubmitting } = useLogin((user) =>
     navigate(homeFor(user), { replace: true }),
   );
   if (me.data) return <Navigate to={homeFor(me.data)} replace />;
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    void login(email, password);
-  };
-
   return (
-    <div className="grid h-full place-items-center overflow-y-auto p-4">
-      <Card className="w-full max-w-[420px] p-7">
-        <div className="mb-6 flex items-center gap-2">
-          <img src="/favicon.svg" alt="" className="h-8 w-8" />
-          <div>
-            <h1 className="text-[20px] font-bold">BookLeaf Author Support</h1>
-            <p className="text-[12.5px] text-ink-3">Support team sign-in</p>
+    <div className="h-full overflow-x-hidden overflow-y-auto overscroll-none bg-app">
+      <div className="grid min-h-full grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <DeskPanel />
+        <main className="flex min-w-0 flex-col justify-center px-4 py-10 sm:px-8 lg:px-12">
+          <div className="mx-auto w-full max-w-[400px] animate-fade-up">
+            <div className="mb-8 flex items-center gap-2.5 lg:hidden">
+              <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
+              <span className="text-[15px] font-bold tracking-tight">Support desk</span>
+            </div>
+            <p className="font-mono text-[11.5px] font-medium tracking-[0.14em] text-brand-ink uppercase">
+              Staff sign-in
+            </p>
+            <h1 className="mt-2 text-[28px] leading-tight font-bold tracking-tight">
+              Welcome back
+            </h1>
+            <p className="mt-1.5 mb-7 text-[14px] text-ink-2">
+              Sign in with your work email to open your team&apos;s queue.
+            </p>
+            <StaffSignInForm
+              error={error}
+              isSubmitting={isSubmitting}
+              onSubmit={(email, password) => void login(email, password)}
+            />
           </div>
-        </div>
-        <AuthorSignInNote />
-        <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-          <Field id="email" label="Email">
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </Field>
-          <Field id="password" label="Password" error={error ?? undefined}>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-invalid={Boolean(error)}
-              required
-            />
-          </Field>
-          <Button
-            type="submit"
-            isLoading={isSubmitting}
-            icon={<LogIn size={15} aria-hidden />}
-            disabled={!email || !password}
-          >
-            Sign in
-          </Button>
-        </form>
-        <p className="mt-4 text-[12.5px] text-ink-3">
-          New business?{' '}
-          <Link to="/signup" className="font-semibold text-brand">
-            Create a workspace
-          </Link>
-        </p>
-        <DemoAccounts
-          onPick={(pickedEmail) => {
-            setEmail(pickedEmail);
-            setPassword('');
-          }}
-        />
-      </Card>
+        </main>
+      </div>
     </div>
   );
 }

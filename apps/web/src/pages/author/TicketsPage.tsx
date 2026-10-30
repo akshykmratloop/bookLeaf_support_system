@@ -31,7 +31,7 @@ function NewTicketLink() {
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-panel px-3.5 shadow-soft focus-within:border-brand/60 focus-within:ring-4 focus-within:ring-brand/15 sm:max-w-[280px]">
+    <label className="flex h-10 min-w-0 shrink-0 items-center gap-2 rounded-full border border-line bg-panel px-3.5 shadow-soft focus-within:border-brand/60 focus-within:ring-4 focus-within:ring-brand/15 sm:max-w-[280px] sm:flex-1">
       <Search size={15} aria-hidden className="text-ink-3" />
       <span className="sr-only">Search your tickets</span>
       <input
@@ -94,7 +94,7 @@ export function TicketsPage() {
               />
             </Card>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {shown.map((t) => (
                 <TicketCard key={t.id} ticket={t} />
               ))}

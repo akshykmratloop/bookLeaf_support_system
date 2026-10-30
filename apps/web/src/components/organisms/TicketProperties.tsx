@@ -11,12 +11,15 @@ import {
 import { UserCheck } from 'lucide-react';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
-import { Select } from '../atoms/Input';
+import { Dropdown } from '../molecules/Dropdown';
 import { BulletList, PropertyRow } from '../molecules/PropertyRow';
 import { AiProcessing } from './AiProcessing';
 import { optionsWith, useCategoryOptions } from '../../lib/categories';
 
 type Patch = Omit<UpdateTicketRequest, 'version'>;
+
+const STATUS_OPTIONS = TICKET_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }));
+const PRIORITY_OPTIONS = PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] }));
 
 const SOURCE: Record<FieldSource, string> = {
   AI: 'AI suggestion',
@@ -34,20 +37,15 @@ interface RowProps {
 function StatusRow({ ticket, isSaving, onPatch }: RowProps) {
   return (
     <PropertyRow label="Status">
-      <Select
+      <Dropdown
         id="ticket-status"
         name="status"
         aria-label="Status"
         value={ticket.status}
         disabled={isSaving}
-        onChange={(e) => onPatch({ status: e.target.value as AdminTicket['status'] })}
-      >
-        {TICKET_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {STATUS_LABELS[s]}
-          </option>
-        ))}
-      </Select>
+        options={STATUS_OPTIONS}
+        onChange={(status) => onPatch({ status })}
+      />
     </PropertyRow>
   );
 }
@@ -59,21 +57,16 @@ function CategoryRow({ ticket, isSaving, onPatch }: RowProps) {
       label="Category"
       hint={ticket.categorySource ? SOURCE[ticket.categorySource] : 'Waiting for AI'}
     >
-      <Select
+      <Dropdown
         id="ticket-category"
         name="category"
         aria-label="Category"
         value={ticket.category ?? ''}
         disabled={isSaving}
-        onChange={(e) => onPatch({ category: e.target.value })}
-      >
-        {ticket.category ? null : <option value="">Classifying…</option>}
-        {options.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.label}
-          </option>
-        ))}
-      </Select>
+        placeholder="Classifying…"
+        options={options.map((c) => ({ value: c.key, label: c.label }))}
+        onChange={(category) => onPatch({ category })}
+      />
     </PropertyRow>
   );
 }
@@ -81,20 +74,15 @@ function CategoryRow({ ticket, isSaving, onPatch }: RowProps) {
 function PriorityRow({ ticket, isSaving, onPatch }: RowProps) {
   return (
     <PropertyRow label="Priority" hint={SOURCE[ticket.prioritySource]}>
-      <Select
+      <Dropdown
         id="ticket-priority"
         name="priority"
         aria-label="Priority"
         value={ticket.priority}
         disabled={isSaving}
-        onChange={(e) => onPatch({ priority: e.target.value as AdminTicket['priority'] })}
-      >
-        {PRIORITIES.map((p) => (
-          <option key={p} value={p}>
-            {PRIORITY_LABELS[p]}
-          </option>
-        ))}
-      </Select>
+        options={PRIORITY_OPTIONS}
+        onChange={(priority) => onPatch({ priority })}
+      />
       <BulletList items={ticket.priorityReasons} />
     </PropertyRow>
   );
