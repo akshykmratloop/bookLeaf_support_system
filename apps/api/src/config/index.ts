@@ -9,6 +9,15 @@ import { ServerConfig } from './server.js';
 import { SharedStateConfig } from './shared-state.js';
 import { VoiceConfig } from './voice.js';
 
+/** Secrets that `.env.example` ships as `replace-with-...` placeholders. */
+const SECRET_KEYS = [
+  'JWT_SECRET',
+  'HOST_API_KEY',
+  'HOST_SIGNING_SECRET',
+  'SECRETS_MASTER_KEY',
+] as const;
+const isPlaceholder = (value: string | undefined) => value?.startsWith('replace-with') ?? false;
+
 /** Every runtime setting, one small schema per area, validated once at startup. */
 const EnvSchema = z
   .object({
@@ -42,6 +51,15 @@ const EnvSchema = z
   .refine((env) => env.NODE_ENV !== 'production' || !env.CONNECTOR_ALLOW_PRIVATE_HOSTS, {
     path: ['CONNECTOR_ALLOW_PRIVATE_HOSTS'],
     message: 'must be false in production',
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    for (const key of SECRET_KEYS.filter((k) => isPlaceholder(env[k])))
+      ctx.addIssue({
+        code: 'custom',
+        path: [key],
+        message: 'is still the .env.example placeholder',
+      });
   });
 
 export type Env = z.infer<typeof EnvSchema>;

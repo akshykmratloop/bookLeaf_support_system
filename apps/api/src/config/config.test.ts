@@ -97,4 +97,22 @@ describe('loadEnv', () => {
     expect(() => loadEnv(same)).toThrow(/DATABASE_URL: must use the restricted app role/);
     expect(loadEnv({ ...same, NODE_ENV: 'development' }).DATABASE_URL).toContain('owner');
   });
+
+  it('refuses the .env.example placeholders ("replace-with-...") as secrets in production', () => {
+    const production = {
+      ...REQUIRED,
+      NODE_ENV: 'production',
+      SECRETS_MASTER_KEY: Buffer.alloc(32, 1).toString('base64'),
+      REDIS_URL: 'redis://redis:6379',
+    };
+    expect(loadEnv(production).NODE_ENV).toBe('production');
+    const placeholder = 'replace-with-a-long-random-secret-at-least-32-chars';
+    expect(() => loadEnv({ ...production, JWT_SECRET: placeholder })).toThrow(
+      /JWT_SECRET: is still the \.env\.example placeholder/,
+    );
+    const masterKey = 'replace-with-openssl-rand-base64-32-output-here';
+    expect(() => loadEnv({ ...production, SECRETS_MASTER_KEY: masterKey })).toThrow(
+      /SECRETS_MASTER_KEY: is still the \.env\.example placeholder/,
+    );
+  });
 });
