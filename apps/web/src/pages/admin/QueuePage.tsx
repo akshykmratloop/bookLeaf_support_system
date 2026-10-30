@@ -5,7 +5,7 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/molecules
 import { QueueFilters } from '../../components/organisms/QueueFilters';
 import { QueueTable } from '../../components/organisms/QueueTable';
 import { sla } from '../../lib/format';
-import { EMPTY_FILTERS, type QueueFilterValues } from '../../lib/queueFilters';
+import { EMPTY_FILTERS, isFiltered, type QueueFilterValues } from '../../lib/queueFilters';
 import { useAdminTickets } from '../../lib/queries';
 
 function Count({ label, value, tone }: { label: string; value: number; tone: string }) {
@@ -21,6 +21,14 @@ function Count({ label, value, tone }: { label: string; value: number; tone: str
   );
 }
 
+const ORDER_NOTES: Record<string, string> = {
+  oldest: 'Oldest tickets first.',
+  newest: 'Newest tickets first.',
+};
+const orderNote = (sort: string) =>
+  ORDER_NOTES[sort] ??
+  'Most urgent first: unresolved, then priority, then the nearest response deadline.';
+
 export function QueuePage() {
   const [filters, setFilters] = useState<QueueFilterValues>(EMPTY_FILTERS);
   const deferred = useDeferredValue(filters);
@@ -32,13 +40,10 @@ export function QueuePage() {
   ).length;
   const overdue = unresolved.filter((t) => sla(t.slaDueAt, t.firstResponseAt).overdue).length;
   const review = unresolved.filter((t) => t.needsReview || t.aiState === 'FALLBACK').length;
-  const isFiltered = Object.values(filters).some(Boolean);
+  const filtered = isFiltered(filters);
   return (
     <>
-      <PageHeader
-        title="Ticket Queue"
-        subtitle="Most urgent first: unresolved, then priority, then the nearest response deadline."
-      />
+      <PageHeader title="Ticket Queue" subtitle={orderNote(filters.sort)} />
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Count label="Unresolved" value={unresolved.length} tone="text-info" />
         <Count label="Critical / High" value={urgent} tone="text-danger" />
@@ -53,11 +58,9 @@ export function QueuePage() {
         ) : null}
         {tickets.data && items.length === 0 ? (
           <EmptyState
-            title={isFiltered ? 'No tickets match these filters' : 'No tickets yet'}
+            title={filtered ? 'No tickets match these filters' : 'No tickets yet'}
             body={
-              isFiltered
-                ? 'Try clearing a filter.'
-                : 'New author tickets will appear here instantly.'
+              filtered ? 'Try clearing a filter.' : 'New author tickets will appear here instantly.'
             }
           />
         ) : null}

@@ -15,6 +15,12 @@ const PRIORITY_OPTIONS = [
   ...PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] })),
 ];
 
+const SORT_OPTIONS = [
+  { value: '', label: 'Most urgent first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'newest', label: 'Newest first' },
+];
+
 const ASSIGNEE_OPTIONS = [
   { value: '', label: 'Anyone' },
   { value: 'me', label: 'Assigned to me' },
@@ -38,7 +44,7 @@ export function QueueFilters({
         value={value.status}
         onChange={set('status')}
       />
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
         <Input
           name="q"
           aria-label="Search subject or ticket number"
@@ -73,6 +79,14 @@ export function QueueFilters({
           value={value.assignee}
           options={ASSIGNEE_OPTIONS}
           onChange={set('assignee')}
+        />
+        <Dropdown
+          id="queue-sort"
+          name="sort"
+          aria-label="Sort"
+          value={value.sort}
+          options={SORT_OPTIONS}
+          onChange={set('sort')}
         />
         <div className="col-span-2 grid min-w-0 grid-cols-2 gap-1">
           <Input

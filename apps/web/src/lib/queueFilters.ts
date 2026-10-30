@@ -7,6 +7,8 @@ export interface QueueFilterValues {
   from: string;
   to: string;
   q: string;
+  /** '' is the default order: most urgent first. */
+  sort: string;
 }
 
 export const EMPTY_FILTERS: QueueFilterValues = {
@@ -17,4 +19,9 @@ export const EMPTY_FILTERS: QueueFilterValues = {
   from: '',
   to: '',
   q: '',
+  sort: '',
 };
+
+/** Filters narrow the list; the sort only orders it. */
+export const isFiltered = ({ sort: _sort, ...rest }: QueueFilterValues) =>
+  Object.values(rest).some(Boolean);

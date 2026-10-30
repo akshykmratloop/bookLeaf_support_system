@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { type TicketListQuerySchema } from '@bookleaf/shared';
+import { type TicketListQuerySchema, type TicketSort } from '@bookleaf/shared';
 import type { z } from 'zod';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -80,6 +80,14 @@ export const RECENT_ORDER: Prisma.TicketOrderByWithRelationInput[] = [
   { createdAt: 'desc' },
   { id: 'desc' },
 ];
+const OLDEST_ORDER: Prisma.TicketOrderByWithRelationInput[] = [{ createdAt: 'asc' }, { id: 'asc' }];
+
+/** The admin queue's order for each `sort` choice. */
+export const QUEUE_ORDER: Record<TicketSort, Prisma.TicketOrderByWithRelationInput[]> = {
+  urgency: URGENCY_ORDER,
+  oldest: OLDEST_ORDER,
+  newest: RECENT_ORDER,
+};
 
 export async function findTicketOrThrow(db: Db, session: Session, id: string) {
   const ticket = await db.ticket.findFirst({

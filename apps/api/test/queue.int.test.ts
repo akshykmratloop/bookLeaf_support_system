@@ -74,6 +74,17 @@ describe('admin queue', () => {
     expect(unassigned.every((t) => t.assignee === null)).toBe(true);
   });
 
+  it('sorts oldest or newest first on request, and refuses an unknown sort (422)', async () => {
+    const created = (items: Item[]) => items.map((t) => t.createdAt);
+    const oldest = created(await list('&sort=oldest'));
+    expect(oldest.length).toBeGreaterThan(1);
+    expect(oldest).toEqual([...oldest].sort());
+    const newest = created(await list('&sort=newest'));
+    expect(newest).toEqual([...newest].sort().reverse());
+    const bad = await call(h, 'GET', '/tickets?sort=random', admin);
+    expect(bad.statusCode).toBe(422);
+  });
+
   it('filters by created date (inclusive day range)', async () => {
     const all = await list('');
     const day = all[0]!.createdAt.slice(0, 10);

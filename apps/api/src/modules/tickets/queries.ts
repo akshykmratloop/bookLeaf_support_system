@@ -10,7 +10,7 @@ import {
   listFilter,
   RECENT_ORDER,
   ticketInclude,
-  URGENCY_ORDER,
+  QUEUE_ORDER,
   type TicketListQuery,
 } from './repository.js';
 
@@ -40,7 +40,7 @@ export async function listAdminTickets(
   const rows = await deps.db.ticket.findMany({
     where: listFilter(session, q),
     include: ticketInclude,
-    orderBy: URGENCY_ORDER,
+    orderBy: QUEUE_ORDER[q.sort],
     take: q.limit + 1,
     ...cursorArgs(q.cursor),
   });

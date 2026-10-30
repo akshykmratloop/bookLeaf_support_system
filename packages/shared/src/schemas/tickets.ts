@@ -124,6 +124,10 @@ export const AdminTicketSchema = AdminTicketListItemSchema.extend({
 });
 export type AdminTicket = z.infer<typeof AdminTicketSchema>;
 
+/** Queue order: most urgent first (the default), or by age. */
+export const TICKET_SORTS = ['urgency', 'oldest', 'newest'] as const;
+export type TicketSort = (typeof TICKET_SORTS)[number];
+
 export const TicketListQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
   category: CategoryKeySchema.optional(),
@@ -132,6 +136,7 @@ export const TicketListQuerySchema = z.object({
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   q: z.string().trim().max(100).optional(),
+  sort: z.enum(TICKET_SORTS).default('urgency'),
   cursor: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
