@@ -5,6 +5,7 @@ import type { HostRecords } from '../../host/types.js';
 import type { Db } from '../../platform/db.js';
 import { ConflictError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 import type { TicketDraftService } from '../ticket-drafts/service.js';
 import type { VoiceStyle } from '../../voice/call/persona.js';
 import type { WorkspaceConfig } from '../settings/configs.js';
@@ -29,7 +30,7 @@ export async function newCallIds(tx: Tx, authorId: string, resume: boolean, now:
 export async function threadDraft(db: Db, threadId: string): Promise<TicketDraft | null> {
   const d = await db.ticketDraft.findUnique({
     where: { voiceThreadId: threadId },
-    include: { ticket: { select: { id: true, number: true } } },
+    include: { ticket: { select: TICKET_REF_SELECT } },
   });
   return d ? toTicketDraft(d) : null;
 }

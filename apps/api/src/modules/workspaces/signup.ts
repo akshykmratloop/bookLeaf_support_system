@@ -6,6 +6,7 @@ import { ConflictError } from '../../platform/errors.js';
 import { hashPassword } from '../auth/password.js';
 import { loginEmailOf } from '../auth/service.js';
 import { toWorkspaceDto } from './mappers.js';
+import { freePrefixFor } from './ticket-prefix.js';
 
 const SLUG_TAKEN = () =>
   new ConflictError('SLUG_TAKEN', 'That workspace name is already taken. Try another.');
@@ -13,6 +14,14 @@ const SLUG_TAKEN = () =>
 /** A staff email has one account on the whole platform (F-12). */
 const EMAIL_TAKEN = () =>
   new ConflictError('EMAIL_TAKEN', 'That email already has an account. Sign in instead.');
+
+/** Alike names signing up at once race for one ticket prefix; each retry takes the next free one. */
+const PREFIX_ATTEMPTS = 8;
+const PREFIX_BUSY = () =>
+  new ConflictError(
+    'PREFIX_BUSY',
+    'Several workspaces with a similar name are being created right now. Try again.',
+  );
 
 /**
  * Self-serve signup: a new workspace with its first OWNER, who signs in with a password as
@@ -44,8 +53,9 @@ async function createOwner(tx: Prisma.TransactionClient, workspaceId: string, o:
 }
 
 async function insertWorkspace(tx: Prisma.TransactionClient, o: NewOwner) {
+  const ticketPrefix = await freePrefixFor(tx, o.input.workspaceName);
   const workspace = await tx.workspace.create({
-    data: { slug: o.input.slug, name: o.input.workspaceName, createdAt: o.now },
+    data: { slug: o.input.slug, name: o.input.workspaceName, ticketPrefix, createdAt: o.now },
   });
   const user = await createOwner(tx, workspace.id, o);
   await tx.auditEvent.create({
@@ -60,6 +70,17 @@ async function insertWorkspace(tx: Prisma.TransactionClient, o: NewOwner) {
     },
   });
   return { workspace, user };
+}
+
+/** One transaction per attempt: a prefix lost to a concurrent signup is retried with the next one. */
+async function createWorkspace(db: Db, owner: NewOwner) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await db.$transaction((tx) => insertWorkspace(tx, owner));
+    } catch (err) {
+      if (!isUniqueViolationOn(err, 'ticket_prefix') || attempt >= PREFIX_ATTEMPTS) throw err;
+    }
+  }
 }
 
 async function refuseTakenEmail(db: Db, email: string): Promise<void> {
@@ -77,7 +98,7 @@ export async function signup(
   await refuseTakenEmail(deps.db, input.email);
   const owner = { input, passwordHash: await hashPassword(input.password), now: deps.clock.now() };
   try {
-    const { workspace, user } = await deps.db.$transaction((tx) => insertWorkspace(tx, owner));
+    const { workspace, user } = await createWorkspace(deps.db, owner);
     return {
       workspace: toWorkspaceDto(workspace),
       user: { id: user.id, email: user.email, name: user.name },
@@ -85,6 +106,7 @@ export async function signup(
   } catch (err) {
     // A signup racing this one for the same email loses on the unique index.
     if (isUniqueViolationOn(err, 'login_email')) throw EMAIL_TAKEN();
+    if (isUniqueViolationOn(err, 'ticket_prefix')) throw PREFIX_BUSY();
     if (isUniqueViolation(err)) throw SLUG_TAKEN();
     throw err;
   }

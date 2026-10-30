@@ -35,7 +35,7 @@ export function QueueFilters({
         <Input
           name="q"
           aria-label="Search subject or ticket number"
-          placeholder="Search subject or BL-1001"
+          placeholder="Search subject or ticket number"
           value={value.q}
           onChange={(e) => set('q')(e.target.value)}
           className="col-span-2"

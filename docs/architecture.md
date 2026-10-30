@@ -139,7 +139,7 @@ sequenceDiagram
     actor AD as Admin
 
     A->>API: POST /tickets + Idempotency-Key
-    API->>DB: BEGIN · ticket (OPEN) · SYSTEM ack · ai_job(TRIAGE, gen 1) · COMMIT
+    API->>DB: BEGIN · take workspace ticket number · ticket (OPEN) · SYSTEM ack · ai_job(TRIAGE, gen 1) · COMMIT
     API-->>A: 201 Created (does not wait for AI)
     API->>BUS: ticket.created (admins)
 
@@ -286,7 +286,8 @@ erDiagram
     }
     TICKETS {
         uuid id PK
-        text number UK
+        uuid workspace_id FK
+        int number "unique per workspace"
         uuid author_id FK
         uuid book_id FK "nullable"
         enum status
@@ -365,7 +366,19 @@ now nullable and unused; dropping them is a later migration. Chats, calls and ti
 Indexes: `tickets (status, priority, sla_due_at)` for the queue; `tickets (author_id, created_at)`;
 `ticket_messages (ticket_id, created_at)`; `ai_jobs (status, run_after)`; `books (author_id)`.
 Unique: `ai_jobs (ticket_id, kind, generation)`, `tickets (author_id, client_request_id)`,
-`ticket_messages (ticket_id, client_request_id)`.
+`tickets (workspace_id, number)`, `ticket_messages (ticket_id, client_request_id)`,
+`workspaces (ticket_prefix)`.
+
+**Ticket numbers (F-13).** Each workspace numbers its own tickets. `workspaces.next_ticket_number`
+starts at 1001; a ticket insert takes it with `UPDATE workspaces SET next_ticket_number =
+next_ticket_number + 1 … RETURNING` inside the ticket's own transaction, so the row lock rules out
+duplicates and a rollback leaves no gap (`apps/api/src/modules/tickets/numbering.ts`). The label is
+`${ticket_prefix}-${number}` (BL-1001). The prefix is made once at sign-up from the company name
+(initials, or the capitals of a one-word name; 2–5 letters; fallback `TKT`) and never changes. It is
+unique across the platform: a taken base gets the first free number (BL → BL2 → BL3), and a
+concurrent sign-up that loses the race retries with the next one
+(`apps/api/src/modules/workspaces/ticket-prefix.ts`). The number is a label only: the UUID is the
+identity, and a search by number only looks inside the signed-in workspace.
 
 ---
 

@@ -1,10 +1,11 @@
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 
 const SESSION_INCLUDE = {
   messages: { orderBy: { createdAt: 'asc' as const } },
-  ticket: { select: { id: true, number: true } },
-  ticketDraft: { include: { ticket: { select: { id: true, number: true } } } },
+  ticket: { select: TICKET_REF_SELECT },
+  ticketDraft: { include: { ticket: { select: TICKET_REF_SELECT } } },
 };
 
 /** A session the author owns. Another author's session is reported as "not found". */

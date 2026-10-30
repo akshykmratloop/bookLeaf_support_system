@@ -1,13 +1,14 @@
 import type { Prisma } from '@prisma/client';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 
 /** A call must be connected within this many seconds of being created. */
 export const CONNECT_WITHIN_SECONDS = 30;
 /** Grace after the hard cap before a still-ACTIVE call is treated as abandoned. */
 const ACTIVE_GRACE_SECONDS = 60;
 
-const WITH_TICKET = { ticket: { select: { id: true, number: true } } };
+const WITH_TICKET = { ticket: { select: TICKET_REF_SELECT } };
 
 export async function findOwnCall(db: Db, id: string, authorId: string) {
   const c = await db.voiceSession.findFirst({ where: { id, authorId }, include: WITH_TICKET });

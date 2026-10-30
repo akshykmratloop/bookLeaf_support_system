@@ -247,6 +247,11 @@ is the default workspace, seeded from the `HOST_*` env values. A product's sign-
 workspace with `iss`. Guide: `docs/integration.md` ("Many products on one support service");
 design and roadmap: `docs/saas/PLAN.md`. New env: `SECRETS_MASTER_KEY` (required in production).
 
+Each workspace numbers its own tickets from 1001 under its own fixed prefix (BookLeaf: BL-1001,
+BL-1002…; "Acme Corp": AC-1001…). The prefix is made from the company name at sign-up, is unique
+across the platform (a second "BL" company gets BL2) and never changes. One workspace's numbers say
+nothing about another's ticket volume.
+
 Each workspace's saved settings drive its own chat and voice: on/off switches, message and call
 limits, conversation length, models, tone notes for reply drafts, and the call voice. A workspace
 can also save its own AI and voice provider keys (encrypted; shown only by their last 4

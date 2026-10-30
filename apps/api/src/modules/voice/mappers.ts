@@ -2,13 +2,13 @@ import {
   AdminVoiceCallSchema,
   TicketProposalSchema,
   TranscriptLineSchema,
-  ticketNumberLabel,
   type AdminVoiceCall,
   type TicketDraft,
   type TranscriptLine,
   type VoiceCall,
 } from '@bookleaf/shared';
 import { z } from 'zod';
+import { ticketRefOf } from '../tickets/ticket-ref.js';
 import type { VoiceCallRow } from './repository.js';
 
 const Lines = z.array(TranscriptLineSchema);
@@ -28,7 +28,7 @@ export function toVoiceCall(c: VoiceCallRow, draft: TicketDraft | null): VoiceCa
     durationSeconds: c.durationSeconds,
     transcript: lines.success ? lines.data : [],
     proposal: proposal.success ? proposal.data : null,
-    ticket: c.ticket ? { id: c.ticket.id, number: ticketNumberLabel(c.ticket.number) } : null,
+    ticket: c.ticket ? ticketRefOf(c.ticket) : null,
     threadId: c.threadId ?? c.id,
     draft,
   };

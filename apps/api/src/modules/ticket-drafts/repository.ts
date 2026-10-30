@@ -1,7 +1,8 @@
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 
-const WITH_TICKET = { ticket: { select: { id: true, number: true } } } as const;
+const WITH_TICKET = { ticket: { select: TICKET_REF_SELECT } } as const;
 
 export async function findOwnDraft(db: Db, id: string, authorId: string) {
   const d = await db.ticketDraft.findFirst({ where: { id, authorId }, include: WITH_TICKET });

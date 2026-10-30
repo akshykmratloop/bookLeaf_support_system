@@ -2,10 +2,11 @@ import type { ConversationDetail } from '@bookleaf/shared';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 import { after, NEWEST_FIRST, type Cursor } from './cursor.js';
 import { ticketRef, titleOf, type Listed } from './summary.js';
 
-const TICKET = { select: { id: true, number: true } } as const;
+const TICKET = { select: TICKET_REF_SELECT } as const;
 
 /** Chats the author actually wrote in, newest first. */
 export async function listChats(db: Db, authorId: string, from: Cursor | null, take: number) {

@@ -1,6 +1,5 @@
 import type { AiJob, Book, Ticket, TicketMessage as MessageRow } from '@prisma/client';
 import {
-  ticketNumberLabel,
   type AdminTicket,
   type AdminTicketListItem,
   type AuthorTicket,
@@ -8,6 +7,7 @@ import {
   type TicketMessage,
 } from '@bookleaf/shared';
 import { lastConversationMessage, requesterFields, type PublicMessage } from './requester-view.js';
+import { labelOf } from './ticket-ref.js';
 
 type Person = { id: string; name: string };
 type MessageWithSender = MessageRow & { sender: Person | null };
@@ -16,6 +16,7 @@ export type TicketRow = Ticket & {
   book: Pick<Book, 'id' | 'title'> | null;
   author: { id: string; user: Person };
   assignee: Person | null;
+  workspace: { ticketPrefix: string };
 };
 
 const iso = (d: Date) => d.toISOString();
@@ -41,7 +42,7 @@ export function toAuthorListItem(
 ): AuthorTicketListItem {
   return {
     id: t.id,
-    number: ticketNumberLabel(t.number),
+    number: labelOf(t),
     subject: t.subject,
     status: t.status,
     ...requesterFields(t, t.messages[0] ?? null),
@@ -55,7 +56,7 @@ export function toAuthorListItem(
 export function toAuthorTicket(t: TicketRow, messages: MessageWithSender[]): AuthorTicket {
   return {
     id: t.id,
-    number: ticketNumberLabel(t.number),
+    number: labelOf(t),
     subject: t.subject,
     description: t.description,
     status: t.status,
@@ -70,7 +71,7 @@ export function toAuthorTicket(t: TicketRow, messages: MessageWithSender[]): Aut
 export function toAdminListItem(t: TicketRow): AdminTicketListItem {
   return {
     id: t.id,
-    number: ticketNumberLabel(t.number),
+    number: labelOf(t),
     subject: t.subject,
     status: t.status,
     category: t.category,

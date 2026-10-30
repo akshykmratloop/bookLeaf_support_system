@@ -17,6 +17,7 @@ export function formatDate(iso: string): string {
   return DATE.format(d);
 }
 
-export function ticketNumberLabel(n: number): string {
-  return `BL-${1000 + n}`;
+/** "BL-1001": the workspace's fixed prefix and the ticket's number in that workspace (F-13). */
+export function ticketNumberLabel(prefix: string, n: number): string {
+  return `${prefix}-${n}`;
 }

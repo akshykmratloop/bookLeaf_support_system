@@ -3,6 +3,7 @@ import type { Db } from '../platform/db.js';
 import { hashPassword } from '../modules/auth/password.js';
 import { DEFAULT_AI_SETTINGS } from '../ai/providers/catalog.js';
 import {
+  DEFAULT_TICKET_PREFIX,
   DEFAULT_WORKSPACE_ID,
   DEFAULT_WORKSPACE_NAME,
   DEFAULT_WORKSPACE_SLUG,
@@ -37,6 +38,7 @@ export async function seedCore(db: Db, adminPassword: string): Promise<{ admins:
       id: workspaceId,
       slug: DEFAULT_WORKSPACE_SLUG,
       name: DEFAULT_WORKSPACE_NAME,
+      ticketPrefix: DEFAULT_TICKET_PREFIX,
       isDefault: true,
     },
   });

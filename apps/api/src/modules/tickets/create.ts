@@ -14,6 +14,7 @@ import { authorIdOf, type Session } from '../auth/session.js';
 import type { TicketDeps } from './deps.js';
 import { toAuthorTicket } from './mappers.js';
 import { findMessages, findTicketOrThrow } from './repository.js';
+import { takeTicketNumber, type NewTicketData } from './numbering.js';
 import { slaDueAt } from './sla.js';
 import { queueTicketEvent } from '../webhooks/outbox.js';
 
@@ -87,18 +88,18 @@ function ticketData({ workspaceId, authorId, input, origin, idempotencyKey, now 
     chatSessionId: origin.chatSessionId ?? null,
     voiceSessionId: origin.voiceSessionId ?? null,
     createdAt: now,
-  } satisfies Prisma.TicketUncheckedCreateInput;
+  } satisfies NewTicketData;
 }
 
-/** Ticket, acknowledgement, TRIAGE job and the caller's afterCreate step: all or nothing. */
-async function insertTicket(
-  deps: TicketDeps,
-  data: Prisma.TicketUncheckedCreateInput,
-  origin: TicketOrigin,
-) {
+/**
+ * Number, ticket, acknowledgement, TRIAGE job and the caller's afterCreate step: all or nothing.
+ * A rollback also returns the workspace's ticket number, so numbers have no gaps.
+ */
+async function insertTicket(deps: TicketDeps, data: NewTicketData, origin: TicketOrigin) {
   const now = data.createdAt as Date;
   return deps.db.$transaction(async (tx) => {
-    const t = await tx.ticket.create({ data });
+    const number = await takeTicketNumber(tx, data.workspaceId);
+    const t = await tx.ticket.create({ data: { ...data, number } });
     await tx.ticketMessage.create({
       data: { ticketId: t.id, kind: 'SYSTEM', body: ACK, createdAt: now },
     });

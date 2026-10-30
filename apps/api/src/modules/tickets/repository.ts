@@ -9,6 +9,7 @@ export const ticketInclude = {
   book: { select: { id: true, title: true } },
   author: { select: { id: true, user: { select: { id: true, name: true } } } },
   assignee: { select: { id: true, name: true } },
+  workspace: { select: { ticketPrefix: true } },
 } satisfies Prisma.TicketInclude;
 
 const messageInclude = {
@@ -31,13 +32,15 @@ export function ownership(session: Session): Prisma.TicketWhereInput {
     : { workspaceId, authorId: session.authorId ?? NO_AUTHOR };
 }
 
+/** "BL-1001", "bl1001", "AC2-1001" or a bare "1001": a number in the signed-in workspace only. */
+const TICKET_LABEL = /^(?:[a-z]{2,5}\d*-|[a-z]{2,5})?(\d{1,9})$/i;
+
 function searchFilter(q: string | undefined): Prisma.TicketWhereInput {
   if (!q) return {};
-  const num = /^(?:bl-?)?(\d{1,9})$/i.exec(q.trim());
+  const num = TICKET_LABEL.exec(q.trim());
   const bySubject: Prisma.TicketWhereInput = { subject: { contains: q, mode: 'insensitive' } };
   if (!num) return bySubject;
-  const n = Number(num[1]);
-  return { OR: [bySubject, { number: n > 1000 ? n - 1000 : n }] };
+  return { OR: [bySubject, { number: Number(num[1]) }] };
 }
 
 export function listFilter(session: Session, q: TicketListQuery): Prisma.TicketWhereInput {

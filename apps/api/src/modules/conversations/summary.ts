@@ -1,4 +1,5 @@
-import { ticketNumberLabel, type ConversationSummary } from '@bookleaf/shared';
+import type { ConversationSummary } from '@bookleaf/shared';
+import { ticketRefOf, type LabelledTicket } from '../tickets/ticket-ref.js';
 
 const TITLE_MAX = 80;
 
@@ -8,8 +9,8 @@ export function titleOf(subject: string | undefined, firstWords: string | undefi
   return text.length > TITLE_MAX ? `${text.slice(0, TITLE_MAX - 1)}…` : text;
 }
 
-export const ticketRef = (t: { id: string; number: number } | null | undefined) =>
-  t ? { id: t.id, number: ticketNumberLabel(t.number) } : null;
+export const ticketRef = (t: (LabelledTicket & { id: string }) | null | undefined) =>
+  t ? ticketRefOf(t) : null;
 
 /** A summary plus the position it sorts at; the position becomes the next page's cursor. */
 export interface Listed {

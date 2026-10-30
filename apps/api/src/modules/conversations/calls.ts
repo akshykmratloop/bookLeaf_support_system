@@ -2,11 +2,12 @@ import type { ConversationDetail } from '@bookleaf/shared';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
+import { TICKET_REF_SELECT } from '../tickets/ticket-ref.js';
 import { linesOf, threadOf } from '../voice/thread.js';
 import { after, NEWEST_FIRST, type Cursor } from './cursor.js';
 import { ticketRef, titleOf, type Listed } from './summary.js';
 
-const TICKET = { select: { id: true, number: true } } as const;
+const TICKET = { select: TICKET_REF_SELECT } as const;
 /** Every call of the given threads, oldest first, with what was said and any ticket. */
 const callsOf = (db: Db, threadIds: string[]) =>
   db.voiceSession.findMany({

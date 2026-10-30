@@ -153,6 +153,7 @@ Deferred, not fixed:
   Part 1 fixed on 2026-10-30: a staff email now has one account on the platform, and login reads exactly that account.
   Part 2 fixed on 2026-10-30: logout, a password change and removal from a workspace now end the user's sessions at once.
 - **F-13** Ticket numbers are one global counter, so a workspace can infer other workspaces' ticket volume.
+  Fixed on 2026-10-30: each workspace now has its own counter from 1001 and its own fixed prefix; BookLeaf's labels did not change.
 - **F-18** The `/embed` page may be framed by the union of every workspace's allowed origins.
 - **F-19** Some state lives in one process's memory. Now documented in `docs/architecture.md` section 21.
 

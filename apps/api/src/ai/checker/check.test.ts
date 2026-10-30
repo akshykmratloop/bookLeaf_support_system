@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleCustomer } from '../../../test/fixtures/host.js';
 import { factsFor } from '../../host/facts.js';
 import { canOverride, checkReply } from './check.js';
-import { findDates, findDurations, findMoney } from './extract.js';
+import { findDates, findDurations, findMoney, stripExclusions } from './extract.js';
 
 const facts = factsFor(sampleCustomer('AUTH001'), 'BK001');
 const codes = (body: string, extra: Parameters<typeof checkReply>[0] = { body, facts }) =>
@@ -65,6 +65,13 @@ describe('checkReply', () => {
       ignorePhrases: ['2025 Diaries'],
     });
     expect(r.passed).toBe(true);
+  });
+
+  it('strips ticket labels with any workspace prefix before scanning (F-13)', () => {
+    for (const label of ['BL-1004', 'AC-1004', 'AC2-1187', 'TKT-25001']) {
+      expect(stripExclusions(`Regarding ticket ${label}.`), label).not.toMatch(/\d/);
+    }
+    expect(stripExclusions('Paid on 2026-02-14.')).toContain('2026-02-14');
   });
 
   it('blocks internal leaks without override and guarantees with override', () => {

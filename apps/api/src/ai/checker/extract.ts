@@ -27,8 +27,8 @@ const PERCENT = /\b(\d{1,3})\s*(?:%|percent\b)/gi;
 const COPIES = /\b(\d{1,3}(?:,\d{3})+|\d+)\s+copies\b/gi;
 export const PLACEHOLDER = /\[CONFIRM:[^\]]*\]/gi;
 
-/** Text that looks numeric but is not a claim: ISBNs, ticket numbers. */
-const EXCLUSIONS = [/\b97[89][-\d\sX]{10,20}\b/gi, /\bBL-\d+\b/g];
+/** Text that looks numeric but is not a claim: ISBNs, ticket labels with any prefix (BL-1001, AC2-1001). */
+const EXCLUSIONS = [/\b97[89][-\d\sX]{10,20}\b/gi, /\b[A-Z]{2,5}\d*-\d+\b/g];
 
 export function stripExclusions(text: string, extra: string[] = []): string {
   let out = text;

@@ -1,9 +1,5 @@
-import {
-  DESCRIPTION_LIMITS,
-  SUBJECT_LIMITS,
-  ticketNumberLabel,
-  type TicketDraft,
-} from '@bookleaf/shared';
+import { DESCRIPTION_LIMITS, SUBJECT_LIMITS, type TicketDraft } from '@bookleaf/shared';
+import { ticketRefOf } from '../tickets/ticket-ref.js';
 import type { TicketDraftRow } from './repository.js';
 
 export const isDraftComplete = (d: { subject: string; description: string }) =>
@@ -21,7 +17,7 @@ export function toTicketDraft(d: TicketDraftRow): TicketDraft {
     version: d.version,
     lastEditedBy: d.lastEditedBy,
     isComplete: isDraftComplete(d),
-    ticket: d.ticket ? { id: d.ticket.id, number: ticketNumberLabel(d.ticket.number) } : null,
+    ticket: d.ticket ? ticketRefOf(d.ticket) : null,
     updatedAt: d.updatedAt.toISOString(),
   };
 }

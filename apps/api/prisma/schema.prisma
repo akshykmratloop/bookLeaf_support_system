@@ -170,12 +170,18 @@ enum AiRunOutcome {
 /// A tenant: one business that signed up to the support product. Every tenant-owned row carries
 /// its id. The default workspace ("bookleaf") is seeded from env and keeps today's behaviour.
 model Workspace {
-  id        String   @id @default(uuid()) @db.Uuid
-  slug      String   @unique
-  name      String
-  isDefault Boolean  @default(false) @map("is_default")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String   @id @default(uuid()) @db.Uuid
+  slug             String   @unique
+  name             String
+  isDefault        Boolean  @default(false) @map("is_default")
+  /// Fixed label prefix for this workspace's tickets (BL → BL-1001). Unique across the platform,
+  /// so every full label is platform-unique; set once at creation and never changed (F-13).
+  ticketPrefix     String   @unique @map("ticket_prefix")
+  /// The number the next ticket gets. Taken with UPDATE … RETURNING inside the ticket insert's
+  /// transaction: the row lock rules out duplicates and a rollback leaves no gap (F-13).
+  nextTicketNumber Int      @default(1001) @map("next_ticket_number")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   members       WorkspaceMember[]
   users         User[]
@@ -312,22 +318,22 @@ model WorkspaceApiKey {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  workspaceId  String   @map("workspace_id") @db.Uuid
-  email        String
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  email          String
   /// Null for authors: they sign in through the host product, never with a password here.
-  passwordHash String?  @map("password_hash")
+  passwordHash   String?  @map("password_hash")
   /// Staff only (password accounts): the email, trimmed and lowercased, unique across the whole
   /// platform, so email + password names exactly one account. Null for authors, whose email may
   /// exist in several workspaces (F-12).
-  loginEmail   String?  @unique @map("login_email")
+  loginEmail     String?  @unique @map("login_email")
   /// Every session token carries the version it was issued with; a token whose version is not
   /// this one is refused (F-12 part 2). Bumped by logout (app), and by a password change and by
   /// removal from a workspace (database triggers, see migration 20261030100000_session_version).
-  sessionVersion Int    @default(1) @map("session_version")
-  name         String
-  role         Role
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  sessionVersion Int      @default(1) @map("session_version")
+  name           String
+  role           Role
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   workspace       Workspace         @relation(fields: [workspaceId], references: [id])
   memberships     WorkspaceMember[]
@@ -395,7 +401,9 @@ model Book {
 
 model Ticket {
   id              String          @id @default(uuid()) @db.Uuid
-  number          Int             @unique @default(autoincrement())
+  /// A label only, unique per workspace (shown as `${prefix}-${number}`, from 1001); the UUID is
+  /// the identity. Taken from the workspace counter (F-13).
+  number          Int
   workspaceId     String          @map("workspace_id") @db.Uuid
   authorId        String          @map("author_id") @db.Uuid
   bookId          String?         @map("book_id") @db.Uuid
@@ -435,6 +443,7 @@ model Ticket {
   aiRuns       AiRun[]
   ticketDraft  TicketDraft?
 
+  @@unique([workspaceId, number])
   @@unique([authorId, clientRequestId])
   @@index([workspaceId, status, priority, slaDueAt])
   @@index([status, priority, slaDueAt])

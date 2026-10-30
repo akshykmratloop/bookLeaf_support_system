@@ -1,10 +1,11 @@
 import type { Prisma } from '@prisma/client';
-import { ticketNumberLabel, type ServerTicket } from '@bookleaf/shared';
+import type { ServerTicket } from '@bookleaf/shared';
+import { labelOf, TICKET_LABEL_SELECT } from '../tickets/ticket-ref.js';
 
 /** The columns a server-facing ticket is built from. */
 export const SERVER_TICKET_SELECT = {
   id: true,
-  number: true,
+  ...TICKET_LABEL_SELECT,
   status: true,
   category: true,
   priority: true,
@@ -20,7 +21,7 @@ type Row = Prisma.TicketGetPayload<{ select: typeof SERVER_TICKET_SELECT }>;
 /** A ticket in the host's own ids (customer, item): no internal fields, no AI internals. */
 export const toServerTicket = (t: Row): ServerTicket => ({
   id: t.id,
-  number: ticketNumberLabel(t.number),
+  number: labelOf(t),
   status: t.status,
   category: t.category,
   priority: t.priority,
