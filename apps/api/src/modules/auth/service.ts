@@ -9,23 +9,20 @@ export function toAuthUser(s: Session): AuthUser {
   return { id: s.userId, email: s.email, name: s.name, role: s.role, authorId: s.authorId };
 }
 
-/** The same staff email may exist in several workspaces; the password decides which one. */
-const MAX_ACCOUNTS_PER_EMAIL = 5;
+/** A staff email is unique across the platform (F-12), so it names at most one account. */
+export const loginEmailOf = (email: string): string => email.trim().toLowerCase();
 
 export function createAuthService(db: Db, sessions: SessionCodec) {
   /** Verified against when the email is unknown, so response time does not reveal which emails exist. */
   const dummyHash = hashPassword(randomUUID());
   const findAccount = async (input: LoginRequest) => {
-    const users = await db.user.findMany({
-      where: { email: input.email, passwordHash: { not: null } },
+    const user = await db.user.findUnique({
+      where: { loginEmail: loginEmailOf(input.email) },
       include: { author: true },
-      orderBy: { createdAt: 'asc' },
-      take: MAX_ACCOUNTS_PER_EMAIL,
     });
-    for (const user of users) {
-      if (await verifyPassword(user.passwordHash ?? '', input.password)) return user;
-    }
-    await verifyPassword(await dummyHash, input.password);
+    if (user?.passwordHash && (await verifyPassword(user.passwordHash, input.password)))
+      return user;
+    if (!user?.passwordHash) await verifyPassword(await dummyHash, input.password);
     return null;
   };
   return {

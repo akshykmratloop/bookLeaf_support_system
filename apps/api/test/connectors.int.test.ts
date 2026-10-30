@@ -144,6 +144,10 @@ describe("customers signing in from Acme's product", () => {
       include: { workspace: true },
     });
     expect(rows.map((r) => r.workspace.slug).sort()).toEqual(['acme', 'bookleaf']);
+    // F-12: the same author email may exist in several workspaces; only staff get a login email.
+    const users = await h.db.user.findMany({ where: { email: EMAILS.priya } });
+    expect(users).toHaveLength(2);
+    expect(users.map((u) => u.loginEmail)).toEqual([null, null]);
   });
 
   it("refuses a token for acme signed with another workspace's secret, or for an unknown workspace", async () => {

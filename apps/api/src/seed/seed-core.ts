@@ -43,8 +43,8 @@ export async function seedCore(db: Db, adminPassword: string): Promise<{ admins:
   for (const admin of DEMO_ADMINS) {
     const user = await db.user.upsert({
       where: { workspaceId_email: { workspaceId, email: admin.email } },
-      update: { name: admin.name },
-      create: { ...admin, workspaceId, role: 'ADMIN', passwordHash },
+      update: { name: admin.name, loginEmail: admin.email },
+      create: { ...admin, loginEmail: admin.email, workspaceId, role: 'ADMIN', passwordHash },
     });
     await db.workspaceMember.upsert({
       where: { workspaceId_userId: { workspaceId, userId: user.id } },

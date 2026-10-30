@@ -317,6 +317,10 @@ model User {
   email        String
   /// Null for authors: they sign in through the host product, never with a password here.
   passwordHash String?  @map("password_hash")
+  /// Staff only (password accounts): the email, trimmed and lowercased, unique across the whole
+  /// platform, so email + password names exactly one account. Null for authors, whose email may
+  /// exist in several workspaces (F-12).
+  loginEmail   String?  @unique @map("login_email")
   name         String
   role         Role
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

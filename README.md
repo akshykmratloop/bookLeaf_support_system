@@ -327,6 +327,9 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 **Security:**
 
 - Staff passwords use argon2id.
+- A staff email has one account on the whole platform (`users.login_email`), so sign-in is
+  email + password only. Sign-up refuses an email that already has an account (409). Authors are
+  not affected: the same author email can exist in several workspaces.
 - The session is signed and kept in an `httpOnly` cookie.
 - Every API route requires sign-in unless it is marked public.
 - CSRF is blocked by an `Origin` check and JSON-only bodies.
@@ -360,6 +363,8 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - **Team members come later (S.11).** Staff accounts come only from sign-up or the seed; there is
   no way yet to add members from the app. Adding members, roles (Owner/Admin/Agent), sign-in codes
   and "forgot password" are planned but not built.
+- **One company per staff account.** A staff email belongs to one workspace. Using one account in
+  several companies (memberships plus a company switcher) comes later.
 - **Sign-up emails are not verified yet.** Self-serve sign-up is open and does not confirm that the
   email address belongs to the person signing up. Verification comes with S.11.
 

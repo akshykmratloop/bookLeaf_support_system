@@ -429,6 +429,12 @@ Role and author id come only from the verified session, never from a request bod
 host's API. Role scoping lives in the data-access code; response
 shapes are separate Zod schemas per role, so undeclared fields are stripped.
 
+**Staff sign-in (F-12).** A staff email has one account on the whole platform:
+`users.login_email` (trimmed, lowercased, unique) is set only for password accounts, and
+`POST /auth/login` reads exactly that one account. Sign-up refuses an email that already has an
+account (409 `EMAIL_TAKEN`). Authors keep `login_email` NULL, so one author email can exist in
+several workspaces.
+
 CSRF: Origin must equal `APP_ORIGIN` on state-changing requests + JSON-only bodies + a
 `SameSite=Lax` cookie (`SameSite=None; Secure; Partitioned` in embed mode, §15). No CORS headers.
 
