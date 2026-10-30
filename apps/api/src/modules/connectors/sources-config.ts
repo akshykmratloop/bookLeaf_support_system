@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CustomerField } from '@prisma/client';
 import type { FieldSpec, SourcesConfig } from '../../host/sources/types.js';
 import { assertSafeUrl } from '../../platform/net/ssrf.js';
+import { pinnedFetch } from '../../platform/net/pinned-fetch.js';
 import { withWorkspace } from '../../platform/tenancy.js';
 import type { ConnectorDeps } from './deps.js';
 import { resolveConnector } from './store.js';
@@ -62,6 +63,7 @@ export async function sourcesConfigFor(
     mapping: { record: r.config.record, fields: fields.map(toFieldSpec) },
     apiKey: r.config.apiKey,
     checkUrl,
+    ...(r.row ? { fetch: pinnedFetch(deps.ssrf) } : {}),
     emailOf: emailLookup(deps, workspaceId),
   };
   return { config, version: `${row}:${stampOf(fields)}` };

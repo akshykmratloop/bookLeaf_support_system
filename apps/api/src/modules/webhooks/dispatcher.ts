@@ -3,6 +3,7 @@ import { WEBHOOK_MAX_ATTEMPTS } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
 import type { Envelope } from '../../platform/crypto/envelope.js';
 import type { Db } from '../../platform/db.js';
+import { pinnedFetch } from '../../platform/net/pinned-fetch.js';
 import { assertSafeUrl, type SsrfPolicy } from '../../platform/net/ssrf.js';
 import { aadForWebhook } from './store.js';
 import { signatureHeader } from './signing.js';
@@ -64,7 +65,7 @@ async function post(deps: DispatcherDeps, d: Loaded): Promise<number> {
     data: d.payload,
   });
   const ts = Math.floor(deps.clock.now().getTime() / 1000);
-  const send: Send = deps.send ?? fetch;
+  const send: Send = deps.send ?? pinnedFetch(deps.ssrf);
   const res = await send(d.webhook.url, {
     method: 'POST',
     redirect: 'manual',

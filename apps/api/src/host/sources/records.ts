@@ -35,7 +35,7 @@ async function fetchOne(
     if (!(err instanceof MissingEmailError)) throw err;
     return { result: { ok: false, status: null, reason: err.message }, text: null, durationMs: 0 };
   }
-  return fetchSource(spec, url, config.apiKey, config.checkUrl);
+  return fetchSource(spec, url, config.apiKey, config);
 }
 
 const emailFor = async (config: SourcesConfig, sources: SourceSpec[], id: string) =>

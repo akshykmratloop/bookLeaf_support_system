@@ -1,4 +1,4 @@
-import type { SourceResult, SourceSpec } from './types.js';
+import type { SourceResult, SourceSpec, SourcesConfig } from './types.js';
 
 /** A product answer larger than this is refused rather than read into memory. */
 const MAX_BYTES = 1_000_000;
@@ -61,14 +61,15 @@ export async function fetchSource(
   spec: SourceSpec,
   url: URL,
   apiKey: string,
-  checkUrl?: (url: URL) => Promise<void>,
+  guard: Pick<SourcesConfig, 'checkUrl' | 'fetch'> = {},
 ): Promise<Fetched> {
+  const { checkUrl, fetch: fetchImpl = fetch } = guard;
   // A duration only, not a point in time: the monotonic timer, not the clock.
   const started = performance.now();
   const took = () => Math.round(performance.now() - started);
   try {
     await checkUrl?.(url);
-    const res = await fetch(url, {
+    const res = await fetchImpl(url, {
       headers: headersFor(spec, apiKey),
       redirect: 'error',
       signal: AbortSignal.timeout(spec.timeoutMs),

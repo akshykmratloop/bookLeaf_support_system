@@ -41,6 +41,8 @@ export interface SourcesConfig {
   apiKey: string;
   /** Re-checks each URL right before it is called (a tenant's own sources: SSRF, DNS rebinding). */
   checkUrl?: (url: URL) => Promise<void>;
+  /** The fetch for these sources: a tenant's own URLs use one pinned to public addresses. */
+  fetch?: typeof fetch;
   /** The email support knows for this customer, to fill `{email}` (null = none known). */
   emailOf?: (externalId: string) => Promise<string | null>;
 }
