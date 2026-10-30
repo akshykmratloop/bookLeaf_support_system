@@ -1,5 +1,6 @@
 import type { AuthUser } from '@bookleaf/shared';
 import {
+  BookOpen,
   Bot,
   Database,
   Inbox,
@@ -10,6 +11,7 @@ import {
   Plug,
   Settings2,
   Sun,
+  Tags,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
@@ -43,6 +45,16 @@ const ADMIN_NAV: NavItem[] = [
     to: '/admin/workspace/fields',
     label: 'Customer Data',
     icon: <Database size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/categories',
+    label: 'Categories',
+    icon: <Tags size={16} aria-hidden />,
+  },
+  {
+    to: '/admin/workspace/knowledge',
+    label: 'Knowledge Base',
+    icon: <BookOpen size={16} aria-hidden />,
   },
   {
     to: '/admin/workspace/settings',

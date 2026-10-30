@@ -41,6 +41,12 @@ const ConnectorPage = lazyPage(() =>
 const FieldsPage = lazyPage(() =>
   import('../pages/workspace/FieldsPage').then((m) => m.FieldsPage),
 );
+const CategoriesPage = lazyPage(() =>
+  import('../pages/workspace/CategoriesPage').then((m) => m.CategoriesPage),
+);
+const KnowledgePage = lazyPage(() =>
+  import('../pages/workspace/KnowledgePage').then((m) => m.KnowledgePage),
+);
 const WorkspaceSettingsPage = lazyPage(() =>
   import('../pages/workspace/WorkspaceSettingsPage').then((m) => m.WorkspaceSettingsPage),
 );
@@ -59,6 +65,8 @@ export const adminRoutes = (
     <Route path="/admin/assistant" element={loading(<AssistantSettingsPage />)} />
     <Route path="/admin/workspace/connection" element={loading(<ConnectorPage />)} />
     <Route path="/admin/workspace/fields" element={loading(<FieldsPage />)} />
+    <Route path="/admin/workspace/categories" element={loading(<CategoriesPage />)} />
+    <Route path="/admin/workspace/knowledge" element={loading(<KnowledgePage />)} />
     <Route path="/admin/workspace/settings" element={loading(<WorkspaceSettingsPage />)} />
     <Route path="/admin/workspace/api-keys" element={loading(<ApiKeysPage />)} />
   </Route>

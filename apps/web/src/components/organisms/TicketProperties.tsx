@@ -1,9 +1,7 @@
 import {
-  CATEGORY_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
   STATUS_LABELS,
-  TICKET_CATEGORIES,
   TICKET_STATUSES,
   type AdminTicket,
   type AuthUser,
@@ -16,6 +14,7 @@ import { Card } from '../atoms/Card';
 import { Select } from '../atoms/Input';
 import { BulletList, PropertyRow } from '../molecules/PropertyRow';
 import { AiProcessing } from './AiProcessing';
+import { optionsWith, useCategoryOptions } from '../../lib/categories';
 
 type Patch = Omit<UpdateTicketRequest, 'version'>;
 
@@ -54,6 +53,7 @@ function StatusRow({ ticket, isSaving, onPatch }: RowProps) {
 }
 
 function CategoryRow({ ticket, isSaving, onPatch }: RowProps) {
+  const options = optionsWith(useCategoryOptions().data, ticket.category, ticket.categoryLabel);
   return (
     <PropertyRow
       label="Category"
@@ -65,14 +65,12 @@ function CategoryRow({ ticket, isSaving, onPatch }: RowProps) {
         aria-label="Category"
         value={ticket.category ?? ''}
         disabled={isSaving}
-        onChange={(e) =>
-          onPatch({ category: e.target.value as NonNullable<AdminTicket['category']> })
-        }
+        onChange={(e) => onPatch({ category: e.target.value })}
       >
         {ticket.category ? null : <option value="">Classifying…</option>}
-        {TICKET_CATEGORIES.map((c) => (
-          <option key={c} value={c}>
-            {CATEGORY_LABELS[c]}
+        {options.map((c) => (
+          <option key={c.key} value={c.key}>
+            {c.label}
           </option>
         ))}
       </Select>

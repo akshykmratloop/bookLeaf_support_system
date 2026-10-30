@@ -380,10 +380,10 @@ The engine is generic. These parts describe BookLeaf's business and would be rep
 
 | Part | File |
 | --- | --- |
-| Knowledge base and reply examples | `apps/api/src/ai/prompts/kb.ts`, `examples.ts` |
-| Ticket categories and labels | `packages/shared/src/enums.ts`, `labels.ts` |
-| Triage rules (priority floor, keywords) | `apps/api/src/ai/triage/rules.ts`, `fallback-classifier.ts` |
-| Reply templates used when AI is off | `apps/api/src/ai/drafting/templates.ts` |
+| Ticket categories and knowledge base | Per workspace, in the staff app (Categories, Knowledge Base); API `/api/v1/workspace/categories`, `/api/v1/workspace/knowledge`. BookLeaf's seed: `apps/api/src/modules/categories/bookleaf-knowledge.ts` |
+| Reply examples (BookLeaf only) | `apps/api/src/ai/prompts/examples.ts` |
+| Triage rules (priority floor; BookLeaf's keywords) | `apps/api/src/ai/triage/rules.ts`, `fallback-classifier.ts` (other workspaces: `word-match.ts`) |
+| Reply templates used when AI is off (BookLeaf only; others get a generic one) | `apps/api/src/ai/drafting/templates.ts` |
 | Royalty signals read from facts | `apps/api/src/ai/domain/signals.ts` |
 | Quick answers in chat | `apps/api/src/ai/chat/quick/` |
 | The fact ids above | `packages/shared/src/fact-ids.ts` |

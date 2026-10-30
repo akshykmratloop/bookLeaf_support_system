@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, type TicketDraft } from '@bookleaf/shared';
+import type { TicketDraft } from '@bookleaf/shared';
 import { CONFIRM_TICKET, SUBMIT_TICKET } from './tool-defs.js';
 import type { CallState, DraftUpdate } from './types.js';
 
@@ -15,8 +15,7 @@ const quote = (text: string) =>
   `"${text.length > NOTE_FIELD_CHARS ? `${text.slice(0, NOTE_FIELD_CHARS)}…` : text}"`;
 
 function fieldLine(draft: TicketDraft, field: string): string | null {
-  if (field === 'category')
-    return `issue type: ${draft.category ? CATEGORY_LABELS[draft.category] : 'not chosen'}`;
+  if (field === 'category') return `issue type: ${draft.category ?? 'not chosen'}`;
   if (field === 'bookId') return draft.bookId ? `book id: ${draft.bookId}` : 'book: account level';
   if (field === 'subject') return `subject: ${quote(draft.subject)}`;
   if (field === 'description') return `description: ${quote(draft.description)}`;

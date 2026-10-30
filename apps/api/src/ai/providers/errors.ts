@@ -48,3 +48,12 @@ export class AiOutageSimulatedError extends AiError {
   readonly code = 'AI_OUTAGE_SIMULATED';
   readonly retryable = false;
 }
+
+/** The workspace has no active category to triage into: the rules fallback runs instead. */
+export class NoCategoriesError extends AiError {
+  readonly code = 'NO_CATEGORIES';
+  readonly retryable = false;
+  constructor() {
+    super('The workspace has no active ticket category');
+  }
+}

@@ -6,13 +6,17 @@ import type { Db } from '../../platform/db.js';
 import { voiceInstructions } from '../../voice/call/instructions.js';
 import { spokenLines, transcriptionLanguage, type VoiceStyle } from '../../voice/call/persona.js';
 import type { SpokenLines } from '../../voice/call/types.js';
-import { VOICE_TOOLS } from '../../voice/call/tool-defs.js';
+import { voiceTools } from '../../voice/call/tool-defs.js';
 import type { VoiceSessionConfig } from '../../voice/providers/types.js';
+import type { WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
+import { loadWorkspaceKnowledge } from '../categories/load-knowledge.js';
 
 export interface CallContext {
   facts: Fact[];
   books: { id: string; title: string }[];
   ignorePhrases: string[];
+  /** The workspace's categories (issue types the draft may use) and articles. */
+  knowledge: WorkspaceKnowledge;
   config: VoiceSessionConfig;
   draft: TicketDraft;
   /** Author messages the chat this call joins still allows; null when it is not in a chat. */
@@ -33,6 +37,7 @@ export interface ThreadContext {
 
 export interface CallContextInput {
   authorId: string;
+  workspaceId: string;
   maxSeconds: number;
   thread: ThreadContext;
   turnsLeft: number | null;
@@ -48,10 +53,15 @@ const greetingFor = (t: ThreadContext) =>
 /** What the assistant may say on this call: only this author's own verified records. */
 export async function buildCallContext(
   deps: { db: Db; records: HostRecords },
-  { authorId, maxSeconds, thread, turnsLeft, style, limits, voiceName }: CallContextInput,
+  input: CallContextInput,
 ): Promise<CallContext> {
-  const { facts, books, firstName } = await loadAuthorView(deps, authorId);
+  const { authorId, maxSeconds, thread, turnsLeft, style, limits, voiceName } = input;
+  const [{ facts, books, firstName }, knowledge] = await Promise.all([
+    loadAuthorView(deps, authorId),
+    loadWorkspaceKnowledge(deps.db, input.workspaceId),
+  ]);
   const instructions = voiceInstructions({
+    knowledge,
     authorFirstName: firstName,
     books,
     facts,
@@ -66,13 +76,14 @@ export async function buildCallContext(
     facts,
     books,
     ignorePhrases: books.map((b) => b.title),
+    knowledge,
     draft: thread.draft,
     turnsLeft,
     lines,
     limits,
     config: {
       instructions,
-      tools: VOICE_TOOLS,
+      tools: voiceTools(knowledge),
       language: transcriptionLanguage(style),
       greeting: greeting[greetingFor(thread)](firstName),
       voice: voiceName,

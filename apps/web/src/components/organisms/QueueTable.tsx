@@ -31,7 +31,7 @@ function QueueRow({ t, onOpen }: { t: AdminTicketListItem; onOpen: (id: string) 
         </span>
       </td>
       <td className={td}>
-        <CategoryLabel category={t.category} source={t.categorySource} />
+        <CategoryLabel category={t.category} label={t.categoryLabel} source={t.categorySource} />
       </td>
       <td className={td}>
         <PriorityPill priority={t.priority} />

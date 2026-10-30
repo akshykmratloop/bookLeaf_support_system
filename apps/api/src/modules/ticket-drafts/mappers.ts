@@ -9,7 +9,7 @@ export const isDraftComplete = (d: { subject: string; description: string }) =>
 export function toTicketDraft(d: TicketDraftRow): TicketDraft {
   return {
     id: d.id,
-    category: d.category,
+    category: d.categoryKey,
     bookId: d.bookId,
     subject: d.subject,
     description: d.description,

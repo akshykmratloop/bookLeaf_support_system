@@ -1,13 +1,21 @@
-import { TICKET_CATEGORIES, TICKET_SOURCES } from '@bookleaf/shared';
+import { LEGACY_TICKET_CATEGORIES, TICKET_SOURCES } from '@bookleaf/shared';
 import { describe, expect, it } from 'vitest';
 import { initialsOf } from '../components/atoms/Avatar';
 import { categoryStyle, channelStyle } from './categoryStyle';
 
 describe('categoryStyle', () => {
-  it('gives every issue type its own colour and a label', () => {
-    const colours = TICKET_CATEGORIES.map((c) => categoryStyle(c).colors);
-    expect(new Set(colours).size).toBe(TICKET_CATEGORIES.length);
-    for (const c of TICKET_CATEGORIES) expect(categoryStyle(c).label).not.toBe('');
+  it("gives each of BookLeaf's categories its own colour, and shows the workspace's label", () => {
+    const colours = LEGACY_TICKET_CATEGORIES.map((c) => categoryStyle(c).colors);
+    expect(new Set(colours).size).toBe(LEGACY_TICKET_CATEGORIES.length);
+    expect(categoryStyle('ROYALTY_PAYMENTS', 'Royalty & Payments').label).toBe(
+      'Royalty & Payments',
+    );
+  });
+
+  it("gives another workspace's category a stable colour and falls back to its key", () => {
+    expect(categoryStyle('BILLING').colors).toBe(categoryStyle('BILLING', 'Billing').colors);
+    expect(categoryStyle('BILLING')).toMatchObject({ label: 'BILLING' });
+    expect(categoryStyle('BILLING', 'Billing').label).toBe('Billing');
   });
 
   it('shows a ticket that is not sorted yet as general', () => {

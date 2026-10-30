@@ -10,6 +10,7 @@ export const ticketInclude = {
   author: { select: { id: true, user: { select: { id: true, name: true } } } },
   assignee: { select: { id: true, name: true } },
   workspace: { select: { ticketPrefix: true } },
+  category: { select: { label: true, slaHours: true } },
 } satisfies Prisma.TicketInclude;
 
 const messageInclude = {
@@ -56,7 +57,7 @@ export function listFilter(session: Session, q: TicketListQuery): Prisma.TicketW
   return {
     ...ownership(session),
     ...(q.status ? { status: q.status } : {}),
-    ...(q.category ? { category: q.category } : {}),
+    ...(q.category ? { categoryKey: q.category } : {}),
     ...(q.priority ? { priority: q.priority } : {}),
     ...(q.from || q.to ? { createdAt } : {}),
     ...assignee,

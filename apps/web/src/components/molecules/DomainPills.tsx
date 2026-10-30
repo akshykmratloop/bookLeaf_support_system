@@ -1,11 +1,9 @@
 import {
-  CATEGORY_LABELS,
   PRIORITY_LABELS,
   STATUS_LABELS,
   type AiState,
   type FieldSource,
   type Priority,
-  type TicketCategory,
   type TicketStatus,
 } from '@bookleaf/shared';
 import { Pill, type Tone } from '../atoms/Pill';
@@ -42,15 +40,17 @@ const SOURCE_TEXT: Record<FieldSource, string> = {
 
 export function CategoryLabel({
   category,
+  label,
   source,
 }: {
-  category: TicketCategory | null;
+  category: string | null;
+  label: string | null;
   source: FieldSource | null;
 }) {
   if (!category) return <span className="text-[12.5px] text-ink-3">Classifying…</span>;
   return (
     <span className="text-[12.5px] text-ink-2" title={source ? SOURCE_TEXT[source] : undefined}>
-      {CATEGORY_LABELS[category]}
+      {label ?? category}
     </span>
   );
 }

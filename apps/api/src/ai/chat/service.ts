@@ -3,8 +3,8 @@ import { checkReply } from '../checker/index.js';
 import { AiError } from '../providers/errors.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
 import {
-  CHAT_SYSTEM,
   ChatOutputSchema,
+  chatSystem,
   chatContext,
   chatUserMessage,
   type ChatOutput,
@@ -42,7 +42,7 @@ async function callOnce(provider: LlmProvider, model: string, input: ChatPromptI
   return provider.generateStructured({
     task: 'CHAT',
     model,
-    stableSystem: CHAT_SYSTEM,
+    stableSystem: chatSystem(input.knowledge),
     dynamicSystem: chatContext(input),
     user: chatUserMessage(input),
     schema: ChatOutputSchema,
@@ -93,7 +93,7 @@ export async function answerChat(
     data = second.data;
     ({ body, check } = checkOutput(input, data, input.ignorePhrases));
   }
-  const draft = toDraftAction(data.draft, input.books);
+  const draft = toDraftAction(data.draft, { books: input.books, knowledge: input.knowledge });
   if (!check.passed) {
     return {
       source: 'SAFE_FALLBACK',

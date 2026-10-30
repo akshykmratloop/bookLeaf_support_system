@@ -13,6 +13,7 @@ import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
 import { workspaceAiFor } from '../workspace-ai.js';
+import { categoryOf } from '../../knowledge/knowledge.js';
 
 function triageInput(ctx: TicketContext): TriageInput {
   const bookId = ctx.book?.externalId ?? null;
@@ -25,6 +26,21 @@ function triageInput(ctx: TicketContext): TriageInput {
   };
 }
 
+/** The category and priority part of a decision, leaving whatever an admin or author chose. */
+function fieldChanges(ctx: TicketContext, d: TriageDecision): Prisma.TicketUncheckedUpdateInput {
+  const t = ctx.ticket;
+  const keepCategory = t.categorySource === 'ADMIN' || t.categorySource === 'AUTHOR';
+  const categoryKey = keepCategory ? t.categoryKey : (d.category ?? t.categoryKey);
+  const data: Prisma.TicketUncheckedUpdateInput = {};
+  if (!keepCategory && d.category)
+    Object.assign(data, { categoryKey: d.category, categorySource: d.source });
+  if (t.prioritySource === 'ADMIN') return data;
+  Object.assign(data, { priority: d.priority, prioritySource: d.source });
+  const categorySla = categoryOf(ctx.knowledge, categoryKey)?.slaHours;
+  if (!t.firstResponseAt) data.slaDueAt = slaDueAt(t.createdAt, d.priority, categorySla);
+  return data;
+}
+
 /** AI never overwrites a field an admin has set. A triage result always queues a fresh draft. */
 async function applyDecision(
   job: ClaimedJob,
@@ -33,20 +49,15 @@ async function applyDecision(
   d: TriageDecision,
 ): Promise<void> {
   const t = ctx.ticket;
-  const data: Prisma.TicketUpdateInput = {
+  const data: Prisma.TicketUncheckedUpdateInput = {
     priorityReasons: d.priorityReasons,
     needsInfo: d.needsInfo,
     needsReview: d.needsReview,
     aiConfidence: d.source === 'AI' ? d.confidence : null,
     aiState: d.source === 'AI' ? 'DONE' : 'FALLBACK',
     version: { increment: 1 },
+    ...fieldChanges(ctx, d),
   };
-  if (t.categorySource !== 'ADMIN' && t.categorySource !== 'AUTHOR')
-    Object.assign(data, { category: d.category, categorySource: d.source });
-  if (t.prioritySource !== 'ADMIN') {
-    Object.assign(data, { priority: d.priority, prioritySource: d.source });
-    if (!t.firstResponseAt) data.slaDueAt = slaDueAt(t.createdAt, d.priority);
-  }
   const applied = await deps.db.$transaction(async (tx) => {
     if (!(await isLatestGeneration(tx, job))) return false;
     await tx.ticket.update({ where: { id: t.id }, data });
@@ -79,12 +90,12 @@ export const triageHandler: JobHandler = {
       promptVersion: TRIAGE_PROMPT_VERSION,
     };
     const result = await loggedCall(deps, meta, () =>
-      runAiTriage(provider, model, triageInput(ctx)),
+      runAiTriage(provider, model, triageInput(ctx), ctx.knowledge),
     );
     await applyDecision(job, deps, ctx, result.decision);
   },
   async fallback(job, deps) {
     const ctx = await loadTicketContext(deps, job.ticketId);
-    await applyDecision(job, deps, ctx, fallbackTriage(triageInput(ctx)));
+    await applyDecision(job, deps, ctx, fallbackTriage(triageInput(ctx), ctx.knowledge));
   },
 };

@@ -33,11 +33,11 @@ async function originFor(deps: DraftDeps, d: TicketDraftRow): Promise<TicketOrig
     });
     if (chat?.ticket)
       throw new ConflictError('CHAT_TICKET_EXISTS', 'A ticket was already raised here.');
-    return { source: 'CHAT', chatSessionId: d.chatSessionId, category: d.category };
+    return { source: 'CHAT', chatSessionId: d.chatSessionId, category: d.categoryKey };
   }
   const call = d.voiceThreadId ? await latestCallOfThread(deps.db, d.voiceThreadId) : null;
   if (!call) throw new NotFoundError('Voice call');
-  return { source: 'VOICE', voiceSessionId: call.id, category: d.category };
+  return { source: 'VOICE', voiceSessionId: call.id, category: d.categoryKey };
 }
 
 function assertCanSubmit(d: TicketDraftRow, { by, version }: SubmitDraft) {

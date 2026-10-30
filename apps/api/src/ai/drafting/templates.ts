@@ -1,5 +1,5 @@
-import type { Fact, TicketCategory } from '@bookleaf/shared';
-import { firstName, SIGN_OFF, type DraftInput } from './types.js';
+import type { Fact } from '@bookleaf/shared';
+import { firstName, signOffFor, type DraftInput } from './types.js';
 
 /**
  * Fallback replies used when AI is unavailable. Every figure is filled in by code from the
@@ -68,7 +68,23 @@ function royaltyParagraph(input: DraftInput): string {
   }
 }
 
-const BODIES: Record<TicketCategory, (input: DraftInput) => string> = {
+type Body = (input: DraftInput) => string;
+
+const GENERAL_BODY: Body = () => `Thank you for your question.
+
+[CONFIRM: answer to the author's question]
+
+Please reply here if there is anything else we can help with.`;
+
+/** Any workspace without BookLeaf's publishing pack: no policy, only a question for the agent. */
+const GENERIC_BODY: Body = () => `Thank you for getting in touch.
+
+[CONFIRM: answer to the customer's question]
+
+Please reply here if there is anything else we can help with.`;
+
+/** BookLeaf's per-category replies (publishing pack), by BookLeaf category key. */
+const BODIES: Readonly<Record<string, Body>> = {
   ROYALTY_PAYMENTS: (i) =>
     `Thank you for reaching out about your royalties, and I'm sorry for the worry this has caused.
 
@@ -100,17 +116,18 @@ ${i.book.title} is currently at the ${show(i.facts, `${id}.stage`) ?? '[CONFIRM:
 
 [CONFIRM: expected completion date for the current stage] We will keep you updated by email at each stage.`;
   },
-  GENERAL_INQUIRY: () => `Thank you for your question.
-
-[CONFIRM: answer to the author's question]
-
-Please reply here if there is anything else we can help with.`,
+  GENERAL_INQUIRY: GENERAL_BODY,
 };
+
+function bodyFor(input: DraftInput): Body {
+  if (!input.knowledge.publishingPack) return GENERIC_BODY;
+  return BODIES[input.category ?? ''] ?? GENERAL_BODY;
+}
 
 export function templateBody(input: DraftInput): string {
   return `Hi ${firstName(input.authorName)},
 
-${BODIES[input.category](input)}
+${bodyFor(input)(input)}
 
-${SIGN_OFF}`;
+${signOffFor(input.knowledge)}`;
 }

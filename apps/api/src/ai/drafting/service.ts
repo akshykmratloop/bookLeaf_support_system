@@ -2,8 +2,8 @@ import type { CheckResult } from '@bookleaf/shared';
 import { checkReply, type DraftClaim } from '../checker/index.js';
 import {
   DRAFT_PROMPT_VERSION,
-  DRAFT_SYSTEM,
   DraftOutputSchema,
+  draftSystem,
   draftContext,
   draftUserMessage,
 } from '../prompts/draft.v1.js';
@@ -35,6 +35,7 @@ export async function runAiDraft(
 ): Promise<AiDraftRun> {
   const promptInput = {
     category: input.category,
+    knowledge: input.knowledge,
     authorFirstName: firstName(input.authorName),
     bookTitle: input.book?.title ?? null,
     facts: input.facts,
@@ -46,7 +47,7 @@ export async function runAiDraft(
   const result = await provider.generateStructured({
     task: 'DRAFT',
     model,
-    stableSystem: DRAFT_SYSTEM,
+    stableSystem: draftSystem(input.knowledge),
     dynamicSystem: draftContext(promptInput),
     user: draftUserMessage(promptInput),
     schema: DraftOutputSchema,

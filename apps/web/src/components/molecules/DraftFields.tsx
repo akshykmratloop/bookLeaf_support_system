@@ -1,11 +1,5 @@
-import {
-  CATEGORY_LABELS,
-  DESCRIPTION_LIMITS,
-  SUBJECT_LIMITS,
-  TICKET_CATEGORIES,
-  type Book,
-  type TicketCategory,
-} from '@bookleaf/shared';
+import { DESCRIPTION_LIMITS, SUBJECT_LIMITS, type Book } from '@bookleaf/shared';
+import { optionsWith, useCategoryOptions } from '../../lib/categories';
 import type { DraftField, DraftValues } from '../../lib/draftEditor';
 import { Input, Select, Textarea } from '../atoms/Input';
 import { Field } from './Field';
@@ -24,6 +18,7 @@ const glow = (on: boolean) => (on ? 'ring-2 ring-brand/50 transition-shadow' : '
 /** Issue type, book, subject and description of the shared ticket draft. */
 export function DraftFields({ values, books, disabled, highlighted, onChange }: Props) {
   const lit = (f: DraftField) => glow(highlighted.includes(f));
+  const categories = optionsWith(useCategoryOptions().data, values.category || null, null);
   return (
     <div className="flex flex-col gap-3">
       <Field id="draft-category" label="Issue type">
@@ -32,12 +27,12 @@ export function DraftFields({ values, books, disabled, highlighted, onChange }: 
           className={lit('category')}
           value={values.category}
           disabled={disabled}
-          onChange={(e) => onChange('category', e.target.value as TicketCategory | '')}
+          onChange={(e) => onChange('category', e.target.value)}
         >
           <option value="">Choose an issue type</option>
-          {TICKET_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
+          {categories.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
             </option>
           ))}
         </Select>

@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { TicketCategory } from '@bookleaf/shared';
 import { sampleCustomer } from '../../../test/fixtures/host.js';
 import { factsFor } from '../../host/facts.js';
 import { royaltySignals } from '../domain/signals.js';
-import { kbSectionsFor } from '../prompts/kb.js';
+import { bookleafKnowledge } from '../../modules/categories/bookleaf-knowledge.js';
 import { fakeProvider } from '../providers/fake/provider.js';
 import { runAiDraft, templateDraft } from './service.js';
 import type { DraftInput } from './types.js';
@@ -11,7 +10,7 @@ import type { DraftInput } from './types.js';
 function draftInput(
   authorId: string,
   bookId: string | null,
-  category: TicketCategory,
+  category: string,
   text = 'Please help',
 ): DraftInput {
   const customer = sampleCustomer(authorId);
@@ -19,6 +18,7 @@ function draftInput(
   const book = customer.items.find((i) => i.id === bookId) ?? null;
   return {
     category,
+    knowledge: bookleafKnowledge(),
     authorName: customer.name,
     book: book ? { externalId: book.id, title: book.title } : null,
     facts,
@@ -87,7 +87,6 @@ describe('AI drafts', () => {
     }));
     const r = await runAiDraft(provider, 'm', draftInput('AUTH001', 'BK001', 'PRINTING_QUALITY'));
     const ctx = provider.calls[0]?.dynamicSystem ?? '';
-    expect(kbSectionsFor('PRINTING_QUALITY')).toEqual(['printing']);
     expect(ctx).toContain('Printing & Quality');
     expect(ctx).not.toContain('Royalty Policy');
     expect(r.draft.check.passed).toBe(false);

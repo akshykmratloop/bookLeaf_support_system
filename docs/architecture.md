@@ -145,12 +145,12 @@ sequenceDiagram
 
     W->>DB: claim job (RUNNING, lease 90 s, attempt+1)
     W->>W: facts from the host (cached 60 s), each with its source
-    W->>LLM: triage (structured)
+    W->>LLM: triage (structured, the workspace's own categories)
     LLM-->>W: category · priority · reasons
     W->>W: Zod validate · rules floor · SLA from clock.now
     W->>DB: BEGIN · save triage (skip ADMIN-set fields) · job SUCCEEDED · ai_job(DRAFT) · COMMIT
     W->>DB: claim DRAFT job
-    W->>LLM: draft (tone + category KB slice + examples + facts)
+    W->>LLM: draft (tone + workspace articles linked to the category + examples + facts)
     LLM-->>W: body · claims · placeholders
     W->>W: checker
     W->>DB: save draft (generation) · job SUCCEEDED · ai_runs
@@ -194,7 +194,7 @@ flowchart TD
     avail -- no --> fb
     avail -- yes --> kind{"job kind"}
     kind -- TRIAGE --> t["Triage call<br/>(no PII, no amounts)"]
-    kind -- DRAFT --> d["Draft call<br/>category KB slice + facts + untrusted author text"]
+    kind -- DRAFT --> d["Draft call<br/>articles linked to the category + facts + untrusted author text"]
     t --> tv{"valid schema?"}
     tv -- yes --> floor["Rules floor<br/>ISBN · possibly overdue · legal"]
     tv -- "no / error" --> retry{"retryable and<br/>attempts left?"}
@@ -265,6 +265,9 @@ erDiagram
     TICKETS ||--o{ AI_DRAFTS : has
     TICKETS |o--o{ AI_RUNS : logs
     USERS |o--o{ AUDIT_EVENTS : acted
+    TICKET_CATEGORIES |o--o{ TICKETS : "sorts (workspace_id, key)"
+    KNOWLEDGE_ARTICLES ||--o{ KNOWLEDGE_ARTICLE_CATEGORIES : "linked to"
+    TICKET_CATEGORIES ||--o{ KNOWLEDGE_ARTICLE_CATEGORIES : "has articles"
 
     USERS {
         uuid id PK
@@ -291,7 +294,7 @@ erDiagram
         uuid author_id FK
         uuid book_id FK "nullable"
         enum status
-        enum category "nullable until triaged"
+        text category_key FK "the workspace's category; nullable until triaged"
         enum category_source
         enum priority
         enum priority_source
@@ -300,6 +303,30 @@ erDiagram
         timestamptz sla_due_at
         text client_request_id "unique per author"
         int version
+    }
+    TICKET_CATEGORIES {
+        uuid id PK
+        uuid workspace_id FK
+        text key "UK per workspace, fixed once created"
+        text label
+        text description "read by AI triage"
+        enum default_priority
+        int sla_hours "nullable"
+        int position
+        bool is_active
+    }
+    KNOWLEDGE_ARTICLES {
+        uuid id PK
+        uuid workspace_id FK
+        text title
+        text body
+        int position
+        bool is_active
+    }
+    KNOWLEDGE_ARTICLE_CATEGORIES {
+        uuid article_id PK
+        text category_key PK
+        uuid workspace_id "part of both foreign keys"
     }
     TICKET_MESSAGES {
         uuid id PK

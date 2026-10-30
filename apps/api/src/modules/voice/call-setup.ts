@@ -83,6 +83,7 @@ export async function contextFor(
   const style = deps.voiceStyle;
   return buildCallContext(deps, {
     authorId,
+    workspaceId: call.workspaceId,
     maxSeconds,
     thread,
     turnsLeft: left,

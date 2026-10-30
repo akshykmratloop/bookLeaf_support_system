@@ -8,6 +8,7 @@ import { getAdminTicket } from './queries.js';
 import { findTicketOrThrow } from './repository.js';
 import { slaDueAt } from './sla.js';
 import { assertTransition } from './status-machine.js';
+import { assertActiveCategory } from '../categories/load-knowledge.js';
 import { queueTicketEvent } from '../webhooks/outbox.js';
 
 type Current = Awaited<ReturnType<typeof findTicketOrThrow>>;
@@ -25,7 +26,9 @@ function priorityChange(current: Current, input: UpdateTicketRequest) {
     priority: input.priority,
     prioritySource: 'ADMIN' as const,
     needsReview: false,
-    ...(current.firstResponseAt ? {} : { slaDueAt: slaDueAt(current.createdAt, input.priority) }),
+    ...(current.firstResponseAt
+      ? {}
+      : { slaDueAt: slaDueAt(current.createdAt, input.priority, current.category?.slaHours) }),
   };
 }
 
@@ -50,7 +53,7 @@ function changesFor(
   return {
     ...statusChange(current, input, now),
     ...(input.category
-      ? { category: input.category, categorySource: 'ADMIN' as const, needsReview: false }
+      ? { categoryKey: input.category, categorySource: 'ADMIN' as const, needsReview: false }
       : {}),
     ...priorityChange(current, input),
     ...assigneeChange(input, session),
@@ -59,7 +62,7 @@ function changesFor(
 
 const snapshot = (t: Current) => ({
   status: t.status,
-  category: t.category,
+  category: t.categoryKey,
   priority: t.priority,
   assigneeId: t.assigneeId,
 });
@@ -107,6 +110,8 @@ export async function updateTicket(
   input: UpdateTicketRequest,
 ): Promise<AdminTicket> {
   const current = await findTicketOrThrow(deps.db, session, id);
+  if (input.category && input.category !== current.categoryKey)
+    await assertActiveCategory(deps.db, current.workspaceId, input.category);
   const now = deps.clock.now();
   const data = changesFor(current, input, session, now);
   await deps.db.$transaction(async (tx) => {

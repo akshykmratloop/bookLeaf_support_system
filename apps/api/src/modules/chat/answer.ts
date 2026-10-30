@@ -9,6 +9,8 @@ import type { Db } from '../../platform/db.js';
 import type { AssistantService, ChatAccess } from '../assistant/service.js';
 import { loadAuthorView, type AuthorView } from '../../host/author.js';
 import type { HostRecords } from '../../host/types.js';
+import type { WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
+import { loadWorkspaceKnowledge } from '../categories/load-knowledge.js';
 
 export interface StoredAnswer {
   source: ChatAnswerSource;
@@ -58,11 +60,14 @@ const factRefs = (ids: string[], facts: Fact[]) => {
   });
 };
 
-type TurnContext = AuthorView & { ignorePhrases: string[] };
+type TurnContext = AuthorView & { ignorePhrases: string[]; knowledge: WorkspaceKnowledge };
 
 async function loadTurn(deps: Deps, req: AnswerRequest): Promise<TurnContext> {
-  const author = await loadAuthorView(deps, req.authorId);
-  return { ...author, ignorePhrases: author.books.map((b) => b.title) };
+  const [author, knowledge] = await Promise.all([
+    loadAuthorView(deps, req.authorId),
+    loadWorkspaceKnowledge(deps.db, req.workspaceId),
+  ]);
+  return { ...author, ignorePhrases: author.books.map((b) => b.title), knowledge };
 }
 
 /** Common questions answered from verified records in milliseconds; null means "ask the AI". */
@@ -86,6 +91,7 @@ async function runModel(
   turn: TurnContext,
 ) {
   return answerChat(access.provider, access.model, {
+    knowledge: turn.knowledge,
     authorFirstName: turn.firstName,
     books: turn.books,
     facts: turn.facts,

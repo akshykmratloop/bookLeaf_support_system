@@ -174,7 +174,7 @@ describe('sending the draft', () => {
     await h.drain();
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id: body.ticket.id } });
     expect(t).toMatchObject({
-      category: 'PRINTING_QUALITY',
+      categoryKey: 'PRINTING_QUALITY',
       categorySource: 'AUTHOR',
       source: 'CHAT',
       chatSessionId: chat.id,

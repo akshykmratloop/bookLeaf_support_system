@@ -41,6 +41,7 @@ import { createHostSignIn } from './modules/workspaces/host-sign-in.js';
 import { createWorkspaceService } from './modules/workspaces/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
 import { createDb, type Db } from './platform/db.js';
+import { createCategoryService } from './modules/categories/service.js';
 import type { Env } from './config/index.js';
 import { inMemoryEventBus, type EventBus } from './platform/event-bus.js';
 
@@ -188,6 +189,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     }),
     ...createIntegrations(core),
     books: createBooksService(core),
+    categories: createCategoryService({ db: core.db }),
     conversations: createConversationService(core.db),
     aiAdmin: createAiAdminService({ db: core.db, ai: core.ai, clock: core.clock }),
     ...createAssistants(core),

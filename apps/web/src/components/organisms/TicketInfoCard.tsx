@@ -15,7 +15,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /** The ticket's details, as the requester may see them (no priority or assignee). */
 export function TicketInfoCard({ ticket: t }: { ticket: AuthorTicket }) {
-  const cat = categoryStyle(t.category);
+  const cat = categoryStyle(t.category, t.categoryLabel);
   const channel = channelStyle(t.channel);
   return (
     <Card className="p-4">

@@ -1,7 +1,8 @@
-import type { BookStage, Priority, TicketCategory, TicketStatus } from './enums.js';
+import type { BookStage, LegacyTicketCategory, Priority, TicketStatus } from './enums.js';
 
 /** Human-readable labels. Kept next to the enums so UI and API messages always agree. */
-export const CATEGORY_LABELS: Record<TicketCategory, string> = {
+/** Labels of BookLeaf's seed categories; a workspace's own labels come from its category list. */
+export const LEGACY_CATEGORY_LABELS: Record<LegacyTicketCategory, string> = {
   ROYALTY_PAYMENTS: 'Royalty & Payments',
   ISBN_METADATA: 'ISBN & Metadata Issues',
   PRINTING_QUALITY: 'Printing & Quality',

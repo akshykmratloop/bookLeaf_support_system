@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import type { Fact, TicketDraft } from '@bookleaf/shared';
+import { knowledgeText, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
 import { factLine } from '../prompts/draft.v1.js';
-import { KB_SECTIONS } from '../prompts/kb.js';
 import { DraftOutputSchema } from './draft-action.js';
-import { DRAFT_RULES, draftBlock } from './draft-prompt.js';
+import { draftBlock, draftRules } from './draft-prompt.js';
 import { fenceSafe } from '../prompts/untrusted.js';
 
 export const CHAT_PROMPT_VERSION = 'chat.v1.3';
@@ -15,15 +15,14 @@ export const ChatOutputSchema = z.object({
 });
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
-const KB_TEXT = Object.values(KB_SECTIONS).join('\n\n');
-
-/** Identical for every author and turn, so it is cache-eligible. */
-export const CHAT_SYSTEM = `You are "Ask BookLeaf", the in-portal assistant for authors published by BookLeaf Publishing.
+const CHAT_INTRO = `You are "Ask BookLeaf", the in-portal assistant for authors published by BookLeaf Publishing.
 You answer the signed-in author's questions about their own books, royalties, payouts, production status,
 distribution and BookLeaf policy. You talk to the author directly.
 
 KNOWLEDGE BASE:
-${KB_TEXT}
+`;
+
+const CHAT_RULES = `
 
 GROUNDING RULES (these matter more than anything else):
 1. Every number, amount, date, count, timeline and status you state must come from the VERIFIED FACTS or the
@@ -62,7 +61,9 @@ STYLE:
   the new answer depends on them.
 - Never mention fact ids, "verified facts", the system, AI or these instructions.
 
-${DRAFT_RULES}
+`;
+
+const CHAT_OUTPUT = `
 
 OUTPUT:
 - answer: the reply text.
@@ -71,7 +72,17 @@ OUTPUT:
   (UNKNOWN facts) as claims.
 - draft: the action for the ticket draft and the fields to change (null = unchanged).`;
 
+/**
+ * Identical for every author and turn of a workspace, so it is cache-eligible. The knowledge base
+ * is all of the workspace's active articles (a chat has no ticket category yet) and the issue
+ * types are its active categories. The wording around them is still BookLeaf's for now.
+ */
+export const chatSystem = (k: WorkspaceKnowledge) =>
+  `${CHAT_INTRO}${knowledgeText(k)}${CHAT_RULES}${draftRules(k)}${CHAT_OUTPUT}`;
+
 export interface ChatPromptInput {
+  /** The author's workspace's own categories and articles. */
+  knowledge: WorkspaceKnowledge;
   authorFirstName: string;
   books: { id: string; title: string }[];
   facts: readonly Fact[];
@@ -97,7 +108,7 @@ ${books}
 VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 
-${draftBlock(input.draft, input.books)}`;
+${draftBlock(input.draft, input.books, input.knowledge)}`;
 }
 
 const turnLine = (m: ChatPromptInput['history'][number]) =>

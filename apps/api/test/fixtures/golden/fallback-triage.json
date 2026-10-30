@@ -1,0 +1,186 @@
+{
+  "brief-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "brief-02": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "brief-03": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "brief-04": {
+    "category": "PRINTING_QUALITY",
+    "priority": "MEDIUM"
+  },
+  "brief-05": {
+    "category": "DISTRIBUTION_AVAILABILITY",
+    "priority": "MEDIUM"
+  },
+  "brief-06": {
+    "category": "BOOK_STATUS_PRODUCTION",
+    "priority": "MEDIUM"
+  },
+  "brief-07": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "seed-below-threshold": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "seed-overdue": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "seed-book-paid-author-not": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "seed-cover-approval": {
+    "category": "BOOK_STATUS_PRODUCTION",
+    "priority": "MEDIUM"
+  },
+  "seed-amazon-us": {
+    "category": "DISTRIBUTION_AVAILABILITY",
+    "priority": "MEDIUM"
+  },
+  "amb-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "amb-02": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "amb-03": {
+    "category": "DISTRIBUTION_AVAILABILITY",
+    "priority": "MEDIUM"
+  },
+  "order-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "order-02": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "general-01": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "isbn-02": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "isbn-03": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "print-02": {
+    "category": "PRINTING_QUALITY",
+    "priority": "MEDIUM"
+  },
+  "prod-02": {
+    "category": "BOOK_STATUS_PRODUCTION",
+    "priority": "MEDIUM"
+  },
+  "inject-01": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "inject-02": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "wrong-amount": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "legal-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "hinglish-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "hinglish-02": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "hinglish-03": {
+    "category": "PRINTING_QUALITY",
+    "priority": "MEDIUM"
+  },
+  "hinglish-04": {
+    "category": "BOOK_STATUS_PRODUCTION",
+    "priority": "MEDIUM"
+  },
+  "hinglish-05": {
+    "category": "DISTRIBUTION_AVAILABILITY",
+    "priority": "MEDIUM"
+  },
+  "hinglish-06": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "hinglish-07": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  },
+  "hinglish-08": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "hindi-01": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "hindi-02": {
+    "category": "ISBN_METADATA",
+    "priority": "HIGH"
+  },
+  "hindi-03": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "hindi-04": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "hindi-05": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "hindi-06": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "adversarial-01": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "adversarial-02": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "adversarial-03": {
+    "category": "GENERAL_INQUIRY",
+    "priority": "LOW"
+  },
+  "adversarial-04": {
+    "category": "DISTRIBUTION_AVAILABILITY",
+    "priority": "MEDIUM"
+  },
+  "adversarial-05": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "MEDIUM"
+  },
+  "adversarial-06": {
+    "category": "ROYALTY_PAYMENTS",
+    "priority": "HIGH"
+  }
+}

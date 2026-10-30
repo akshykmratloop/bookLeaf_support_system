@@ -1,12 +1,10 @@
-import type { TicketCategory } from '@bookleaf/shared';
-
-/** The brief's sample query → expected response guidance, one or two per category. */
+/** BookLeaf's sample queries → expected response guidance, by BookLeaf category key (publishing pack). */
 interface Example {
   query: string;
   guidance: string;
 }
 
-export const EXAMPLES: Record<TicketCategory, Example[]> = {
+export const EXAMPLES: Readonly<Record<string, readonly Example[]>> = {
   ROYALTY_PAYMENTS: [
     {
       query:
@@ -58,8 +56,9 @@ export const EXAMPLES: Record<TicketCategory, Example[]> = {
   ],
 };
 
-export function examplesText(category: TicketCategory): string {
-  return EXAMPLES[category]
+/** A BookLeaf category an admin added later has no built-in examples. */
+export function examplesText(category: string | null): string {
+  return (EXAMPLES[category ?? ''] ?? [])
     .map((e, i) => `Example ${i + 1}\nAuthor: ${e.query}\nHow to respond: ${e.guidance}`)
     .join('\n\n');
 }

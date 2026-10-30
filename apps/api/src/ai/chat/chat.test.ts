@@ -3,15 +3,19 @@ import { booksOf, sampleCustomer } from '../../../test/fixtures/host.js';
 import { allFacts } from '../../host/facts.js';
 import { AiAuthError, AiUnavailableError } from '../providers/errors.js';
 import { fakeProvider } from '../providers/fake/provider.js';
-import { TICKET_CATEGORIES } from '@bookleaf/shared';
-import { CHAT_SYSTEM, chatContext, chatUserMessage, splitHistory } from './prompt.v1.js';
+import { LEGACY_TICKET_CATEGORIES } from '@bookleaf/shared';
+import { bookleafKnowledge } from '../../modules/categories/bookleaf-knowledge.js';
+import { chatContext, chatSystem, chatUserMessage, splitHistory } from './prompt.v1.js';
 import { answerChat, SAFE_FALLBACK_TEXT } from './service.js';
 
 const NO_DRAFT = { action: 'none', category: null, bookId: null, subject: null, description: null };
+const knowledge = bookleafKnowledge();
+const CHAT_SYSTEM = chatSystem(knowledge);
 
 function chatInput(authorId: string, message: string) {
   const customer = sampleCustomer(authorId);
   return {
+    knowledge,
     authorFirstName: customer.name.split(' ')[0] ?? customer.name,
     books: booksOf(customer),
     facts: allFacts(customer),
@@ -236,6 +240,7 @@ describe('chat prompt: reading follow-ups in context', () => {
 
   it('puts the publishing exchange, not the payout one, right before a short "why"', () => {
     const text = chatUserMessage({
+      knowledge,
       authorFirstName: 'Priya',
       books: [],
       facts: [],
@@ -292,7 +297,7 @@ describe('chat prompt: the shared ticket draft', () => {
   });
 
   it('lists every issue type and requires asking before sending', () => {
-    for (const c of TICKET_CATEGORIES) expect(CHAT_SYSTEM).toContain(c);
+    for (const c of LEGACY_TICKET_CATEGORIES) expect(CHAT_SYSTEM).toContain(c);
     expect(CHAT_SYSTEM).toContain('Shall I send it?');
     expect(CHAT_SYSTEM).toContain(
       'Use "submit" only when the draft status is AWAITING_CONFIRMATION',

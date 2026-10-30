@@ -5,11 +5,11 @@ import {
   FIELD_SOURCES,
   MESSAGE_KINDS,
   PRIORITIES,
-  TICKET_CATEGORIES,
   TICKET_SOURCES,
   TICKET_STATUSES,
 } from '../enums.js';
 import { cleanText } from '../sanitize.js';
+import { CategoryKeySchema } from './categories.js';
 
 export const SUBJECT_LIMITS = { min: 5, max: 150 } as const;
 export const DESCRIPTION_LIMITS = { min: 20, max: 4000 } as const;
@@ -55,7 +55,9 @@ export const AuthorTicketSchema = z.object({
   subject: z.string(),
   description: z.string(),
   status: z.enum(TICKET_STATUSES),
-  category: z.enum(TICKET_CATEGORIES).nullable(),
+  /** The workspace category's key and label (null: not categorised yet). */
+  category: z.string().nullable(),
+  categoryLabel: z.string().nullable(),
   /** Where the ticket was raised: the ticket form, a chat or a call. */
   channel: z.enum(TICKET_SOURCES),
   lastActivity: LastActivitySchema,
@@ -81,7 +83,8 @@ export const AdminTicketListItemSchema = z.object({
   number: z.string(),
   subject: z.string(),
   status: z.enum(TICKET_STATUSES),
-  category: z.enum(TICKET_CATEGORIES).nullable(),
+  category: z.string().nullable(),
+  categoryLabel: z.string().nullable(),
   categorySource: z.enum(FIELD_SOURCES).nullable(),
   priority: z.enum(PRIORITIES),
   prioritySource: z.enum(FIELD_SOURCES),
@@ -121,7 +124,7 @@ export type AdminTicket = z.infer<typeof AdminTicketSchema>;
 
 export const TicketListQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
-  category: z.enum(TICKET_CATEGORIES).optional(),
+  category: CategoryKeySchema.optional(),
   priority: z.enum(PRIORITIES).optional(),
   assignee: z.enum(['me', 'unassigned']).optional(),
   from: z.iso.date().optional(),
@@ -136,7 +139,8 @@ export const UpdateTicketRequestSchema = z
   .object({
     version: z.int().min(0),
     status: z.enum(TICKET_STATUSES).optional(),
-    category: z.enum(TICKET_CATEGORIES).optional(),
+    /** One of the workspace's active categories. */
+    category: CategoryKeySchema.optional(),
     priority: z.enum(PRIORITIES).optional(),
     assigneeId: z.uuid().nullable().optional(),
   })

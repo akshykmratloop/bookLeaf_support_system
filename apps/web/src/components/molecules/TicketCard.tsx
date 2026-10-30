@@ -12,7 +12,7 @@ import { Pill } from '../atoms/Pill';
 export function TicketCard({ ticket }: { ticket: AuthorTicketListItem }) {
   const authorPaths = useAuthorPaths();
   const status = requesterStatus(ticket);
-  const cat = categoryStyle(ticket.category);
+  const cat = categoryStyle(ticket.category, ticket.categoryLabel);
   const channel = channelStyle(ticket.channel);
   const last = ticket.lastActivity;
   return (

@@ -2,7 +2,6 @@ import type {
   AuthorTicket,
   LastActivity,
   MessageKind,
-  TicketCategory,
   TicketSource,
   TicketStatus,
 } from '@bookleaf/shared';
@@ -18,7 +17,8 @@ export interface PublicMessage {
 
 interface TicketFacts {
   status: TicketStatus;
-  category: TicketCategory | null;
+  categoryKey: string | null;
+  category: { label: string } | null;
   source: TicketSource;
   description: string;
   createdAt: Date;
@@ -36,7 +36,7 @@ export const lastConversationMessage = (messages: readonly PublicMessage[]) =>
 
 type RequesterFields = Pick<
   AuthorTicket,
-  'category' | 'channel' | 'lastActivity' | 'awaitingYou' | 'canSolve'
+  'category' | 'categoryLabel' | 'channel' | 'lastActivity' | 'awaitingYou' | 'canSolve'
 >;
 
 /** The requester view's status fields: who spoke last, whether it is the author's turn. */
@@ -51,7 +51,8 @@ export function requesterFields(t: TicketFacts, last: PublicMessage | null): Req
       }
     : { from: 'YOU', at: t.createdAt.toISOString(), preview: previewOf(t.description) };
   return {
-    category: t.category,
+    category: t.categoryKey,
+    categoryLabel: t.category?.label ?? null,
     channel: t.source,
     lastActivity,
     awaitingYou: open && fromTeam,

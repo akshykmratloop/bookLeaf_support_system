@@ -1,0 +1,10 @@
+KNOWLEDGE BASE (only the sections relevant to this ticket):
+Distribution & Availability
+- Books are listed on Amazon India, Flipkart, Amazon US, Amazon UK and the BookLeaf Store.
+- New listings typically go live within 7–10 business days after publication is complete.
+- A book showing as unavailable on a platform usually indicates a stock sync issue; BookLeaf's team can trigger a re-sync within 24–48 hours.
+
+RESPONSE GUIDANCE FROM BOOKLEAF:
+Example 1
+Author: My book is published but it's showing as 'Currently Unavailable' on Amazon.
+How to respond: Explain this is typically a stock sync issue. Confirm a re-sync is being triggered with the distribution team. Expect 24–48 hours for it to go live again.

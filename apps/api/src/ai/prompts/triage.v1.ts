@@ -1,34 +1,33 @@
 import { z } from 'zod';
-import { PRIORITIES, TICKET_CATEGORIES } from '@bookleaf/shared';
+import { PRIORITIES } from '@bookleaf/shared';
+import type { WorkspaceKnowledge } from '../knowledge/knowledge.js';
+import { genericTriageSystem } from './triage-generic.js';
 
 export const TRIAGE_PROMPT_VERSION = 'triage.v1';
 
 /**
- * What the model must return. Kept free of length constraints so the provider's structured
- * output mode accepts it; limits are applied in code after parsing.
+ * What the model must return: one of this workspace's category keys. Kept free of length
+ * constraints so the provider's structured output mode accepts it; limits are applied in code.
  */
-export const TriageOutputSchema = z.object({
-  category: z.enum(TICKET_CATEGORIES),
-  priority: z.enum(PRIORITIES),
-  priorityReasons: z.array(z.string()),
-  needsInfo: z.array(z.string()),
-  confidence: z.enum(['high', 'medium', 'low']),
-});
-export type TriageOutput = z.infer<typeof TriageOutputSchema>;
+export function triageOutputSchema(categoryKeys: readonly [string, ...string[]]) {
+  return z.object({
+    category: z.enum(categoryKeys),
+    priority: z.enum(PRIORITIES),
+    priorityReasons: z.array(z.string()),
+    needsInfo: z.array(z.string()),
+    confidence: z.enum(['high', 'medium', 'low']),
+  });
+}
+export type TriageOutput = z.infer<ReturnType<typeof triageOutputSchema>>;
 
-/** Identical for every ticket, so the provider can cache it. */
-export const TRIAGE_SYSTEM = `You are the triage assistant for BookLeaf Publishing's author support team (India and US).
+/** BookLeaf's own triage wording (publishing pack). Its category lines come from the workspace. */
+const BOOKLEAF_HEAD = `You are the triage assistant for BookLeaf Publishing's author support team (India and US).
 You read one support ticket from an author and decide its category and priority. A human operations
 agent reviews your decision, so be accurate and explain your reasons briefly.
 
-CATEGORIES (choose exactly one):
-- ROYALTY_PAYMENTS: royalty amounts, missing or late payouts, payout dates, royalty calculation, bank transfer of royalties.
-- ISBN_METADATA: wrong, duplicate or mismatched ISBN; book metadata such as title, description, author name, price shown on a platform.
-- PRINTING_QUALITY: physical print defects (blurry images, misaligned pages, binding, colour), author copies, reprints, print turnaround.
-- DISTRIBUTION_AVAILABILITY: book missing, "currently unavailable" or not listed on Amazon India, Flipkart, Amazon US, Amazon UK or the BookLeaf Store.
-- BOOK_STATUS_PRODUCTION: where a not-yet-published book is in production (editing, cover design, typesetting, proofreading, ISBN assignment, printing, distribution setup) and when it will be done.
-- GENERAL_INQUIRY: anything else (packages, account, bio, how-to questions).
-When a ticket mixes topics, choose the one that needs action first (money and data errors beat questions).
+`;
+
+const BOOKLEAF_TAIL = `When a ticket mixes topics, choose the one that needs action first (money and data errors beat questions).
 
 PRIORITY (choose exactly one):
 - CRITICAL: money has been lost or withheld for a long time (for example no royalty for 6+ months), a live book shows another
@@ -52,6 +51,13 @@ OUTPUT FIELDS:
 - needsInfo: 0–3 things the team must ask the author or check before answering (for example "order number of the defective copies").
   Empty when nothing is missing.
 - confidence: "high" when the category is obvious, "medium" when two categories fit, "low" when the text is vague.`;
+
+/** Same for every ticket of a workspace, so the provider can cache it. */
+export function triageSystem(k: WorkspaceKnowledge): string {
+  if (!k.publishingPack) return genericTriageSystem(k);
+  const lines = k.categories.map((c) => `- ${c.key}: ${c.description}`).join('\n');
+  return `${BOOKLEAF_HEAD}CATEGORIES (choose exactly one):\n${lines}\n${BOOKLEAF_TAIL}`;
+}
 
 export interface TriagePromptInput {
   subject: string;

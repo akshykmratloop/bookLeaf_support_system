@@ -36,11 +36,14 @@ function deploy(): void {
   );
 }
 
-/** The migrations folder as it was before F-13 (or with it, once `withF13`). */
+/**
+ * The migrations folder as it was before F-13 (or every migration, once `withF13`). Later
+ * migrations wait too, so none of them runs before the F-13 columns it may need exist.
+ */
 function stageMigrations(withF13: boolean): void {
   const from = join(apiRoot, 'prisma', 'migrations');
   for (const name of readdirSync(from)) {
-    if (name === F13 && !withF13) continue;
+    if (!withF13 && name >= F13 && name !== 'migration_lock.toml') continue;
     cpSync(join(from, name), join(work, 'migrations', name), { recursive: true });
   }
 }

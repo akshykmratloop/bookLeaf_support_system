@@ -70,8 +70,9 @@ behaves exactly as today.
 | `workspace_connectors` | How we fetch customer data | `base_url`, `api_key_enc`, `api_key_hint`, `signing_secret_enc`, `signing_secret_hint`, `sign_in_url`, `timeout_ms`, `cache_seconds`, `last_test_at`, `last_test_ok`, `version` |
 | `customer_fields` | The tenant's customer-data schema (fact definitions) | `key` (e.g. `account.total_pending`, `item.{id}.status`), `label`, `type` MONEY / DATE / TEXT / STATUS / NUMBER, `description` (shown to the AI), `allowed_values` (STATUS), `visible_to_customer`, `position` |
 | `workspace_settings` | Per-workspace switches and limits | AI: `triage_model`, `draft_model`, `chat_model`, `tone_guide`, `system_prompt_extra`; chat: `chat_enabled`, `messages_per_minute`, `messages_per_day`, `max_turns`; voice: `voice_enabled`, `voice_name`, `max_call_seconds`, `calls_per_hour`, `calls_per_day`; widget: `allowed_origins[]`, `brand_name`, `brand_color`, `customer_noun`, `item_noun`; `version` |
-| `ticket_categories` | Tenant categories | `key`, `label`, `description` (for triage), `kb_section_keys[]`, `default_priority`, `sla_hours`, `position`, `is_active` |
-| `knowledge_articles` | Knowledge base | `key`, `title`, `body`, `category_keys[]`, `is_active` |
+| `ticket_categories` | Tenant categories (S.9, built) | `key` (UPPER_SNAKE_CASE, unique per workspace, fixed once created), `label`, `description` (for triage), `default_priority`, `sla_hours` (nullable; the sooner of it and the priority's target wins), `position`, `is_active`. Deactivated, never deleted; the last active one cannot be deactivated |
+| `knowledge_articles` | Knowledge base (S.9, built) | `title`, `body`, `position`, `is_active`; links in `knowledge_article_categories (workspace_id, article_id, category_key)`, both foreign keys include `workspace_id`. Drafts get only the active articles linked to the ticket's category; chat/voice get every active article |
+| `tickets.category_key`, `ticket_drafts.category_key` | Link to the workspace category (S.9) | FK `(workspace_id, category_key)` → `ticket_categories`; backfilled from the old enum `category`, which stays unused until a later release drops it |
 | `workspace_api_keys` | Server-to-server keys | `name`, `prefix` (shown), `key_hash` (sha256), `scopes[]`, `last_used_at`, `revoked_at` |
 | `audit_events` (existing) | Config and ticket changes | + `workspace_id` |
 | existing tenant tables | `users`, `authors`, `books`, `tickets`, `chat_sessions`, `voice_sessions`, `ticket_drafts` | + `workspace_id` (required after backfill) |
@@ -157,7 +158,7 @@ test: 10 per workspace per minute. API keys: sha256 hashed, prefix shown, compar
 | 2 | Self-serve signup API + page | ✅ | Email verification, invitations, member management UI |
 | 3 | Envelope crypto, connector table, admin endpoints + UI + test-connection, SSRF guard, per-workspace `HostRecords` | ✅ | KMS-backed master key, key rotation job |
 | 4 | Customer-data schema (customer fields) API + UI; BookLeaf fields as seed | ✅ API + UI | Fact validation driven by field definitions; triage rules per field |
-| 5 | Workspace settings (AI models, tone, chat/voice switches + limits, voice name, widget origins + branding) API + UI | ✅ API + UI | Wire every reader (chat/voice limits, prompts) to the workspace row; categories and KB CRUD replacing the hard-coded enum |
+| 5 | Workspace settings (AI models, tone, chat/voice switches + limits, voice name, widget origins + branding) API + UI | ✅ API + UI | Readers wired (S.7). Categories and KB CRUD replacing the hard-coded enum: ✅ S.9 (category-only selection). Later: RAG with pgvector; generic chat/voice wording for non-BookLeaf workspaces; drop the old `category` enum columns |
 | 6 | Generic wording in new surfaces ("customer", "item") | ✅ new surfaces | Rename old routes behind aliases |
 | 7 | Workspace API keys + audit log of config changes | ✅ keys + audit + UI | Endpoints that accept the keys, webhooks |
 

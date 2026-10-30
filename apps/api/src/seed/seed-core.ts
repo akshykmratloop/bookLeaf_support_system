@@ -10,6 +10,7 @@ import {
 } from '../modules/workspaces/constants.js';
 import { BOOKLEAF_FIELDS } from '../modules/settings/bookleaf-fields.js';
 import { DEMO_ADMINS } from './demo-accounts.js';
+import { seedBookleafKnowledge } from '../modules/categories/seed.js';
 
 /** BookLeaf's customer-data schema, as the default workspace's editable field rows. */
 async function seedFields(db: Db, workspaceId: string): Promise<void> {
@@ -24,8 +25,8 @@ async function seedFields(db: Db, workspaceId: string): Promise<void> {
 }
 
 /**
- * The support module's own starting data: the support team's admin accounts and the default
- * AI settings. Authors and books are not seeded here: they belong to the host product and
+ * The support module's own starting data: the support team's admin accounts, the default
+ * AI settings and BookLeaf's categories and knowledge base. Authors and books are not seeded here: they belong to the host product and
  * appear when an author first signs in through it. Idempotent (upserts only).
  */
 export async function seedCore(db: Db, adminPassword: string): Promise<{ admins: number }> {
@@ -55,6 +56,7 @@ export async function seedCore(db: Db, adminPassword: string): Promise<{ admins:
     });
   }
   await seedFields(db, workspaceId);
+  await seedBookleafKnowledge(db, workspaceId);
   await db.aiSettings.upsert({
     where: { id: 1 },
     update: {},

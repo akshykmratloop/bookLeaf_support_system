@@ -1,11 +1,5 @@
-import {
-  CATEGORY_LABELS,
-  PRIORITIES,
-  PRIORITY_LABELS,
-  STATUS_LABELS,
-  TICKET_CATEGORIES,
-  TICKET_STATUSES,
-} from '@bookleaf/shared';
+import { PRIORITIES, PRIORITY_LABELS, STATUS_LABELS, TICKET_STATUSES } from '@bookleaf/shared';
+import { useCategoryOptions } from '../../lib/categories';
 import { Input, Select } from '../atoms/Input';
 import { FilterChips } from '../molecules/FilterChips';
 import type { QueueFilterValues } from '../../lib/queueFilters';
@@ -23,6 +17,7 @@ export function QueueFilters({
   onChange: (v: QueueFilterValues) => void;
 }) {
   const set = (k: keyof QueueFilterValues) => (v: string) => onChange({ ...value, [k]: v });
+  const categories = useCategoryOptions().data ?? [];
   return (
     <div className="mb-4 flex flex-col gap-3">
       <FilterChips
@@ -47,9 +42,9 @@ export function QueueFilters({
           onChange={(e) => set('category')(e.target.value)}
         >
           <option value="">All categories</option>
-          {TICKET_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
+          {categories.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
             </option>
           ))}
         </Select>

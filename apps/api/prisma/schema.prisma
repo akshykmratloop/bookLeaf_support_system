@@ -50,6 +50,8 @@ enum TicketStatus {
   CLOSED
 }
 
+/// BookLeaf's original fixed categories. Kept only for the old `category` columns until they are
+/// dropped (S.9 expand → backfill → contract); categories now live in `ticket_categories`.
 enum TicketCategory {
   ROYALTY_PAYMENTS
   ISBN_METADATA
@@ -198,6 +200,8 @@ model Workspace {
   apiKeys       WorkspaceApiKey[]
   providerKeys  WorkspaceProviderKey[]
   webhooks      WorkspaceWebhook[]
+  categories    Category[]
+  articles      KnowledgeArticle[]
 
   @@map("workspaces")
 }
@@ -410,7 +414,10 @@ model Ticket {
   subject         String
   description     String
   status          TicketStatus    @default(OPEN)
-  category        TicketCategory?
+  /// Old fixed category (S.9 expand step): no longer read or written; dropped in a later release.
+  legacyCategory  TicketCategory? @map("category")
+  /// The workspace category's key (S.9); keys never change once created.
+  categoryKey     String?         @map("category_key")
   categorySource  FieldSource?    @map("category_source")
   aiConfidence    Float?          @map("ai_confidence")
   priority        Priority        @default(MEDIUM)
@@ -436,6 +443,7 @@ model Ticket {
   chatSession  ChatSession?    @relation(fields: [chatSessionId], references: [id])
   voiceSession VoiceSession?   @relation(fields: [voiceSessionId], references: [id])
   book         Book?           @relation(fields: [bookId], references: [id])
+  category     Category?       @relation(fields: [workspaceId, categoryKey], references: [workspaceId, key], onDelete: Restrict, onUpdate: Restrict)
   assignee     User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
   messages     TicketMessage[]
   aiJobs       AiJob[]
@@ -448,6 +456,7 @@ model Ticket {
   @@index([workspaceId, status, priority, slaDueAt])
   @@index([status, priority, slaDueAt])
   @@index([authorId, createdAt])
+  @@index([workspaceId, categoryKey])
   @@map("tickets")
 }
 
@@ -666,27 +675,31 @@ model VoiceSession {
 /// The ticket an author and the assistant prepare together in a chat conversation or call thread.
 /// Exactly one of chatSessionId / voiceThreadId is set (CHECK constraint in the migration).
 model TicketDraft {
-  id            String            @id @default(uuid()) @db.Uuid
-  workspaceId   String            @map("workspace_id") @db.Uuid
-  authorId      String            @map("author_id") @db.Uuid
-  chatSessionId String?           @unique @map("chat_session_id") @db.Uuid
-  voiceThreadId String?           @unique @map("voice_thread_id") @db.Uuid
-  category      TicketCategory?
-  bookId        String?           @map("book_id") @db.Uuid
-  subject       String            @default("")
-  description   String            @default("")
-  status        TicketDraftStatus @default(OPEN)
-  version       Int               @default(0)
-  lastEditedBy  DraftEditor       @default(ASSISTANT) @map("last_edited_by")
-  ticketId      String?           @unique @map("ticket_id") @db.Uuid
-  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id             String            @id @default(uuid()) @db.Uuid
+  workspaceId    String            @map("workspace_id") @db.Uuid
+  authorId       String            @map("author_id") @db.Uuid
+  chatSessionId  String?           @unique @map("chat_session_id") @db.Uuid
+  voiceThreadId  String?           @unique @map("voice_thread_id") @db.Uuid
+  /// Old fixed category (S.9 expand step): no longer read or written; dropped in a later release.
+  legacyCategory TicketCategory?   @map("category")
+  /// The workspace category's key (S.9).
+  categoryKey    String?           @map("category_key")
+  bookId         String?           @map("book_id") @db.Uuid
+  subject        String            @default("")
+  description    String            @default("")
+  status         TicketDraftStatus @default(OPEN)
+  version        Int               @default(0)
+  lastEditedBy   DraftEditor       @default(ASSISTANT) @map("last_edited_by")
+  ticketId       String?           @unique @map("ticket_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   workspace   Workspace    @relation(fields: [workspaceId], references: [id])
   author      Author       @relation(fields: [authorId], references: [id])
   chatSession ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
   book        Book?        @relation(fields: [bookId], references: [id])
   ticket      Ticket?      @relation(fields: [ticketId], references: [id])
+  category    Category?    @relation(fields: [workspaceId, categoryKey], references: [workspaceId, key], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([authorId])
   @@map("ticket_drafts")
@@ -762,4 +775,66 @@ model WebhookDelivery {
   @@index([status, nextAttemptAt])
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
+}
+
+/// A workspace's own ticket category (S.9). The key is fixed once created: tickets, drafts and
+/// knowledge articles link to it by (workspace_id, key). Categories are deactivated, never deleted.
+model Category {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  key             String
+  label           String
+  /// Shown to the AI triage: what belongs in this category.
+  description     String
+  defaultPriority Priority @default(MEDIUM) @map("default_priority")
+  /// First-response target in hours; null = the priority's target alone.
+  slaHours        Int?     @map("sla_hours")
+  position        Int      @default(0)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace    Workspace                  @relation(fields: [workspaceId], references: [id])
+  tickets      Ticket[]
+  ticketDrafts TicketDraft[]
+  articles     KnowledgeArticleCategory[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, position])
+  @@map("ticket_categories")
+}
+
+/// One knowledge-base article of a workspace (S.9). AI drafts get only the active articles linked
+/// to the ticket's category; the chat assistant gets all of the workspace's active articles.
+model KnowledgeArticle {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  title       String
+  body        String
+  position    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workspace  Workspace                  @relation(fields: [workspaceId], references: [id])
+  categories KnowledgeArticleCategory[]
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId, position])
+  @@map("knowledge_articles")
+}
+
+/// Which categories an article belongs to. Both foreign keys include the workspace, so an article
+/// can never be linked to another workspace's category.
+model KnowledgeArticleCategory {
+  workspaceId String @map("workspace_id") @db.Uuid
+  articleId   String @map("article_id") @db.Uuid
+  categoryKey String @map("category_key")
+
+  article  KnowledgeArticle @relation(fields: [workspaceId, articleId], references: [workspaceId, id], onDelete: Cascade)
+  category Category         @relation(fields: [workspaceId, categoryKey], references: [workspaceId, key], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([articleId, categoryKey])
+  @@index([workspaceId, categoryKey])
+  @@map("knowledge_article_categories")
 }

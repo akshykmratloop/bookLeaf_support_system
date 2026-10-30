@@ -17,6 +17,7 @@ export type TicketRow = Ticket & {
   author: { id: string; user: Person };
   assignee: Person | null;
   workspace: { ticketPrefix: string };
+  category: { label: string } | null;
 };
 
 const iso = (d: Date) => d.toISOString();
@@ -74,7 +75,8 @@ export function toAdminListItem(t: TicketRow): AdminTicketListItem {
     number: labelOf(t),
     subject: t.subject,
     status: t.status,
-    category: t.category,
+    category: t.categoryKey,
+    categoryLabel: t.category?.label ?? null,
     categorySource: t.categorySource,
     priority: t.priority,
     prioritySource: t.prioritySource,

@@ -1,7 +1,9 @@
 import { z } from 'zod';
-import type { Fact, TicketCategory } from '@bookleaf/shared';
+import type { Fact } from '@bookleaf/shared';
+import { knowledgeTextFor, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
+import { BOOKLEAF_TONE_TEXT } from './bookleaf-tone.js';
+import { genericDraftContext, genericDraftSystem } from './draft-generic.js';
 import { examplesText } from './examples.js';
-import { KB_SECTIONS, kbTextFor } from './kb.js';
 import { fenceSafe } from './untrusted.js';
 
 export const DRAFT_PROMPT_VERSION = 'draft.v1.1';
@@ -12,11 +14,11 @@ export const DraftOutputSchema = z.object({
 });
 export type DraftOutput = z.infer<typeof DraftOutputSchema>;
 
-/** Identical for every ticket (cache-eligible): role, tone, grounding rules, output format. */
+/** BookLeaf's draft system prompt (publishing pack): role, tone, grounding rules, output format. */
 export const DRAFT_SYSTEM = `You write reply drafts for BookLeaf Publishing's author support team. A human support agent reviews,
 edits and sends every reply, so write the reply exactly as the agent would send it to the author.
 
-${KB_SECTIONS.tone}
+${BOOKLEAF_TONE_TEXT}
 
 GROUNDING RULES (these matter more than anything else):
 1. Every number, amount, date, count, timeline and status you state must come from the VERIFIED FACTS list or the
@@ -46,8 +48,14 @@ OUTPUT:
 - claims: one entry per factual statement in the body: quote = the exact words from the body, factIds = the ids of the
   VERIFIED FACTS that support it. Statements that only restate knowledge-base policy may cite the kb.* fact ids.`;
 
+/** Identical for every ticket of a workspace (cache-eligible). */
+export const draftSystem = (k: WorkspaceKnowledge) =>
+  k.publishingPack ? DRAFT_SYSTEM : genericDraftSystem(k);
+
 export interface DraftPromptInput {
-  category: TicketCategory;
+  /** The ticket's category key; null only when the workspace has no active category. */
+  category: string | null;
+  knowledge: WorkspaceKnowledge;
   authorFirstName: string;
   bookTitle: string | null;
   facts: readonly Fact[];
@@ -74,10 +82,16 @@ export function factLine(f: Fact): string {
   return `- ${f.id} | ${f.label} | ${f.display} | ${src}`;
 }
 
-/** Category-specific context: only this category's KB slice and examples. */
+/**
+ * Category-specific context: only the workspace's articles linked to this ticket's category
+ * (S.9, category-only selection) plus, for BookLeaf, its built-in response examples.
+ */
 export function draftContext(input: DraftPromptInput): string {
+  const kb = input.category ? knowledgeTextFor(input.knowledge, input.category) : '';
+  if (!input.knowledge.publishingPack)
+    return genericDraftContext(kb) + toneSection(input.toneGuide);
   return `KNOWLEDGE BASE (only the sections relevant to this ticket):
-${kbTextFor(input.category)}
+${kb}
 
 RESPONSE GUIDANCE FROM BOOKLEAF:
 ${examplesText(input.category)}${toneSection(input.toneGuide)}`;

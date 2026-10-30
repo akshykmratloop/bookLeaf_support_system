@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PRIORITIES, TICKET_CATEGORIES, TICKET_STATUSES } from '../enums.js';
+import { PRIORITIES, TICKET_STATUSES } from '../enums.js';
 
 /** Ticket events a workspace's server can be told about. */
 export const WEBHOOK_EVENTS = [
@@ -59,7 +59,8 @@ export const ServerTicketSchema = z.object({
   id: z.string(),
   number: z.string(),
   status: z.enum(TICKET_STATUSES),
-  category: z.enum(TICKET_CATEGORIES).nullable(),
+  /** The workspace category's key. */
+  category: z.string().nullable(),
   priority: z.enum(PRIORITIES),
   subject: z.string(),
   customerId: z.string(),

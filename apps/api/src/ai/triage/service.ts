@@ -1,14 +1,17 @@
-import type { Priority, TicketCategory } from '@bookleaf/shared';
+import type { Priority } from '@bookleaf/shared';
 import type { RoyaltyStatus } from '@bookleaf/shared';
+import { categoryKeysOf, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
 import {
   TRIAGE_PROMPT_VERSION,
-  TRIAGE_SYSTEM,
-  TriageOutputSchema,
+  triageOutputSchema,
+  type TriageOutput,
+  triageSystem,
   triageUserMessage,
 } from '../prompts/triage.v1.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
 import { classifyByKeywords } from './fallback-classifier.js';
 import { higherPriority, priorityFloor } from './rules.js';
+import { NoCategoriesError } from '../providers/errors.js';
 
 export interface TriageInput {
   subject: string;
@@ -19,7 +22,8 @@ export interface TriageInput {
 }
 
 export interface TriageDecision {
-  category: TicketCategory;
+  /** One of the workspace's active category keys (null only when it has none). */
+  category: string | null;
   priority: Priority;
   priorityReasons: string[];
   needsInfo: string[];
@@ -56,25 +60,14 @@ const tidy = (items: string[]) =>
     .filter(Boolean);
 const ticketText = (i: TriageInput) => `${i.subject}\n${i.description}`;
 
-/** Calls the model. Throws AiError subclasses; the job worker decides whether to retry or fall back. */
-export async function runAiTriage(
-  provider: LlmProvider,
-  model: string,
-  input: TriageInput,
-): Promise<AiTriageRun> {
-  const result = await provider.generateStructured({
-    task: 'TRIAGE',
-    model,
-    stableSystem: TRIAGE_SYSTEM,
-    user: triageUserMessage({
-      ...input,
-      royaltyRecord: input.royaltyStatus ? ROYALTY_RECORD[input.royaltyStatus] : null,
-    }),
-    schema: TriageOutputSchema,
-    maxTokens: 400,
-    effort: 'low',
-  });
-  const out = result.data;
+/** The workspace's category keys as a non-empty tuple, or null when it has no active category. */
+function keysOf(k: WorkspaceKnowledge): [string, ...string[]] | null {
+  const [first, ...rest] = categoryKeysOf(k);
+  return first === undefined ? null : [first, ...rest];
+}
+
+/** The model's answer with the business-rule priority floor applied on top. */
+function aiDecision(input: TriageInput, out: TriageOutput): TriageDecision {
   const floor = priorityFloor({
     text: ticketText(input),
     category: out.category,
@@ -83,7 +76,7 @@ export async function runAiTriage(
   const priority = higherPriority(out.priority, floor.floor);
   const confidence = CONFIDENCE[out.confidence];
   const raisedByRules = priority !== out.priority;
-  const decision: TriageDecision = {
+  return {
     category: out.category,
     priority,
     priorityReasons: tidy([...floor.reasons, ...out.priorityReasons]),
@@ -92,14 +85,41 @@ export async function runAiTriage(
     source: 'AI',
     needsReview: confidence < REVIEW_BELOW || raisedByRules,
   };
+}
+
+/**
+ * Calls the model with the workspace's own categories. Throws AiError subclasses; the job worker
+ * decides whether to retry or fall back. A workspace with no active category gets the fallback.
+ */
+export async function runAiTriage(
+  provider: LlmProvider,
+  model: string,
+  input: TriageInput,
+  knowledge: WorkspaceKnowledge,
+): Promise<AiTriageRun> {
+  const keys = keysOf(knowledge);
+  if (!keys) throw new NoCategoriesError();
+  const result = await provider.generateStructured({
+    task: 'TRIAGE',
+    model,
+    stableSystem: triageSystem(knowledge),
+    user: triageUserMessage({
+      ...input,
+      royaltyRecord: input.royaltyStatus ? ROYALTY_RECORD[input.royaltyStatus] : null,
+    }),
+    schema: triageOutputSchema(keys),
+    maxTokens: 400,
+    effort: 'low',
+  });
+  const decision = aiDecision(input, result.data);
   const { data: _data, ...run } = result;
   return { decision, run, promptVersion: TRIAGE_PROMPT_VERSION };
 }
 
 /** No AI: keyword category + rules floor. Always flagged for human review. */
-export function fallbackTriage(input: TriageInput): TriageDecision {
+export function fallbackTriage(input: TriageInput, knowledge: WorkspaceKnowledge): TriageDecision {
   const text = ticketText(input);
-  const guess = classifyByKeywords(text);
+  const guess = classifyByKeywords(text, knowledge);
   const floor = priorityFloor({
     text,
     category: guess.category,

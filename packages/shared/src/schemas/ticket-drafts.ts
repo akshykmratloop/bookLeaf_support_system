@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { TICKET_CATEGORIES } from '../enums.js';
 import { cleanText } from '../sanitize.js';
+import { CategoryKeySchema } from './categories.js';
 import { DESCRIPTION_LIMITS, SUBJECT_LIMITS } from './tickets.js';
 
 export const TICKET_DRAFT_STATUSES = ['OPEN', 'AWAITING_CONFIRMATION', 'SUBMITTED'] as const;
@@ -12,7 +12,8 @@ export type DraftEditor = (typeof DRAFT_EDITORS)[number];
 /** The ticket the author and the assistant prepare together, shown in the side panel. */
 export const TicketDraftSchema = z.object({
   id: z.uuid(),
-  category: z.enum(TICKET_CATEGORIES).nullable(),
+  /** A key of the workspace's categories (null: not chosen). */
+  category: z.string().nullable(),
   bookId: z.uuid().nullable(),
   subject: z.string(),
   description: z.string(),
@@ -32,7 +33,7 @@ export type TicketDraft = z.infer<typeof TicketDraftSchema>;
  */
 export const EditTicketDraftSchema = z
   .object({
-    category: z.enum(TICKET_CATEGORIES).nullable().optional(),
+    category: CategoryKeySchema.nullable().optional(),
     bookId: z.uuid().nullable().optional(),
     subject: cleanText(0, SUBJECT_LIMITS.max).optional(),
     description: cleanText(0, DESCRIPTION_LIMITS.max).optional(),

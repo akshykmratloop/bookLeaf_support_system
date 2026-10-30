@@ -7,6 +7,7 @@ import { hashPassword } from '../auth/password.js';
 import { loginEmailOf } from '../auth/service.js';
 import { toWorkspaceDto } from './mappers.js';
 import { freePrefixFor } from './ticket-prefix.js';
+import { createStarterCategory } from '../categories/seed.js';
 
 const SLUG_TAKEN = () =>
   new ConflictError('SLUG_TAKEN', 'That workspace name is already taken. Try another.');
@@ -58,6 +59,7 @@ async function insertWorkspace(tx: Prisma.TransactionClient, o: NewOwner) {
     data: { slug: o.input.slug, name: o.input.workspaceName, ticketPrefix, createdAt: o.now },
   });
   const user = await createOwner(tx, workspace.id, o);
+  await createStarterCategory(tx, workspace.id);
   await tx.auditEvent.create({
     data: {
       workspaceId: workspace.id,

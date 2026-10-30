@@ -6,7 +6,11 @@ export type Role = (typeof ROLES)[number];
 export const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-export const TICKET_CATEGORIES = [
+/**
+ * BookLeaf's original fixed categories. Categories are now per workspace (`ticket_categories`,
+ * S.9); these keys remain BookLeaf's seed categories and the values of the old enum column.
+ */
+export const LEGACY_TICKET_CATEGORIES = [
   'ROYALTY_PAYMENTS',
   'ISBN_METADATA',
   'PRINTING_QUALITY',
@@ -14,7 +18,7 @@ export const TICKET_CATEGORIES = [
   'BOOK_STATUS_PRODUCTION',
   'GENERAL_INQUIRY',
 ] as const;
-export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
+export type LegacyTicketCategory = (typeof LEGACY_TICKET_CATEGORIES)[number];
 
 export const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
 export type Priority = (typeof PRIORITIES)[number];

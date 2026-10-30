@@ -1,11 +1,13 @@
 import { royaltySignals } from '../domain/signals.js';
+import { fallbackCategory } from '../knowledge/knowledge.js';
 import type { TicketContext } from '../jobs/context.js';
 import type { DraftInput } from './types.js';
 
 /** One builder for draft generation and send-time checks, so both judge against the same facts. */
 export function draftInputFromContext(ctx: TicketContext): DraftInput {
   return {
-    category: ctx.ticket.category ?? 'GENERAL_INQUIRY',
+    category: ctx.ticket.categoryKey ?? fallbackCategory(ctx.knowledge)?.key ?? null,
+    knowledge: ctx.knowledge,
     authorName: ctx.authorName,
     book: ctx.book,
     facts: ctx.facts,

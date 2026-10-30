@@ -1,9 +1,10 @@
-import { PRIORITY_RANK, type Priority, type TicketCategory } from '@bookleaf/shared';
+import { PRIORITY_RANK, type Priority } from '@bookleaf/shared';
 import type { RoyaltyStatus } from '@bookleaf/shared';
 
 export interface FloorInput {
   text: string;
-  category: TicketCategory;
+  /** The workspace category key (null: not categorised). */
+  category: string | null;
   royaltyStatus: RoyaltyStatus | null;
 }
 

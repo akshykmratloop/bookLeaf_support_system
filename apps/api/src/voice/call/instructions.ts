@@ -1,13 +1,19 @@
 import type { Fact, TicketDraft, TranscriptLine } from '@bookleaf/shared';
-import { ISSUE_TYPES, draftBlock } from '../../ai/chat/draft-prompt.js';
+import { draftBlock } from '../../ai/chat/draft-prompt.js';
+import {
+  issueTypesText,
+  knowledgeText,
+  type WorkspaceKnowledge,
+} from '../../ai/knowledge/knowledge.js';
 import { factLine } from '../../ai/prompts/draft.v1.js';
-import { KB_SECTIONS } from '../../ai/prompts/kb.js';
 import { personaBlock, type VoiceStyle } from './persona.js';
 import { CONFIRM_TICKET, END_CALL, SUBMIT_TICKET, UPDATE_TICKET_DRAFT } from './tool-defs.js';
 
 export const VOICE_PROMPT_VERSION = 'voice.v3';
 
 export interface VoiceInstructionsInput {
+  /** The author's workspace's own categories (issue types) and articles (knowledge base). */
+  knowledge: WorkspaceKnowledge;
   authorFirstName: string;
   books: { id: string; title: string }[];
   facts: readonly Fact[];
@@ -68,16 +74,16 @@ RULES:
 ${TICKET_RULES}
 
 ISSUE TYPES (id | label):
-${ISSUE_TYPES}
+${issueTypesText(input.knowledge)}
 
 BOOKS (id | title):
 ${books}
 
-${draftBlock(input.draft, input.books)}
+${draftBlock(input.draft, input.books, input.knowledge)}
 
 VERIFIED FACTS (id | label | value | source):
 ${input.facts.map(factLine).join('\n')}
 
 KNOWLEDGE BASE:
-${Object.values(KB_SECTIONS).join('\n\n')}${earlierBlock(input.earlier, input.earlierFrom)}`;
+${knowledgeText(input.knowledge)}${earlierBlock(input.earlier, input.earlierFrom)}`;
 }

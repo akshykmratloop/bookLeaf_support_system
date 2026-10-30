@@ -3,6 +3,7 @@ import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { customerOrNull, factsFor, RECORDS_UNAVAILABLE } from '../../host/facts.js';
 import type { HostRecords } from '../../host/types.js';
+import { loadWorkspaceKnowledge } from '../../modules/categories/load-knowledge.js';
 
 export interface ContextDeps {
   db: Db;
@@ -38,6 +39,7 @@ export async function loadTicketContext(deps: ContextDeps, ticketId: string) {
     ? { externalId: ticket.book.externalId, title: ticket.book.title }
     : null;
   const facts: Fact[] = await ticketFacts(deps, ticket.author, book?.externalId ?? null);
+  const knowledge = await loadWorkspaceKnowledge(deps.db, ticket.workspaceId);
   const authorMessages = [
     ticket.description,
     ...ticket.messages.filter((m) => m.kind === 'AUTHOR').map((m) => m.body),
@@ -51,6 +53,8 @@ export async function loadTicketContext(deps: ContextDeps, ticketId: string) {
     facts,
     authorMessages,
     lastReply,
+    /** The ticket's workspace's own categories and articles (S.9). */
+    knowledge,
   };
 }
 

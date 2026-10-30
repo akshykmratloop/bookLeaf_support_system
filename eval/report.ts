@@ -122,7 +122,7 @@ scenario, so this is not an independent held-out test. A separate, independently
     count(rs, (r) => r.rulesPriorityOk),
     rs.length,
   )} |
-| Category macro-F1 | ${macroF1(rs, (r) => r.ai?.category).toFixed(3)} | ${macroF1(rs, (r) => r.rules.category).toFixed(3)} |
+| Category macro-F1 | ${macroF1(rs, (r) => r.ai?.category ?? undefined).toFixed(3)} | ${macroF1(rs, (r) => r.rules.category ?? undefined).toFixed(3)} |
 | Errors (no result) | ${count(rs, (r) => r.error !== null)} | 0 |
 
 Latency of AI calls: p50 ${percentile(latencies, 50)} ms · p95 ${percentile(latencies, 95)} ms (single run, sequential, local machine).

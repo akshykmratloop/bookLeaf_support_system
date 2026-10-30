@@ -1,4 +1,5 @@
-import { DESCRIPTION_LIMITS, SUBJECT_LIMITS, TICKET_CATEGORIES } from '@bookleaf/shared';
+import { DESCRIPTION_LIMITS, SUBJECT_LIMITS } from '@bookleaf/shared';
+import { categoryKeysOf, type WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
 import type { VoiceTool } from '../providers/types.js';
 
 export const UPDATE_TICKET_DRAFT = 'update_ticket_draft';
@@ -11,31 +12,31 @@ export const DRAFT_TOOLS = new Set([UPDATE_TICKET_DRAFT, CONFIRM_TICKET, SUBMIT_
 
 const nullableString = (description: string) => ({ type: ['string', 'null'], description });
 
-export const VOICE_TOOLS: VoiceTool[] = [
-  {
-    name: UPDATE_TICKET_DRAFT,
-    description:
-      'Fill in or change the ticket draft the author sees on screen. Pass only the fields to change; the author can also edit them. Nothing is sent.',
-    parameters: {
-      type: 'object',
-      properties: {
-        category: {
-          type: ['string', 'null'],
-          enum: [...TICKET_CATEGORIES, null],
-          description: 'Issue type id from ISSUE TYPES.',
-        },
-        book_id: nullableString(
-          'The id of the book from BOOKS; leave out for account-level issues.',
-        ),
-        subject: nullableString(
-          `Short subject, ${SUBJECT_LIMITS.min} to ${SUBJECT_LIMITS.max} characters.`,
-        ),
-        description: nullableString(
-          `What the author needs, written as the author, ${DESCRIPTION_LIMITS.min} to ${DESCRIPTION_LIMITS.max} characters, verified figures only.`,
-        ),
+/** Fills in the draft; the issue types are the workspace's own active category keys. */
+const updateDraftTool = (k: WorkspaceKnowledge): VoiceTool => ({
+  name: UPDATE_TICKET_DRAFT,
+  description:
+    'Fill in or change the ticket draft the author sees on screen. Pass only the fields to change; the author can also edit them. Nothing is sent.',
+  parameters: {
+    type: 'object',
+    properties: {
+      category: {
+        type: ['string', 'null'],
+        enum: [...categoryKeysOf(k), null],
+        description: 'Issue type id from ISSUE TYPES.',
       },
+      book_id: nullableString('The id of the book from BOOKS; leave out for account-level issues.'),
+      subject: nullableString(
+        `Short subject, ${SUBJECT_LIMITS.min} to ${SUBJECT_LIMITS.max} characters.`,
+      ),
+      description: nullableString(
+        `What the author needs, written as the author, ${DESCRIPTION_LIMITS.min} to ${DESCRIPTION_LIMITS.max} characters, verified figures only.`,
+      ),
     },
   },
+});
+
+const STATIC_TOOLS: VoiceTool[] = [
   {
     name: CONFIRM_TICKET,
     description:
@@ -54,4 +55,10 @@ export const VOICE_TOOLS: VoiceTool[] = [
       'End the call. Use it when the author says goodbye or the conversation is finished. Say a short goodbye first.',
     parameters: { type: 'object', properties: {} },
   },
+];
+
+/** The call's tools, for the author's workspace. */
+export const voiceTools = (k: WorkspaceKnowledge): VoiceTool[] => [
+  updateDraftTool(k),
+  ...STATIC_TOOLS,
 ];

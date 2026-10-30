@@ -55,7 +55,7 @@ describe('AI pipeline with a working provider', () => {
     await h.drain();
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
     expect(t).toMatchObject({
-      category: 'ROYALTY_PAYMENTS',
+      categoryKey: 'ROYALTY_PAYMENTS',
       categorySource: 'AI',
       prioritySource: 'AI',
       aiState: 'DONE',
@@ -110,7 +110,7 @@ describe('AI pipeline with a working provider', () => {
     await h.drain();
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
     expect(t).toMatchObject({
-      category: 'ISBN_METADATA',
+      categoryKey: 'ISBN_METADATA',
       categorySource: 'ADMIN',
       priority: 'LOW',
       prioritySource: 'ADMIN',
@@ -142,7 +142,7 @@ describe('AI failures degrade gracefully', () => {
     ]);
     const t = await h.db.ticket.findUniqueOrThrow({ where: { id } });
     expect(t).toMatchObject({
-      category: 'ROYALTY_PAYMENTS',
+      categoryKey: 'ROYALTY_PAYMENTS',
       categorySource: 'RULES',
       aiState: 'FALLBACK',
       needsReview: true,

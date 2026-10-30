@@ -23,12 +23,12 @@ export const linesOf = (transcript: unknown): TranscriptLine[] => {
 interface DraftFields {
   subject: string;
   description: string;
-  category: string | null;
+  categoryKey: string | null;
 }
 
 /** Whether a call left anything worth continuing: the author spoke, or a draft was started. */
 function worthContinuing(transcript: unknown, draft: DraftFields | null): boolean {
-  const drafted = Boolean(draft && (draft.subject || draft.description || draft.category));
+  const drafted = Boolean(draft && (draft.subject || draft.description || draft.categoryKey));
   return drafted || linesOf(transcript).some((l) => l.role === 'AUTHOR');
 }
 

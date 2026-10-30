@@ -23,7 +23,7 @@ export function TicketDetailPage() {
     return <ErrorState error={ticket.error} onRetry={() => void ticket.refetch()} />;
   const t = ticket.data;
   const status = requesterStatus(t);
-  const cat = categoryStyle(t.category);
+  const cat = categoryStyle(t.category, t.categoryLabel);
   return (
     <div className="flex flex-col gap-4">
       <Link

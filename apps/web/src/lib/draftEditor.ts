@@ -1,10 +1,11 @@
-import type { EditTicketDraft, TicketCategory, TicketDraft } from '@bookleaf/shared';
+import type { EditTicketDraft, TicketDraft } from '@bookleaf/shared';
 
 export type DraftField = 'category' | 'bookId' | 'subject' | 'description';
 const FIELDS: DraftField[] = ['category', 'bookId', 'subject', 'description'];
 
 export interface DraftValues {
-  category: TicketCategory | '';
+  /** A workspace category key ('' = not chosen). */
+  category: string;
   bookId: string;
   subject: string;
   description: string;

@@ -319,7 +319,7 @@ describe('ticket draft from chat', () => {
     expect(tickets[0]).toMatchObject({
       source: 'CHAT',
       subject: 'Royalty statement is low',
-      category: 'ROYALTY_PAYMENTS',
+      categoryKey: 'ROYALTY_PAYMENTS',
     });
     h.setAi(defaultHandler);
   });

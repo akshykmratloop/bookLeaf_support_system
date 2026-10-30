@@ -7,6 +7,7 @@ const SAMPLE: AuthorTicketListItem = {
   subject: 'When will my royalty be paid?',
   status: 'IN_PROGRESS',
   category: 'ROYALTY_PAYMENTS',
+  categoryLabel: 'Royalty & Payments',
   channel: 'CHAT',
   lastActivity: {
     from: 'TEAM',

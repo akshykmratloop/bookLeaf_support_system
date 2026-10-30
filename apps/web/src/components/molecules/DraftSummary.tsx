@@ -1,4 +1,5 @@
-import { CATEGORY_LABELS, type TicketDraft } from '@bookleaf/shared';
+import type { TicketDraft } from '@bookleaf/shared';
+import { labelFor, useCategoryOptions } from '../../lib/categories';
 import { Link } from 'react-router';
 import { Card } from '../atoms/Card';
 import { Pill } from '../atoms/Pill';
@@ -17,6 +18,7 @@ function Field({ label, value }: { label: string; value: string }) {
 export function DraftSummary({ draft }: { draft: TicketDraft }) {
   const authorPaths = useAuthorPaths();
   const sent = draft.ticket;
+  const categories = useCategoryOptions().data;
   return (
     <Card
       className="flex flex-col gap-3 p-4"
@@ -34,7 +36,7 @@ export function DraftSummary({ draft }: { draft: TicketDraft }) {
         )}
       </div>
       <dl className="flex flex-col gap-3">
-        <Field label="Issue type" value={draft.category ? CATEGORY_LABELS[draft.category] : ''} />
+        <Field label="Issue type" value={labelFor(categories, draft.category)} />
         <Field label="Subject" value={draft.subject} />
         <Field label="Description" value={draft.description} />
       </dl>

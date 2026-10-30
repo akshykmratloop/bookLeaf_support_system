@@ -2,7 +2,6 @@ import type { Prisma } from '@prisma/client';
 import {
   type AuthorTicket,
   type CreateTicketRequestSchema,
-  type TicketCategory,
   type TicketSource,
 } from '@bookleaf/shared';
 import type { z } from 'zod';
@@ -25,8 +24,8 @@ export interface TicketOrigin {
   source: TicketSource;
   chatSessionId?: string | null;
   voiceSessionId?: string | null;
-  /** Issue type the author picked; triage keeps it (categorySource AUTHOR). */
-  category?: TicketCategory | null;
+  /** The workspace category key the author picked; triage keeps it (categorySource AUTHOR). */
+  category?: string | null;
   /** Runs inside the creating transaction, e.g. to mark a ticket draft as sent. */
   afterCreate?: (tx: Prisma.TransactionClient, ticketId: string) => Promise<void>;
 }
@@ -68,7 +67,7 @@ function ticketData({ workspaceId, authorId, input, origin, idempotencyKey, now 
   const category = origin.category ?? null;
   const floor = priorityFloor({
     text: `${input.subject}\n${input.description}`,
-    category: category ?? 'GENERAL_INQUIRY',
+    category,
     royaltyStatus: null,
   });
   const priority = higherPriority('MEDIUM', floor.floor);
@@ -78,7 +77,7 @@ function ticketData({ workspaceId, authorId, input, origin, idempotencyKey, now 
     bookId: input.bookId,
     subject: input.subject,
     description: input.description,
-    ...(category ? { category, categorySource: 'AUTHOR' as const } : {}),
+    ...(category ? { categoryKey: category, categorySource: 'AUTHOR' as const } : {}),
     priority,
     prioritySource: 'RULES',
     priorityReasons: floor.reasons,

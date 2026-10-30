@@ -283,12 +283,12 @@ OpenAI's realtime speech API, which is a separate provider behind its own interf
    source: a record field, a policy rule, a calculation, or "unknown". host-demo calculates
    BookLeaf's royalty, payout-threshold, payout-date and production facts. Unknown values are
    marked unknown, never treated as zero.
-2. **Triage** (`claude-haiku-5-5`): one call returns category, priority, reasons and a confidence
+2. **Triage** (`claude-haiku-5-5`): one call, with the company's own categories, returns category, priority, reasons and a confidence
    level. Business rules then set a minimum priority. For example, an ISBN error or a possibly
    overdue payout is at least High. If the model is unsure, or a rule overrides it, the ticket
    shows "Review suggested".
-3. **Reply draft** (`claude-sonnet-5-5`): the prompt holds the tone guide, only this category's
-   knowledge-base section, the facts and the latest author message. The model returns the reply and
+3. **Reply draft** (`claude-sonnet-5-5`): the prompt holds the tone guide, only the company's
+   knowledge-base articles linked to this ticket's category, the facts and the latest author message. The model returns the reply and
    the fact ids behind each claim. Anything not in the facts becomes a `[CONFIRM: …]` placeholder.
 4. **Checker (no AI).** It finds every amount, date, timeline, percentage and count in the text and
    matches it against the facts (₹3,570 = Rs. 3570; 14 Feb 2026 = 2026-02-14). It also blocks
@@ -365,9 +365,16 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - One instance only: the event bus and live calls are in memory.
 - Signed webhooks (`ticket.created`, `ticket.replied`, `ticket.status_changed`) and a server API on workspace API keys
   are built; see the integration guide. The full route list is in `docs/qa/baseline.md`.
-- The parts that describe BookLeaf's business (knowledge base, categories, triage rules,
-  templates) are in the module. A different product would replace them; the integration guide lists
-  the files.
+- **Categories and knowledge base are per company (S.9)**, edited under Categories and Knowledge
+  Base in the staff app. Reply drafts get only the articles linked to the ticket's category (no
+  search or embeddings yet; RAG with pgvector comes later). The author assistant (chat and voice)
+  reads all of the company's active articles, because a conversation has no ticket category yet.
+- **Still BookLeaf-only:** the royalty facts engine, the royalty-figure checker, BookLeaf's keyword
+  fallback, reply examples and fallback templates run only for the default workspace (BookLeaf).
+  Other companies get generic triage and draft wording, but the chat and voice assistant still use
+  BookLeaf's wording around the company's own articles ("generic assistant wording" is a next step).
+- The old fixed `category` columns on tickets and ticket drafts are no longer used and are dropped
+  in a later release (expand → backfill → contract).
 - The evaluation set (46 triage cases incl. Hinglish, Hindi and adversarial; 24 draft cases) was written by the
   developer; results in `docs/qa/ai-benchmark.md`.
 - **Team members come later (S.11).** Staff accounts come only from sign-up or the seed; there is

@@ -3,7 +3,7 @@ import { draftChanged, draftSent, type DraftDeps } from './deps.js';
 import { toTicketDraft } from './mappers.js';
 import { findOwnDraft } from './repository.js';
 
-const EMPTY = { category: null, bookId: null, subject: '', description: '' } as const;
+const EMPTY = { categoryKey: null, bookId: null, subject: '', description: '' } as const;
 
 /**
  * The author threw the draft away. It is emptied, not deleted: a live call and the chat keep

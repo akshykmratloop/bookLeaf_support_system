@@ -16,7 +16,11 @@ import {
   type TriageDecision,
   type TriageInput,
 } from '../apps/api/src/ai/triage/service.js';
+import { bookleafKnowledge } from '../apps/api/src/modules/categories/bookleaf-knowledge.js';
 import { renderReport, type CaseResult, type EvalCase } from './report.js';
+
+/** BookLeaf's categories exactly as its workspace is seeded (the prompt is unchanged by S.9). */
+const BOOKLEAF = bookleafKnowledge();
 
 const root = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -47,7 +51,9 @@ function score(
 ): Pick<CaseResult, 'categoryOk' | 'priorityOk'> {
   if (!d) return { categoryOk: false, priorityOk: false };
   return {
-    categoryOk: d.category === c.category || (c.alsoAccept ?? []).includes(d.category),
+    categoryOk:
+      d.category === c.category ||
+      (d.category !== null && (c.alsoAccept ?? []).includes(d.category)),
     priorityOk: c.priority.includes(d.priority),
   };
 }
@@ -60,13 +66,13 @@ async function main(): Promise<void> {
   const results: CaseResult[] = [];
   for (const c of loadCases()) {
     const input = toInput(c);
-    const rules = fallbackTriage(input);
+    const rules = fallbackTriage(input, BOOKLEAF);
     let ai: TriageDecision | null = null;
     let latencyMs = 0;
     let usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
     let error: string | null = null;
     try {
-      const run = await runAiTriage(provider, model, input);
+      const run = await runAiTriage(provider, model, input, BOOKLEAF);
       ai = run.decision;
       latencyMs = run.run.latencyMs;
       usage = run.run.usage;

@@ -1,11 +1,19 @@
 import type { DraftEditor, TicketDraft } from '@bookleaf/shared';
 import { ValidationError } from '../../platform/errors.js';
+import { assertActiveCategory } from '../categories/load-knowledge.js';
 import { draftSent, type DraftDeps, type DraftPatch } from './deps.js';
 import { toTicketDraft } from './mappers.js';
-import { findOwnDraft } from './repository.js';
+import { findOwnDraft, type TicketDraftRow } from './repository.js';
 
 type Field = 'category' | 'bookId' | 'subject' | 'description';
 const FIELDS: Field[] = ['category', 'bookId', 'subject', 'description'];
+/** API field → column: the category is stored by its workspace category key. */
+const COLUMN = {
+  category: 'categoryKey',
+  bookId: 'bookId',
+  subject: 'subject',
+  description: 'description',
+} as const satisfies Record<Field, keyof TicketDraftRow>;
 
 export interface DraftEdit {
   id: string;
@@ -30,9 +38,10 @@ export async function editDraft(
   const current = await findOwnDraft(deps.db, id, authorId);
   if (current.status === 'SUBMITTED') throw draftSent();
   await assertOwnBook(deps, authorId, patch.bookId);
-  const changed = FIELDS.filter((f) => patch[f] !== undefined && patch[f] !== current[f]);
+  if (patch.category) await assertActiveCategory(deps.db, current.workspaceId, patch.category);
+  const changed = FIELDS.filter((f) => patch[f] !== undefined && patch[f] !== current[COLUMN[f]]);
   if (changed.length === 0) return toTicketDraft(current);
-  const data = Object.fromEntries(changed.map((f) => [f, patch[f]]));
+  const data = Object.fromEntries(changed.map((f) => [COLUMN[f], patch[f]]));
   const res = await deps.db.ticketDraft.updateMany({
     where: { id, status: { not: 'SUBMITTED' } },
     data: { ...data, version: { increment: 1 }, lastEditedBy: by, status: 'OPEN' },

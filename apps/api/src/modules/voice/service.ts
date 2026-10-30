@@ -21,7 +21,10 @@ export function createVoiceService(deps: VoiceDeps) {
     claim: (s: Session, id: string) => claimCall(deps, s, id),
     /** The live call's connection to its ticket draft (same rules as the screen). */
     draftPort: (s: Session, ctx: CallContext) =>
-      draftPort({ drafts: deps.drafts, live: deps.live }, s, ctx.draft, ctx.books),
+      draftPort({ drafts: deps.drafts, live: deps.live }, s, ctx.draft, {
+        books: ctx.books,
+        knowledge: ctx.knowledge,
+      }),
     /** The live call's rules, from its workspace's limits. */
     callLimits: (ctx: CallContext) => callLimits(ctx.limits),
     finish: (

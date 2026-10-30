@@ -4,6 +4,9 @@ import { fakeProvider } from '../providers/fake/provider.js';
 import { classifyByKeywords } from './fallback-classifier.js';
 import { priorityFloor } from './rules.js';
 import { fallbackTriage, runAiTriage, type TriageInput } from './service.js';
+import { bookleafKnowledge } from '../../modules/categories/bookleaf-knowledge.js';
+
+const BOOKLEAF = bookleafKnowledge();
 
 const input = (description: string, extra: Partial<TriageInput> = {}): TriageInput => ({
   subject: 'Help',
@@ -66,11 +69,11 @@ describe('keyword fallback', () => {
     ['Wrong ISBN on my listing', 'ISBN_METADATA'],
     ['Can I update my author bio?', 'GENERAL_INQUIRY'],
   ])('%s → %s', (text, category) => {
-    expect(classifyByKeywords(text).category).toBe(category);
+    expect(classifyByKeywords(text, BOOKLEAF).category).toBe(category);
   });
 
   it('marks fallback results for review with source RULES', () => {
-    const d = fallbackTriage(input('Wrong ISBN on Amazon'));
+    const d = fallbackTriage(input('Wrong ISBN on Amazon'), BOOKLEAF);
     expect(d).toMatchObject({
       category: 'ISBN_METADATA',
       priority: 'HIGH',
@@ -93,6 +96,7 @@ describe('AI triage', () => {
       provider,
       'm',
       input('Where is my royalty?', { royaltyStatus: 'POSSIBLY_OVERDUE' }),
+      BOOKLEAF,
     );
     expect(r.decision).toMatchObject({
       category: 'ROYALTY_PAYMENTS',
@@ -109,6 +113,8 @@ describe('AI triage', () => {
     const provider = fakeProvider(() => {
       throw new AiUnavailableError('down');
     });
-    await expect(runAiTriage(provider, 'm', input('x'))).rejects.toBeInstanceOf(AiUnavailableError);
+    await expect(runAiTriage(provider, 'm', input('x'), BOOKLEAF)).rejects.toBeInstanceOf(
+      AiUnavailableError,
+    );
   });
 });

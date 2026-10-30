@@ -5,7 +5,6 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { TicketCategory } from '@bookleaf/shared';
 import { sampleCustomer } from '../apps/api/test/fixtures/host.js';
 import { factsFor } from '../apps/api/src/host/facts.js';
 import { royaltySignals } from '../apps/api/src/ai/domain/signals.js';
@@ -17,6 +16,7 @@ import {
 } from '../apps/api/src/ai/providers/catalog.js';
 import { runAiDraft } from '../apps/api/src/ai/drafting/service.js';
 import type { DraftInput } from '../apps/api/src/ai/drafting/types.js';
+import { bookleafKnowledge } from '../apps/api/src/modules/categories/bookleaf-knowledge.js';
 import type { EvalCase } from './report.js';
 
 /** A spread of the triage set: every brief and seed case, plus multilingual and hostile ones. */
@@ -41,7 +41,8 @@ function toInput(c: EvalCase): DraftInput {
   const facts = factsFor(customer, c.book);
   const book = customer.items.find((i) => i.id === c.book) ?? null;
   return {
-    category: c.category as TicketCategory,
+    category: c.category,
+    knowledge: bookleafKnowledge(),
     authorName: customer.name,
     book: book ? { externalId: book.id, title: book.title } : null,
     facts,
