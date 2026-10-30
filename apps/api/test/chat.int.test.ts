@@ -83,21 +83,24 @@ describe('admin control', () => {
   });
 
   it('never changes a switch without its audit record (save and audit are one transaction)', async () => {
-    const ghost = await h.container.sessions.sign({
-      userId: '00000000-0000-4000-8000-000000000000',
-      workspaceId: DEFAULT_WORKSPACE_ID,
-      role: 'ADMIN',
-      authorId: null,
-      name: 'Ghost admin',
-      email: 'ghost@bookleaf.demo',
-    });
+    // F-12: a session for a user that does not exist no longer passes the guard, so the audit
+    // insert is made to fail inside the database instead (a real constraint, removed after).
     const byWorkspace = { where: { workspaceId: DEFAULT_WORKSPACE_ID } };
     const before = await h.db.workspaceSettings.findUniqueOrThrow(byWorkspace);
-    const res = await call(h, 'PUT', '/admin/assistant/settings', `bl_session=${ghost}`, {
-      version: before.version,
-      voiceEnabled: !before.voiceEnabled,
-    });
-    expect(res.statusCode).toBe(500);
+    await h.db.$executeRawUnsafe(
+      `ALTER TABLE "audit_events" ADD CONSTRAINT "test_no_settings_audit" CHECK ("action" <> 'workspace_settings.updated') NOT VALID`,
+    );
+    try {
+      const res = await call(h, 'PUT', '/admin/assistant/settings', admin, {
+        version: before.version,
+        voiceEnabled: !before.voiceEnabled,
+      });
+      expect(res.statusCode).toBe(500);
+    } finally {
+      await h.db.$executeRawUnsafe(
+        `ALTER TABLE "audit_events" DROP CONSTRAINT "test_no_settings_audit"`,
+      );
+    }
     const after = await h.db.workspaceSettings.findUniqueOrThrow(byWorkspace);
     expect(after).toMatchObject({ version: before.version, voiceEnabled: before.voiceEnabled });
   });

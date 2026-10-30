@@ -321,6 +321,10 @@ model User {
   /// platform, so email + password names exactly one account. Null for authors, whose email may
   /// exist in several workspaces (F-12).
   loginEmail   String?  @unique @map("login_email")
+  /// Every session token carries the version it was issued with; a token whose version is not
+  /// this one is refused (F-12 part 2). Bumped by logout (app), and by a password change and by
+  /// removal from a workspace (database triggers, see migration 20261030100000_session_version).
+  sessionVersion Int    @default(1) @map("session_version")
   name         String
   role         Role
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

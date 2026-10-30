@@ -29,7 +29,7 @@ import { createWorkspaceConfigs } from './modules/settings/configs.js';
 import { createEmbedOrigins } from './modules/settings/embed-origins.js';
 import { usedTokenIds } from './modules/auth/used-tokens.js';
 import { createAuthService } from './modules/auth/service.js';
-import { createSessionCodec } from './modules/auth/session.js';
+import { createSessions } from './modules/auth/session-versions.js';
 import { createBooksService } from './modules/books/service.js';
 import { createChatService } from './modules/chat/service.js';
 import { createConversationService } from './modules/conversations/service.js';
@@ -85,7 +85,7 @@ function createCore(env: Env, overrides: ContainerOverrides) {
   const db = overrides.db ?? createDb(env.DATABASE_URL);
   const events: EventBus = inMemoryEventBus();
   const { voiceProvider, envelope, keyed, ai } = createProviders(env, db, clock, overrides);
-  const sessions = createSessionCodec(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock);
+  const sessions = createSessions(env.JWT_SECRET, env.SESSION_TTL_HOURS, clock, db);
   const connectors = createConnectorService(connectorDepsFromEnv(env, db, clock));
   const records = overrides.records ?? connectors.records;
   const ticketDeps = { db, clock, events, records };

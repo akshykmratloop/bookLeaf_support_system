@@ -73,9 +73,15 @@ function registerSignIn(app: RouteApp, opts: Opts) {
     '/auth/logout',
     {
       config: { public: true },
-      schema: { tags: ['auth'], summary: 'Sign out', response: { 204: z.null() } },
+      schema: {
+        tags: ['auth'],
+        summary: 'Sign out (ends every session of this user, on all devices)',
+        response: { 204: z.null() },
+      },
     },
-    async (_req, reply) => {
+    async (req, reply) => {
+      const token = req.cookies[SESSION_COOKIE];
+      if (token) await auth.logout(token);
       reply.clearCookie(SESSION_COOKIE, cookie);
       return reply.status(204).send(null);
     },

@@ -330,7 +330,10 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - A staff email has one account on the whole platform (`users.login_email`), so sign-in is
   email + password only. Sign-up refuses an email that already has an account (409). Authors are
   not affected: the same author email can exist in several workspaces.
-- The session is signed and kept in an `httpOnly` cookie.
+- The session is signed and kept in an `httpOnly` cookie. It lasts `SESSION_TTL_HOURS` (default 8,
+  at most 72) and carries the account's session version, which is checked on every request.
+  Signing out, a password change or removal from the workspace ends the account's sessions at
+  once, on every device (signing out on one device signs out the others too).
 - Every API route requires sign-in unless it is marked public.
 - CSRF is blocked by an `Origin` check and JSON-only bodies.
 - Helmet sets a CSP.

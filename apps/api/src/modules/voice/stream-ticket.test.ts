@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { usedTokenIds } from '../auth/used-tokens.js';
-import { createSessionCodec, type Session } from '../auth/session.js';
+import { createSessionTokens, type Session } from '../auth/session.js';
 import { UnauthorizedError } from '../../platform/errors.js';
 import { createStreamTickets, STREAM_TICKET_SECONDS } from './stream-ticket.js';
 
@@ -55,8 +55,8 @@ describe('voice stream tickets', () => {
 
   it('is not interchangeable with the session cookie', async () => {
     const { tickets, clock } = setup();
-    const sessions = createSessionCodec(SECRET, 8, clock);
-    const cookie = await sessions.sign(SESSION);
+    const sessions = createSessionTokens(SECRET, 8, clock);
+    const cookie = await sessions.sign(SESSION, 1);
     await expect(tickets.redeem(cookie, CALL)).rejects.toBeInstanceOf(UnauthorizedError);
     const ticket = await tickets.issue(SESSION, CALL);
     await expect(sessions.verify(ticket)).rejects.toBeInstanceOf(UnauthorizedError);

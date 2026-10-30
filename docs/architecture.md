@@ -435,6 +435,15 @@ shapes are separate Zod schemas per role, so undeclared fields are stripped.
 account (409 `EMAIL_TAKEN`). Authors keep `login_email` NULL, so one author email can exist in
 several workspaces.
 
+**Ending sessions early (F-12).** The session cookie is a signed token that carries the user's
+`users.session_version` (claim `sv`). The auth guard, the live-updates heartbeat and the voice
+socket (when it signs in with the cookie; its one-time 60 s ticket is issued from a checked session) check it against the current value on every request (one primary-key read, no cache), and
+a token with another version gets 401. The version is bumped by logout (in the app; only if the
+token's version is still current, so an old cookie cannot sign out newer sessions), by a change of
+`password_hash` and by deleting a `workspace_members` row (both through database triggers, so any
+code path or manual SQL counts). Logout therefore signs the user out on every device. There is no
+per-device session table. Tokens issued before this change have no version and are refused once.
+
 CSRF: Origin must equal `APP_ORIGIN` on state-changing requests + JSON-only bodies + a
 `SameSite=Lax` cookie (`SameSite=None; Secure; Partitioned` in embed mode, §15). No CORS headers.
 

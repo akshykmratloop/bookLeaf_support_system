@@ -45,7 +45,7 @@ run (`docs/qa/browser-journeys.md`) and a run of the production Docker image. No
 
 | ID | Risk | Why it waits |
 | --- | --- | --- |
-| F-12 | Email login searches all workspaces, and sessions cannot be revoked before they expire | **Part 1 fixed (2026-10-30):** a staff email has one account on the platform (`users.login_email`, unique); login is email + password and reads exactly one account; sign-up refuses a taken email (409 `EMAIL_TAKEN`). Test: `apps/api/test/staff-login.int.test.ts`. Part 2 (ending sessions early) is still open. |
+| F-12 | Email login searches all workspaces, and sessions cannot be revoked before they expire | **Part 1 fixed (2026-10-30):** a staff email has one account on the platform (`users.login_email`, unique); login is email + password and reads exactly one account; sign-up refuses a taken email (409 `EMAIL_TAKEN`). Test: `apps/api/test/staff-login.int.test.ts`. **Part 2 fixed (2026-10-30):** every session token carries `users.session_version`, checked on every request; logout, a password change and removal from a workspace bump it, so older cookies get 401 (logout signs out every device). Test: `apps/api/test/session-revocation.int.test.ts`. |
 | F-13 | Ticket numbers are one global sequence, so a tenant can estimate other tenants' volume | Needs an expand-and-contract migration. Not safe to rush. |
 | F-18 | `/embed` frame-ancestors is the union of all tenants' origins | Needs per-workspace embed paths. Low practical risk: the page needs a valid host token for that workspace. |
 | F-19 | Replay cache, rate limits and the event bus live in memory | Safe on one instance. Documented in `docs/architecture.md` §21; move to Postgres or Redis before scaling out. |

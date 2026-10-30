@@ -39,6 +39,8 @@ export function createAuthService(db: Db, sessions: SessionCodec) {
       };
       return { user: toAuthUser(session), token: await sessions.sign(session) };
     },
+    /** Signs the user out everywhere: every token issued before stops working (F-12). */
+    logout: (token: string): Promise<void> => sessions.end(token),
   };
 }
 

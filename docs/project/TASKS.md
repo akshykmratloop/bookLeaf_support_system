@@ -253,8 +253,8 @@ together on one branch. S.8 and S.9 above are part of this pass.
 
 | # | Task | Status | SHA |
 | --- | --- | --- | --- |
-| F-12.1 | Staff email unique across the platform (`users.login_email`); login by email + password only; signup refuses an email that already has an account (409) | ✅ | (this commit) |
-| F-12.2 | End sessions early: `users.session_version` checked on every request; bumped on logout, password change and removal from a workspace | 🔄 | |
+| F-12.1 | Staff email unique across the platform (`users.login_email`); login by email + password only; signup refuses an email that already has an account (409) | ✅ | `6decb1d` |
+| F-12.2 | End sessions early: `users.session_version` checked on every request; bumped on logout, password change and removal from a workspace | ✅ | (this commit) |
 | F-13 | Ticket numbers per workspace (`next_ticket_number` from 1001, fixed platform-unique `ticket_prefix`, `@@unique([workspaceId, number])`) | 🔄 | |
 | F-18 | Per-workspace widget address `/embed/<slug>` with that workspace's own `frame-ancestors`; old `/embed` redirects | 🔄 | |
 | F-19 | Shared state on Redis (event bus, host-token replay cache, rate limits, config cache, per-ticket lock); `REDIS_URL` required in production | 🔄 | |
