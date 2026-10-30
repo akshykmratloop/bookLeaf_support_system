@@ -71,7 +71,7 @@ export async function buildCallContext(
     earlierFrom: thread.from,
     style,
   });
-  const { greeting, ...lines } = spokenLines(style);
+  const { greeting, ...lines } = spokenLines(style, knowledge);
   return {
     facts,
     books,

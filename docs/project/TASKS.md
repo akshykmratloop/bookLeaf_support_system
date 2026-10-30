@@ -261,6 +261,7 @@ together on one branch. S.8 and S.9 above are part of this pass.
 | SM.1 | Pin `deepmerge-ts` ≥ 8.0.0 with a pnpm override (Prisma transitive advisory) | ✅ | `497c2d2` |
 | SM.2 | UI polish from the browser run: D2 (field error for a bad widget origin), D5, D6, D7, D8 | ✅ | `14355c8` |
 | SM.3 | Refresh this ledger; README known limitations (S.11 later, signup emails not verified) | ✅ | `d5ab0d8` |
+| RV.1 | Review fixes: SLA follows the ticket's new category (admin PATCH and re-triage, also when only the category changes); removed staff cannot sign in again (login + per-request membership check); chat and voice prompts, the voice greeting and the chat fallback answer use generic wording for non-BookLeaf workspaces (BookLeaf byte-identical, goldens added) | ✅ | (this commit) |
 
 ---
 

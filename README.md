@@ -354,7 +354,8 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - The session is signed and kept in an `httpOnly` cookie. It lasts `SESSION_TTL_HOURS` (default 8,
   at most 72) and carries the account's session version, which is checked on every request.
   Signing out, a password change or removal from the workspace ends the account's sessions at
-  once, on every device (signing out on one device signs out the others too).
+  once, on every device (signing out on one device signs out the others too). A staff account
+  that is no longer a member of its workspace cannot sign in again and gets no new session.
 - Every API route requires sign-in unless it is marked public.
 - CSRF is blocked by an `Origin` check and JSON-only bodies.
 - Helmet sets a CSP.
@@ -369,7 +370,10 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
 - **"Possibly overdue"** means money is pending and either it was never paid although the first
   payout deadline has passed, or there has been no payout for more than one cycle plus 45 days.
   Replies say "our records show no payout yet" and escalate, rather than claim a failed payment.
-- **First-response targets:** Critical 4 h · High 24 h · Medium 48 h · Low 72 h.
+- **First-response targets:** Critical 4 h · High 24 h · Medium 48 h · Low 72 h, or the ticket
+  category's own SLA hours when those are sooner. Until the first reply, the deadline is worked
+  out again whenever an admin or a fresh triage changes the category or the priority, always from
+  the category the ticket ends up in.
 - Attachments are UI-only, as the brief allows.
 
 ## Known limitations
@@ -389,8 +393,9 @@ Status codes: 401 not signed in · 403 wrong role or foreign `Origin` · 404 mis
   reads all of the company's active articles, because a conversation has no ticket category yet.
 - **Still BookLeaf-only:** the royalty facts engine, the royalty-figure checker, BookLeaf's keyword
   fallback, reply examples and fallback templates run only for the default workspace (BookLeaf).
-  Other companies get generic triage and draft wording, but the chat and voice assistant still use
-  BookLeaf's wording around the company's own articles ("generic assistant wording" is a next step).
+  Other companies get generic triage, draft, chat and voice wording with their own name and
+  articles, and no BookLeaf policy. The shared parts of the assistant prompt still call the
+  customer "the author" and their records "books".
 - The old fixed `category` columns on tickets and ticket drafts are no longer used and are dropped
   in a later release (expand → backfill → contract).
 - The evaluation set (46 triage cases incl. Hinglish, Hindi and adversarial; 24 draft cases) was written by the

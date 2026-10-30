@@ -13,6 +13,13 @@ export function toAuthUser(s: Session): AuthUser {
 /** A staff email is unique across the platform (F-12), so it names at most one account. */
 export const loginEmailOf = (email: string): string => email.trim().toLowerCase();
 
+/**
+ * Staff sign in only while they are a member of their workspace (F-12): removing the
+ * workspace_members row ends their sessions and stops them signing in again.
+ */
+const mayStaffSignIn = (user: { workspaceId: string; memberships: { workspaceId: string }[] }) =>
+  user.memberships.some((m) => m.workspaceId === user.workspaceId);
+
 export function createAuthService(db: Db, sessions: SessionCodec) {
   /** Verified against when the email is unknown, so response time does not reveal which emails exist. */
   const dummyHash = hashPassword(randomUUID());
@@ -21,11 +28,12 @@ export function createAuthService(db: Db, sessions: SessionCodec) {
     const user = await asPlatform(() =>
       db.user.findUnique({
         where: { loginEmail: loginEmailOf(input.email) },
-        include: { author: true },
+        include: { author: true, memberships: { select: { workspaceId: true } } },
       }),
     );
-    if (user?.passwordHash && (await verifyPassword(user.passwordHash, input.password)))
-      return user;
+    const passwordOk =
+      !!user?.passwordHash && (await verifyPassword(user.passwordHash, input.password));
+    if (user && passwordOk && mayStaffSignIn(user)) return user;
     if (!user?.passwordHash) await verifyPassword(await dummyHash, input.password);
     return null;
   };

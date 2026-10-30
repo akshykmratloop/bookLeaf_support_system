@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { LEGACY_TICKET_CATEGORIES } from '@bookleaf/shared';
+import { LEGACY_TICKET_CATEGORIES, type TicketDraft } from '@bookleaf/shared';
 import { describe, expect, it } from 'vitest';
 import { sampleCustomer } from '../../../test/fixtures/host.js';
 import { factsFor } from '../../host/facts.js';
 import { bookleafKnowledge } from '../../modules/categories/bookleaf-knowledge.js';
+import { voiceInstructions } from '../../voice/call/instructions.js';
+import { spokenLines, VOICE_STYLES } from '../../voice/call/persona.js';
 import { voiceTools } from '../../voice/call/tool-defs.js';
 import { chatSystem } from '../chat/prompt.v1.js';
 import { royaltySignals, stageOf } from '../domain/signals.js';
@@ -19,6 +21,20 @@ import { fallbackTriage } from '../triage/service.js';
 const golden = (name: string) =>
   readFileSync(new URL(`../../../test/fixtures/golden/${name}`, import.meta.url), 'utf8');
 const BOOKLEAF = bookleafKnowledge();
+const GOLDEN_DIR = '../../../test/fixtures/golden/';
+const VOICE_DRAFT: TicketDraft = {
+  id: '22222222-2222-4222-8222-222222222222',
+  category: null,
+  bookId: null,
+  subject: '',
+  description: '',
+  status: 'OPEN',
+  version: 0,
+  lastEditedBy: 'ASSISTANT',
+  isComplete: false,
+  ticket: null,
+  updatedAt: new Date(0).toISOString(),
+};
 
 const contextFor = (category: string) =>
   draftContext({
@@ -42,6 +58,32 @@ describe('BookLeaf prompts built from its seeded workspace rows', () => {
   it('voice tools offer the same issue types', () => {
     expect(voiceTools(BOOKLEAF)).toEqual(JSON.parse(golden('voice-tools.json')));
   });
+
+  it.each(VOICE_STYLES)(
+    'the %s voice instructions and greetings are byte-identical',
+    async (style) => {
+      const customer = sampleCustomer('AUTH001');
+      const instructions = voiceInstructions({
+        knowledge: BOOKLEAF,
+        authorFirstName: 'Priya',
+        books: customer.items.map((i) => ({ id: i.id, title: i.title })),
+        facts: factsFor(customer, null),
+        maxMinutes: 5,
+        draft: VOICE_DRAFT,
+        earlier: [{ role: 'AUTHOR', text: 'Where is my payout?', at: new Date(0).toISOString() }],
+        earlierFrom: 'chat',
+        style,
+      });
+      await expect(instructions).toMatchFileSnapshot(
+        GOLDEN_DIR + `voice-instructions-${style}.txt`,
+      );
+      const { greeting } = spokenLines(style, BOOKLEAF);
+      const said = [greeting.new('Priya'), greeting.resumed('Priya'), greeting.chat('Priya')];
+      await expect(said.join('\n') + '\n').toMatchFileSnapshot(
+        GOLDEN_DIR + `voice-greetings-${style}.txt`,
+      );
+    },
+  );
 
   it.each(LEGACY_TICKET_CATEGORIES.filter((c) => c !== 'BOOK_STATUS_PRODUCTION'))(
     'the %s draft context is byte-identical',

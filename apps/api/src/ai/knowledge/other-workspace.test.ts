@@ -1,7 +1,11 @@
+import type { TicketDraft } from '@bookleaf/shared';
 import { describe, expect, it } from 'vitest';
 import { BOOKLEAF_ARTICLES } from '../../modules/categories/bookleaf-knowledge.js';
+import { voiceInstructions } from '../../voice/call/instructions.js';
+import { personaBlock, spokenLines, VOICE_STYLES } from '../../voice/call/persona.js';
 import { voiceTools } from '../../voice/call/tool-defs.js';
 import { chatSystem } from '../chat/prompt.v1.js';
+import { safeFallbackText } from '../chat/service.js';
 import { toDraftAction } from '../chat/draft-action.js';
 import { templateDraft } from '../drafting/service.js';
 import type { DraftInput } from '../drafting/types.js';
@@ -48,6 +52,29 @@ const BOOKLEAF_TEXT = [
 ];
 const expectNoBookleaf = (text: string) => {
   for (const phrase of BOOKLEAF_TEXT) expect(text).not.toContain(phrase);
+};
+/**
+ * For whole assistant prompts, which list Acme's own issue types: BookLeaf's article title
+ * "General" is also part of Acme's own "General Inquiry" label, so it is not a leak there.
+ */
+const expectNoBookleafPrompt = (text: string) => {
+  const own = (phrase: string) => ACME.categories.some((c) => c.label.includes(phrase));
+  for (const phrase of BOOKLEAF_TEXT.filter((p) => !own(p))) expect(text).not.toContain(phrase);
+  for (const a of BOOKLEAF_ARTICLES) expect(text).not.toContain(a.body.slice(0, 40));
+};
+
+const DRAFT: TicketDraft = {
+  id: '22222222-2222-4222-8222-222222222222',
+  category: null,
+  bookId: null,
+  subject: '',
+  description: '',
+  status: 'OPEN',
+  version: 0,
+  lastEditedBy: 'ASSISTANT',
+  isComplete: false,
+  ticket: null,
+  updatedAt: new Date(0).toISOString(),
 };
 
 const ticket = { subject: 'Charged twice', bookTitle: null, bookStage: null, royaltyStatus: null };
@@ -170,4 +197,37 @@ describe('another workspace (Acme) gets only its own categories and articles', (
     });
     expect(toDraftAction({ ...out, category: 'BILLING' }, choices).patch.category).toBe('BILLING');
   });
+
+  it("the chat assistant speaks as Acme's assistant, with no BookLeaf wording or policy", () => {
+    const system = chatSystem(ACME);
+    expectNoBookleafPrompt(system);
+    expect(system).toContain("Acme Corp's");
+    expect(system).not.toMatch(/total pending across all books/);
+    expectNoBookleaf(safeFallbackText(ACME));
+    expect(safeFallbackText(ACME)).toContain("Acme Corp's guidelines");
+  });
+
+  it.each(VOICE_STYLES)(
+    'the %s voice call has no BookLeaf wording, persona or greeting',
+    (style) => {
+      const instructions = voiceInstructions({
+        knowledge: ACME,
+        authorFirstName: 'Sam',
+        books: [],
+        facts: [],
+        maxMinutes: 5,
+        draft: DRAFT,
+        earlier: [],
+        earlierFrom: 'call',
+        style,
+      });
+      expectNoBookleafPrompt(instructions);
+      expect(instructions).toContain("Acme Corp's voice support assistant");
+      expectNoBookleaf(personaBlock(style, ACME));
+      const { greeting } = spokenLines(style, ACME);
+      for (const line of [greeting.new('Sam'), greeting.resumed('Sam'), greeting.chat('Sam')])
+        expectNoBookleaf(line);
+      expect(greeting.new('Sam')).toContain('Acme Corp');
+    },
+  );
 });

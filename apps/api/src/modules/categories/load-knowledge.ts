@@ -46,16 +46,23 @@ export async function loadWorkspaceKnowledge(
   };
 }
 
-/** A category key someone chose for a ticket must be one of the workspace's active categories. */
+/**
+ * A category key someone chose for a ticket must be one of the workspace's active categories.
+ * Returns the category's own SLA hours (null = none), so the caller can work out the deadline.
+ */
 export async function assertActiveCategory(
   db: Db,
   workspaceId: string,
   key: string,
   path = 'category',
-): Promise<void> {
-  const found = await db.category.count({ where: { workspaceId, key, isActive: true } });
+): Promise<{ slaHours: number | null }> {
+  const found = await db.category.findFirst({
+    where: { workspaceId, key, isActive: true },
+    select: { slaHours: true },
+  });
   if (!found)
     throw new ValidationError('Choose one of the workspace’s active categories.', [
       { path, message: 'Not an active category of this workspace' },
     ]);
+  return found;
 }

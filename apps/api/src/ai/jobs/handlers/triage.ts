@@ -26,18 +26,31 @@ function triageInput(ctx: TicketContext): TriageInput {
   };
 }
 
-/** The category and priority part of a decision, leaving whatever an admin or author chose. */
+/** The category after a decision: an admin's or author's choice stays. */
+function categoryAfter(t: TicketContext['ticket'], d: TriageDecision) {
+  const keep = t.categorySource === 'ADMIN' || t.categorySource === 'AUTHOR';
+  return { keep, key: keep ? t.categoryKey : (d.category ?? t.categoryKey) };
+}
+
+/**
+ * The category and priority part of a decision, leaving whatever an admin or author chose. The
+ * first-response deadline follows the ticket's category and priority afterwards (S.9): it moves
+ * when either changes, so a new category's hours apply even when an admin set the priority.
+ */
 function fieldChanges(ctx: TicketContext, d: TriageDecision): Prisma.TicketUncheckedUpdateInput {
   const t = ctx.ticket;
-  const keepCategory = t.categorySource === 'ADMIN' || t.categorySource === 'AUTHOR';
-  const categoryKey = keepCategory ? t.categoryKey : (d.category ?? t.categoryKey);
+  const category = categoryAfter(t, d);
+  const keepPriority = t.prioritySource === 'ADMIN';
   const data: Prisma.TicketUncheckedUpdateInput = {};
-  if (!keepCategory && d.category)
+  if (!category.keep && d.category)
     Object.assign(data, { categoryKey: d.category, categorySource: d.source });
-  if (t.prioritySource === 'ADMIN') return data;
-  Object.assign(data, { priority: d.priority, prioritySource: d.source });
-  const categorySla = categoryOf(ctx.knowledge, categoryKey)?.slaHours;
-  if (!t.firstResponseAt) data.slaDueAt = slaDueAt(t.createdAt, d.priority, categorySla);
+  if (!keepPriority) Object.assign(data, { priority: d.priority, prioritySource: d.source });
+  const slaMoves = !keepPriority || category.key !== t.categoryKey;
+  if (slaMoves && !t.firstResponseAt) {
+    const priority = keepPriority ? t.priority : d.priority;
+    const categorySla = categoryOf(ctx.knowledge, category.key)?.slaHours;
+    data.slaDueAt = slaDueAt(t.createdAt, priority, categorySla);
+  }
   return data;
 }
 

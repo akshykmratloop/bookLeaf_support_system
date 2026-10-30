@@ -20,16 +20,23 @@ function statusChange(current: Current, input: UpdateTicketRequest, now: Date) {
   return { status: input.status, resolvedAt: closed ? now : null };
 }
 
-function priorityChange(current: Current, input: UpdateTicketRequest) {
+function priorityChange(input: UpdateTicketRequest) {
   if (!input.priority) return {};
-  return {
-    priority: input.priority,
-    prioritySource: 'ADMIN' as const,
-    needsReview: false,
-    ...(current.firstResponseAt
-      ? {}
-      : { slaDueAt: slaDueAt(current.createdAt, input.priority, current.category?.slaHours) }),
-  };
+  return { priority: input.priority, prioritySource: 'ADMIN' as const, needsReview: false };
+}
+
+/** The category a PATCH moves the ticket to, with its SLA hours; null when it stays put. */
+type CategoryMove = { key: string; slaHours: number | null } | null;
+
+/**
+ * The first-response deadline follows the ticket's priority and category after the change (S.9),
+ * so it moves when either changes, until the first reply is sent.
+ */
+function slaChange(current: Current, input: UpdateTicketRequest, move: CategoryMove) {
+  if (current.firstResponseAt || (!move && !input.priority)) return {};
+  const priority = input.priority ?? current.priority;
+  const hours = move ? move.slaHours : current.category?.slaHours;
+  return { slaDueAt: slaDueAt(current.createdAt, priority, hours) };
 }
 
 /** Admins can only take a ticket themselves or unassign it. */
@@ -46,18 +53,29 @@ function assigneeChange(input: UpdateTicketRequest, session: Session) {
 /** Builds the change set. Admin choices are marked ADMIN so the AI never overwrites them. */
 function changesFor(
   current: Current,
-  input: UpdateTicketRequest,
-  session: Session,
-  now: Date,
+  u: { input: UpdateTicketRequest; move: CategoryMove; session: Session; now: Date },
 ): Prisma.TicketUncheckedUpdateManyInput {
+  const { input, move } = u;
   return {
-    ...statusChange(current, input, now),
+    ...statusChange(current, input, u.now),
     ...(input.category
       ? { categoryKey: input.category, categorySource: 'ADMIN' as const, needsReview: false }
       : {}),
-    ...priorityChange(current, input),
-    ...assigneeChange(input, session),
+    ...priorityChange(input),
+    ...slaChange(current, input, move),
+    ...assigneeChange(input, u.session),
   };
+}
+
+/** Checks a new category is one of the workspace's active ones and reads its SLA hours. */
+async function categoryMove(
+  deps: TicketDeps,
+  current: Current,
+  input: UpdateTicketRequest,
+): Promise<CategoryMove> {
+  if (!input.category || input.category === current.categoryKey) return null;
+  const { slaHours } = await assertActiveCategory(deps.db, current.workspaceId, input.category);
+  return { key: input.category, slaHours };
 }
 
 const snapshot = (t: Current) => ({
@@ -110,10 +128,9 @@ export async function updateTicket(
   input: UpdateTicketRequest,
 ): Promise<AdminTicket> {
   const current = await findTicketOrThrow(deps.db, session, id);
-  if (input.category && input.category !== current.categoryKey)
-    await assertActiveCategory(deps.db, current.workspaceId, input.category);
+  const move = await categoryMove(deps, current, input);
   const now = deps.clock.now();
-  const data = changesFor(current, input, session, now);
+  const data = changesFor(current, { input, move, session, now });
   await deps.db.$transaction(async (tx) => {
     const res = await tx.ticket.updateMany({
       where: { id, version: input.version },

@@ -5,6 +5,7 @@ import { factLine } from '../prompts/draft.v1.js';
 import { DraftOutputSchema } from './draft-action.js';
 import { draftBlock, draftRules } from './draft-prompt.js';
 import { fenceSafe } from '../prompts/untrusted.js';
+import { genericChatIntro, genericChatRules } from './prompt-generic.js';
 
 export const CHAT_PROMPT_VERSION = 'chat.v1.3';
 
@@ -75,10 +76,13 @@ OUTPUT:
 /**
  * Identical for every author and turn of a workspace, so it is cache-eligible. The knowledge base
  * is all of the workspace's active articles (a chat has no ticket category yet) and the issue
- * types are its active categories. The wording around them is still BookLeaf's for now.
+ * types are its active categories. BookLeaf's own wording and policy run only with its publishing
+ * pack (the default workspace); every other workspace gets the generic wording with its own name.
  */
 export const chatSystem = (k: WorkspaceKnowledge) =>
-  `${CHAT_INTRO}${knowledgeText(k)}${CHAT_RULES}${draftRules(k)}${CHAT_OUTPUT}`;
+  k.publishingPack
+    ? `${CHAT_INTRO}${knowledgeText(k)}${CHAT_RULES}${draftRules(k)}${CHAT_OUTPUT}`
+    : `${genericChatIntro(k)}${knowledgeText(k)}${genericChatRules(k)}${draftRules(k)}${CHAT_OUTPUT}`;
 
 export interface ChatPromptInput {
   /** The author's workspace's own categories and articles. */

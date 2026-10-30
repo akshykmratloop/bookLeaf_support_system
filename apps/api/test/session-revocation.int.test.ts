@@ -101,6 +101,19 @@ describe('removal from the workspace', () => {
     expect((await me(cookie)).statusCode).toBe(401);
     expect((await call(h, 'GET', '/workspace', cookie)).statusCode).toBe(401);
   });
+
+  it('cannot sign back in with the same email and password (401)', async () => {
+    const res = await call(h, 'POST', '/auth/login', undefined, {
+      email: OWNER.email,
+      password: NEW_PASSWORD,
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('gets no new session from any path that skips the login check', async () => {
+    await expect(issue()).rejects.toThrow();
+  });
 });
 
 describe('tokens the server cannot match to a current account', () => {

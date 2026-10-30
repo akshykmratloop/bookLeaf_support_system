@@ -152,6 +152,7 @@ Deferred, not fixed:
 - **F-12** Email login searches all workspaces, and sessions cannot be revoked (a stolen cookie works until it expires, up to 72 hours).
   Part 1 fixed on 2026-10-30: a staff email now has one account on the platform, and login reads exactly that account.
   Part 2 fixed on 2026-10-30: logout, a password change and removal from a workspace now end the user's sessions at once.
+  A removed staff member also cannot sign in again (review fix, 2026-10-30).
 - **F-13** Ticket numbers are one global counter, so a workspace can infer other workspaces' ticket volume.
   Fixed on 2026-10-30: each workspace now has its own counter from 1001 and its own fixed prefix; BookLeaf's labels did not change.
 - **F-18** The `/embed` page may be framed by the union of every workspace's allowed origins.

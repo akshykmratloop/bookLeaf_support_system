@@ -1,5 +1,6 @@
 import type { CheckResult } from '@bookleaf/shared';
 import { checkReply } from '../checker/index.js';
+import { workspaceNameText, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
 import { AiError } from '../providers/errors.js';
 import type { LlmProvider, StructuredResult } from '../providers/types.js';
 import {
@@ -27,6 +28,12 @@ export interface ChatAnswer {
 
 export const SAFE_FALLBACK_TEXT =
   "I couldn't confirm that from your BookLeaf records or BookLeaf's guidelines, so I'd rather not guess. I can raise a ticket so the support team checks it and replies to you.";
+
+/** What the author sees when no answer passed the fact check: BookLeaf's wording only for BookLeaf. */
+export const safeFallbackText = (k: WorkspaceKnowledge): string =>
+  k.publishingPack
+    ? SAFE_FALLBACK_TEXT
+    : `I couldn't confirm that from your records or ${workspaceNameText(k)}'s guidelines, so I'd rather not guess. I can raise a ticket so the support team checks it and replies to you.`;
 
 /**
  * The model's reasoning counts toward this limit, not just the answer. A payout question with
@@ -97,7 +104,7 @@ export async function answerChat(
   if (!check.passed) {
     return {
       source: 'SAFE_FALLBACK',
-      body: SAFE_FALLBACK_TEXT,
+      body: safeFallbackText(input.knowledge),
       factIds: [],
       check,
       draft: withoutSending(draft),

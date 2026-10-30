@@ -17,7 +17,10 @@ import {
  * manual SQL makes the change.
  */
 export interface SessionVersions {
-  /** The user's current version, or null when the account no longer exists. */
+  /**
+   * The user's current version, or null when the account no longer exists or is a staff account
+   * that is no longer a member of the session's workspace (removed staff get no session at all).
+   */
   current(user: SessionUser): Promise<number | null>;
   /** Moves the version on, but only if it is still `from` (an ended token cannot end newer ones). */
   bumpFrom(user: SessionUser, from: number): Promise<void>;
@@ -33,13 +36,18 @@ export type SessionUser = Pick<Session, 'userId' | 'workspaceId'>;
  */
 export function sessionVersionsIn(db: Db): SessionVersions {
   return {
-    current: ({ userId }) =>
+    current: ({ userId, workspaceId }) =>
       asPlatform(async () => {
         const row = await db.user.findUnique({
           where: { id: userId },
-          select: { sessionVersion: true },
+          select: {
+            sessionVersion: true,
+            role: true,
+            memberships: { where: { workspaceId }, select: { id: true } },
+          },
         });
-        return row?.sessionVersion ?? null;
+        if (!row || (row.role === 'ADMIN' && row.memberships.length === 0)) return null;
+        return row.sessionVersion;
       }),
     bumpFrom: ({ userId, workspaceId }, from) =>
       withWorkspace(workspaceId, async () => {

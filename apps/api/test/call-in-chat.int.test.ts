@@ -171,7 +171,9 @@ describe('a call started from a chat is part of that conversation', () => {
     fake.emit({ type: 'audio', pcm16: Buffer.from([1, 1]) });
     fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'Your cover is approved.' });
     fake.emit({ type: 'reply_done' });
-    expect(fake.said).toContain(spokenLines('hinglish').turnLimitGoodbye);
+    expect(fake.said).toContain(
+      spokenLines('hinglish', { publishingPack: true, workspaceName: 'BookLeaf' }).turnLimitGoodbye,
+    );
     // Speech already on its way still arrives, but the chat never goes past its limit.
     fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'And one more?' });
     fake.emit({ type: 'audio', pcm16: Buffer.from([2, 2]) });

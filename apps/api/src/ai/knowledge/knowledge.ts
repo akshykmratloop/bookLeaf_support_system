@@ -32,6 +32,10 @@ export interface WorkspaceKnowledge {
   articles: readonly KnowledgeArticle[];
 }
 
+/** The workspace's name for prompt text. It is admin input: one line, no angle brackets. */
+export const workspaceNameText = (k: Pick<WorkspaceKnowledge, 'workspaceName'>): string =>
+  k.workspaceName.replace(/[\r\n<>]+/g, ' ').trim();
+
 /** The key every workspace starts with; the natural home for anything that fits nowhere else. */
 export const GENERAL_CATEGORY_KEY = 'GENERAL_INQUIRY';
 

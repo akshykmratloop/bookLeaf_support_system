@@ -1,5 +1,11 @@
 import { TIME_WARNING } from './lifecycle.js';
-import { ENGLISH_PERSONA, HINGLISH_PERSONA } from './persona-text.js';
+import { workspaceNameText, type WorkspaceKnowledge } from '../../ai/knowledge/knowledge.js';
+import {
+  BOOKLEAF_PERSONA_WORDS,
+  englishPersona,
+  genericPersonaWords,
+  hinglishPersona,
+} from './persona-text.js';
 import { TURN_LIMIT_GOODBYE } from './turn-limit.js';
 import type { SpokenLines } from './types.js';
 
@@ -38,12 +44,32 @@ const LINES: Record<VoiceStyle, StyleLines> = {
   },
 };
 
+/** Who the call is for: BookLeaf's own wording runs only with its publishing pack (S.9). */
+export type VoiceBrand = Pick<WorkspaceKnowledge, 'publishingPack' | 'workspaceName'>;
+
+/** The first greeting of a new call for any workspace without the publishing pack. */
+const GENERIC_NEW_GREETING: Record<VoiceStyle, (firstName: string, company: string) => string> = {
+  english: (n, c) => `Hi ${n}, this is ${c} support. How can I help today?`,
+  hinglish: (n, c) =>
+    `Namaste ${n} ji, main ${c} support se bol rahi hoon. Bataiye, aaj main aapki kaise help karoon?`,
+};
+
 /** The fixed things the assistant says in this style: greetings, the time warning, the limit goodbye. */
-export const spokenLines = (style: VoiceStyle): StyleLines => LINES[style];
+export function spokenLines(style: VoiceStyle, brand: VoiceBrand): StyleLines {
+  const lines = LINES[style];
+  if (brand.publishingPack) return lines;
+  const company = workspaceNameText(brand);
+  const newCall = (n: string) => GENERIC_NEW_GREETING[style](n, company);
+  return { ...lines, greeting: { ...lines.greeting, new: newCall } };
+}
 
 /** How the assistant sounds: personality, language, tone, pacing and fillers. */
-export const personaBlock = (style: VoiceStyle): string =>
-  style === 'hinglish' ? HINGLISH_PERSONA : ENGLISH_PERSONA;
+export function personaBlock(style: VoiceStyle, brand: VoiceBrand): string {
+  const words = brand.publishingPack
+    ? BOOKLEAF_PERSONA_WORDS
+    : genericPersonaWords(workspaceNameText(brand));
+  return style === 'hinglish' ? hinglishPersona(words) : englishPersona(words);
+}
 
 /**
  * The language the speech service transcribes in. Hinglish is left to automatic detection, so

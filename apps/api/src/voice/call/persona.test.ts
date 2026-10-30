@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { TIME_WARNING } from './lifecycle.js';
 import { personaBlock, spokenLines, transcriptionLanguage } from './persona.js';
+
+/** BookLeaf, the default workspace: its publishing pack keeps BookLeaf's own voice. */
+const BOOKLEAF = { publishingPack: true, workspaceName: 'BookLeaf Publishing' };
 import { TURN_LIMIT_GOODBYE } from './turn-limit.js';
 
 describe('voice persona', () => {
   it('speaks warm, respectful Hinglish but keeps every figure in exact English words', () => {
-    const block = personaBlock('hinglish');
+    const block = personaBlock('hinglish', BOOKLEAF);
     expect(block).toMatch(/Hinglish/);
     expect(block).toMatch(/"aap"/);
     expect(block).toMatch(/amounts, dates, ticket numbers, ISBNs/);
@@ -15,27 +18,29 @@ describe('voice persona', () => {
   });
 
   it('mirrors the author: English when they speak English', () => {
-    expect(personaBlock('hinglish')).toMatch(/mostly English, answer in clear Indian English/);
-    const english = personaBlock('english');
+    expect(personaBlock('hinglish', BOOKLEAF)).toMatch(
+      /mostly English, answer in clear Indian English/,
+    );
+    const english = personaBlock('english', BOOKLEAF);
     expect(english).not.toMatch(/Hinglish/);
     expect(english).toMatch(/one moment, let me check/);
   });
 
   it('greets by first name in the chosen style', () => {
-    const hi = spokenLines('hinglish');
+    const hi = spokenLines('hinglish', BOOKLEAF);
     expect(hi.greeting.new('Priya')).toMatch(/^Namaste Priya ji/);
     expect(hi.greeting.chat('Priya')).toMatch(/chat/);
-    expect(spokenLines('english').greeting.new('Priya')).toBe(
+    expect(spokenLines('english', BOOKLEAF).greeting.new('Priya')).toBe(
       'Hi Priya, this is BookLeaf support. How can I help with your books today?',
     );
   });
 
   it('keeps the English warning and limit goodbye unchanged, with Hinglish versions', () => {
-    expect(spokenLines('english')).toMatchObject({
+    expect(spokenLines('english', BOOKLEAF)).toMatchObject({
       timeWarning: TIME_WARNING,
       turnLimitGoodbye: TURN_LIMIT_GOODBYE,
     });
-    const hi = spokenLines('hinglish');
+    const hi = spokenLines('hinglish', BOOKLEAF);
     expect(hi.timeWarning).toMatch(/thirty seconds/);
     expect(hi.turnLimitGoodbye).toMatch(/limit/);
     expect(hi.turnLimitGoodbye).toMatch(/new conversation/);
