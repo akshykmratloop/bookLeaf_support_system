@@ -51,6 +51,9 @@ const WorkspaceSettingsPage = lazyPage(() =>
 const ApiKeysPage = lazyPage(() =>
   import('../pages/workspace/ApiKeysPage').then((m) => m.ApiKeysPage),
 );
+const WebhooksPage = lazyPage(() =>
+  import('../pages/workspace/WebhooksPage').then((m) => m.WebhooksPage),
+);
 
 const loading = (page: ReactNode) => <Suspense fallback={<LoadingState />}>{page}</Suspense>;
 
@@ -67,5 +70,6 @@ export const adminRoutes = (
     <Route path="/admin/workspace/knowledge" element={loading(<KnowledgePage />)} />
     <Route path="/admin/workspace/settings" element={loading(<WorkspaceSettingsPage />)} />
     <Route path="/admin/workspace/api-keys" element={loading(<ApiKeysPage />)} />
+    <Route path="/admin/workspace/webhooks" element={loading(<WebhooksPage />)} />
   </Route>
 );

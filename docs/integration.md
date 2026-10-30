@@ -333,7 +333,7 @@ everything in **Workspace settings** (admin area) instead of env:
 | Customer Data | the fields the product sends (key, label, type, meaning for the assistant, status codes, visible to customer) | `/api/v1/workspace/fields` |
 | Workspace Settings | how the AI writes (tone and brand voice, greeting, signature, language English / Hinglish / match the customer, reply length, formality, topics to avoid), chat and voice switches and limits (up to the plan), voice from the approved list, widget origins, branding (name, colour, https logo, launcher text, widget theme), nouns | `GET/PUT /api/v1/workspace/settings` |
 | API Keys | server-to-server keys, shown once, revocable | `/api/v1/workspace/api-keys` |
-| Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed`; signing secret shown once; test delivery; last 20 deliveries | `/api/v1/workspace/webhooks` |
+| Webhooks | URLs told about `ticket.created`, `ticket.replied`, `ticket.status_changed` (up to 5); add, edit, switch on or off, delete; signing secret shown once, and again when rotated; test delivery; last 20 deliveries with a Retry button for a failed one | `/api/v1/workspace/webhooks` |
 
 **The AI behaviour settings are used by every AI job.** Triage gets the language and the topics to
 avoid; reply drafts, chat and voice also get the tone, length and formality in a `<style_settings>`
@@ -403,6 +403,22 @@ and `X-BookLeaf-Signature: t=<unix seconds>,v1=<hex>`. To check a delivery:
 Any 2xx answer counts as delivered. Otherwise the delivery is retried 6 times in total, with
 backoff from 30 s doubling, plus jitter. Redirects are not followed. The receiving address must
 pass the same checks as connector URLs, and it is checked again at every send.
+
+Managing webhooks (admin of the workspace; every route answers 404 for another workspace's webhook):
+
+| Route | Does |
+| --- | --- |
+| `GET /api/v1/workspace/webhooks` | the webhooks, each with its latest delivery |
+| `POST /api/v1/workspace/webhooks` `{ url, events }` | adds one (at most 5); the signing secret is in the answer, once |
+| `PATCH /api/v1/workspace/webhooks/:id` `{ url?, events?, active? }` | edits the address or events, or switches it on or off |
+| `POST /api/v1/workspace/webhooks/:id/rotate-secret` | a new signing secret, returned once; every later send (retries included) is signed with it |
+| `POST /api/v1/workspace/webhooks/:id/test` | queues a signed `webhook.test` delivery (409 while switched off) |
+| `GET /api/v1/workspace/webhooks/:id/deliveries` | the 20 latest deliveries: status, attempts, HTTP answer or error, `nextAttemptAt` while waiting |
+| `POST /api/v1/workspace/webhooks/:id/deliveries/:deliveryId/retry` | sends a FAILED delivery again with 6 fresh attempts (409 if it has not failed, or the webhook is off) |
+| `DELETE /api/v1/workspace/webhooks/:id` | removes it and its delivery log |
+
+A switched-off webhook gets no new events, and deliveries already waiting are paused until it is
+switched on again. Every change is written to the audit log.
 
 **Sign-in tokens name the workspace.** Add the claim `iss: "<workspace id>"` (the slug chosen at
 signup, e.g. `acme`) to the token from step 2a and sign it with the secret saved in Product

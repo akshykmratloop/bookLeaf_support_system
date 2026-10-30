@@ -11,15 +11,37 @@ export const WebhookEventSchema = z.enum(WEBHOOK_EVENTS);
 export type WebhookEvent = z.infer<typeof WebhookEventSchema>;
 
 export const WEBHOOK_DELIVERY_STATUSES = ['PENDING', 'SUCCEEDED', 'FAILED'] as const;
+/** How many webhooks one workspace can have. */
+export const MAX_WEBHOOKS_PER_WORKSPACE = 5;
+/** Attempts per delivery before it is marked FAILED (an admin can then retry it). */
+export const WEBHOOK_MAX_ATTEMPTS = 6;
+
+const WebhookUrlSchema = z
+  .url({ protocol: /^https?$/ })
+  .trim()
+  .max(2048)
+  .regex(/^\S+$/, 'The address cannot contain spaces');
+const WebhookEventListSchema = z.array(WebhookEventSchema).min(1).max(WEBHOOK_EVENTS.length);
 
 export const CreateWebhookRequestSchema = z.object({
-  url: z
-    .url({ protocol: /^https?$/ })
-    .trim()
-    .max(2048),
-  events: z.array(WebhookEventSchema).min(1).max(WEBHOOK_EVENTS.length),
+  url: WebhookUrlSchema,
+  events: WebhookEventListSchema,
 });
 export type CreateWebhookRequest = z.infer<typeof CreateWebhookRequestSchema>;
+
+/** Edit a webhook: its address, its events, or switch it on or off. At least one field. */
+export const UpdateWebhookRequestSchema = z
+  .object({
+    url: WebhookUrlSchema.optional(),
+    events: WebhookEventListSchema.optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((v) => v.url !== undefined || v.events !== undefined || v.active !== undefined, {
+    message: 'Change at least one of url, events or active',
+  });
+export type UpdateWebhookRequest = z.infer<typeof UpdateWebhookRequestSchema>;
+
+export const WebhookDeliveryParamsSchema = z.object({ id: z.uuid(), deliveryId: z.uuid() });
 
 export const WebhookDeliverySchema = z.object({
   id: z.string(),
@@ -30,6 +52,8 @@ export const WebhookDeliverySchema = z.object({
   lastError: z.string().nullable(),
   createdAt: z.string(),
   deliveredAt: z.string().nullable(),
+  /** When a PENDING delivery is tried next; null once it succeeded or failed. */
+  nextAttemptAt: z.string().nullable(),
 });
 export type WebhookDelivery = z.infer<typeof WebhookDeliverySchema>;
 
@@ -45,7 +69,7 @@ export type Webhook = z.infer<typeof WebhookSchema>;
 
 export const WebhookListSchema = z.object({ items: z.array(WebhookSchema) });
 
-/** The signing secret is shown once, when the webhook is created. */
+/** The signing secret is shown once: when the webhook is created and when it is rotated. */
 export const CreatedWebhookSchema = z.object({
   webhook: WebhookSchema,
   signingSecret: z.string(),

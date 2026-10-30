@@ -11,6 +11,7 @@ import {
   Settings2,
   Sun,
   Tags,
+  Webhook,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
@@ -57,6 +58,7 @@ const ADMIN_NAV: NavItem[] = [
     icon: <Settings2 size={16} aria-hidden />,
   },
   { to: '/admin/workspace/api-keys', label: 'API Keys', icon: <KeyRound size={16} aria-hidden /> },
+  { to: '/admin/workspace/webhooks', label: 'Webhooks', icon: <Webhook size={16} aria-hidden /> },
 ];
 const LIVE_TEXT: Record<LiveState, string> = {
   connecting: 'Connecting…',

@@ -266,6 +266,14 @@ together on one branch. S.8 and S.9 above are part of this pass.
 
 ---
 
+## U-10 — Webhooks admin page · branch `feature/u10` (30 Oct)
+
+| # | Task | Status | SHA |
+| --- | --- | --- | --- |
+| U-10 | Staff app page Webhooks (nav under API Keys): add/edit/delete (URL + event checkboxes), signing secret shown once with Copy, rotate secret, Send test, switch on/off, delivery log (status, HTTP code, time, attempts, next try) with Retry for a failed delivery. API: `PATCH /workspace/webhooks/:id`, `POST …/:id/rotate-secret`, `POST …/:id/deliveries/:deliveryId/retry`; switched-off webhooks queue nothing and their waiting deliveries pause; same SSRF checks; audit rows; no migration | ✅ | (this commit) |
+
+---
+
 ## P2 — Polish (lowest priority: only after Phase 2/3 are done or NO-GO)
 
 | # | Task | Status |
