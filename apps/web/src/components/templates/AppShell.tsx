@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Moon,
   Plug,
+  Rocket,
   Settings2,
   Sun,
   Tags,
@@ -26,6 +27,7 @@ interface NavItem {
 }
 
 const ADMIN_NAV: NavItem[] = [
+  { to: '/admin/get-started', label: 'Get Started', icon: <Rocket size={16} aria-hidden /> },
   { to: '/admin', label: 'Ticket Queue', icon: <Inbox size={16} aria-hidden />, end: true },
   {
     to: '/admin/assistant',

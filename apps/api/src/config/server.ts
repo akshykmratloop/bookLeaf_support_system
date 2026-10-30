@@ -8,6 +8,11 @@ export const ServerConfig = z.object({
   HOST: z.string().default('0.0.0.0'),
   /** The one browser origin allowed to call the API (CSRF and WebSocket checks). */
   APP_ORIGIN: z.url(),
+  /**
+   * Where admins read the integration guide (docs/integration.md), e.g. its page in the
+   * repository. The "Get started" guide links each step there; unset: it names the file instead.
+   */
+  INTEGRATION_DOCS_URL: z.preprocess((v) => (v === '' ? undefined : v), z.url().optional()),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /** Built web app to serve, relative to apps/api. Unset in development (Vite serves it). */
   WEB_DIST_DIR: z.string().optional(),

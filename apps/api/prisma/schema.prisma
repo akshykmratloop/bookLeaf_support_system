@@ -176,18 +176,24 @@ enum AiRunOutcome {
 /// A tenant: one business that signed up to the support product. Every tenant-owned row carries
 /// its id. The default workspace ("bookleaf") is seeded from env and keeps today's behaviour.
 model Workspace {
-  id               String   @id @default(uuid()) @db.Uuid
-  slug             String   @unique
+  id               String    @id @default(uuid()) @db.Uuid
+  slug             String    @unique
   name             String
-  isDefault        Boolean  @default(false) @map("is_default")
+  isDefault        Boolean   @default(false) @map("is_default")
   /// Fixed label prefix for this workspace's tickets (BL → BL-1001). Unique across the platform,
   /// so every full label is platform-unique; set once at creation and never changed (F-13).
-  ticketPrefix     String   @unique @map("ticket_prefix")
+  ticketPrefix     String    @unique @map("ticket_prefix")
   /// The number the next ticket gets. Taken with UPDATE … RETURNING inside the ticket insert's
   /// transaction: the row lock rules out duplicates and a rollback leaves no gap (F-13).
-  nextTicketNumber Int      @default(1001) @map("next_ticket_number")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  nextTicketNumber Int       @default(1001) @map("next_ticket_number")
+  /// U-12 setup guide signals, written at most once a minute and never read by anything else:
+  /// the last valid hand-over token from the product, and the last widget page framed by one
+  /// of the workspace's allowed sites (with that site's origin).
+  lastHandOverAt   DateTime? @map("last_hand_over_at") @db.Timestamptz(3)
+  lastWidgetLoadAt DateTime? @map("last_widget_load_at") @db.Timestamptz(3)
+  lastWidgetOrigin String?   @map("last_widget_origin")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   members       WorkspaceMember[]
   users         User[]

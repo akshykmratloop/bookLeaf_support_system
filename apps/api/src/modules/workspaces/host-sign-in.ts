@@ -4,6 +4,7 @@ import type { Db } from '../../platform/db.js';
 import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
 import { asPlatform, withWorkspace } from '../../platform/tenancy.js';
 import { signInFromHost, type HostSignInDeps } from '../auth/host-login.js';
+import { recordHandOver } from '../onboarding/signals.js';
 import { DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_SLUG } from './constants.js';
 
 /** Which workspace a host token is for, and the secret that signs that workspace's tokens. */
@@ -77,9 +78,12 @@ export function createHostSignIn(base: Base, router: HostSignInRouter) {
       throw new ForbiddenError('This sign-in is for a different workspace');
     const issuer = await resolveIssuer(router, token);
     // From here on everything happens inside the token's workspace (row-level security, S.8).
-    const signedIn = await withWorkspace(issuer.workspaceId, () =>
-      signInFromHost({ ...base, ...issuer }, token),
-    );
+    const signedIn = await withWorkspace(issuer.workspaceId, async () => {
+      const result = await signInFromHost({ ...base, ...issuer }, token);
+      // Ticks "Add the sign-in endpoint" in the setup guide (U-12).
+      await recordHandOver(base.db, issuer.workspaceId, base.clock.now());
+      return result;
+    });
     return { ...signedIn, workspaceSlug };
   };
 }

@@ -21,6 +21,7 @@ const routePaths = (text: string) =>
   new Set([...text.matchAll(/path="([^"]+)"/g)].map((m) => m[1]));
 
 const STAFF_NAV = [
+  '/admin/get-started',
   '/admin',
   '/admin/assistant',
   '/admin/workspace/connection',
@@ -43,6 +44,10 @@ describe('sidebar navigation', () => {
 
   it('points every entry at a registered route', () => {
     expect(targets.filter((to) => !paths.has(to))).toEqual([]);
+  });
+
+  it('puts Get Started at the top of the staff nav (U-12)', () => {
+    expect(targets[0]).toBe('/admin/get-started');
   });
 
   it('puts Webhooks right under API Keys', () => {

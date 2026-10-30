@@ -1,6 +1,7 @@
 import { LEGACY_EMBED_SECTIONS } from '@bookleaf/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { framedFrom } from './widget-load.js';
 
 /** Which origins may frame one workspace's widget page; null when no workspace has the slug. */
 export interface WidgetFraming {
@@ -13,6 +14,8 @@ export interface WidgetPageOptions {
   defaultSlug: string;
   /** Embed mode: a workspace's allowed origins may frame its page. Off: full page only. */
   embedded: boolean;
+  /** Called when one of the workspace's allowed sites frames its page (the U-12 setup guide). */
+  onFramed?: (slug: string, origin: string) => Promise<void>;
 }
 
 const NO_CACHE = 'no-cache';
@@ -50,6 +53,25 @@ export function allowWidgetScript(app: FastifyInstance): void {
 }
 
 /**
+ * Tells the setup guide which allowed site framed the page. Only a setup tick: if recording it
+ * fails, the error is logged and the customer still gets the widget.
+ */
+async function noteFramed(
+  req: FastifyRequest,
+  slug: string,
+  origins: readonly string[],
+  onFramed: WidgetPageOptions['onFramed'],
+): Promise<void> {
+  const site = onFramed ? framedFrom(req.headers, origins) : null;
+  if (!site || !onFramed) return;
+  try {
+    await onFramed(slug, site);
+  } catch (err) {
+    req.log.error({ err, slug }, 'could not record the widget load for the setup guide');
+  }
+}
+
+/**
  * The widget page of one workspace: `/embed/<slug>` and the author app's pages under it. Its
  * frame-ancestors lists only that workspace's origins; every other page keeps
  * `frame-ancestors 'none'` (no clickjacking). An unknown slug is a 404. The old shared `/embed`
@@ -72,7 +94,10 @@ export function registerWidgetPages(app: FastifyInstance, opts: WidgetPageOption
     if (FILE_PATH.test(pathOf(req.url, app.prefix))) return reply.callNotFound();
     const origins = await opts.framing.originsFor(workspace);
     if (!origins) return reply.callNotFound();
-    if (opts.embedded && origins.length > 0) allowFraming(reply, origins);
+    if (opts.embedded && origins.length > 0) {
+      allowFraming(reply, origins);
+      await noteFramed(req, workspace, origins, opts.onFramed);
+    }
     return reply.header('cache-control', NO_CACHE).sendFile('index.html');
   };
   app.get('/embed/:workspace', PAGE, page);

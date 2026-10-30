@@ -13,6 +13,7 @@ import { settingsRoutes } from './modules/settings/routes.js';
 import { ticketDraftRoutes } from './modules/ticket-drafts/routes.js';
 import { ticketRoutes } from './modules/tickets/routes.js';
 import { managedRoutes } from './modules/managed/routes.js';
+import { onboardingRoutes } from './modules/onboarding/routes.js';
 import { platformAuthRoutes } from './modules/platform/auth-routes.js';
 import { platformConsoleRoutes } from './modules/platform/console-routes.js';
 import { platformGuard } from './modules/platform/guard.js';
@@ -57,6 +58,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(webhookRoutes, { webhooks: c.webhooks });
   await api.register(serverApiRoutes, { server: c.serverApi });
   await api.register(apiKeyRoutes, { workspaces: c.workspaces });
+  await api.register(onboardingRoutes, { onboarding: c.onboarding });
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,

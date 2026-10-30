@@ -8,6 +8,7 @@ import type { Env } from './config/index.js';
 import { runInBackground } from './background.js';
 import { createContainer, type Container } from './container.js';
 import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
+import { recordWidgetLoad } from './modules/onboarding/signals.js';
 import { DEFAULT_WORKSPACE_SLUG } from './modules/workspaces/constants.js';
 import { authGuard } from './platform/http/auth-guard.js';
 import { cspDirectives } from './platform/http/csp.js';
@@ -72,6 +73,7 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
       framing: c.embedOrigins,
       defaultSlug: DEFAULT_WORKSPACE_SLUG,
       embedded: c.embedded,
+      onFramed: (slug, origin) => recordWidgetLoad(c.db, slug, origin, c.clock.now()),
     });
 };
 

@@ -24,6 +24,9 @@ function lazyPage(load: () => Promise<ComponentType>) {
   });
 }
 
+const GetStartedPage = lazyPage(() =>
+  import('../pages/admin/GetStartedPage').then((m) => m.GetStartedPage),
+);
 const QueuePage = lazyPage(() => import('../pages/admin/QueuePage').then((m) => m.QueuePage));
 const TicketWorkspacePage = lazyPage(() =>
   import('../pages/admin/TicketWorkspacePage').then((m) => m.TicketWorkspacePage),
@@ -60,6 +63,7 @@ const loading = (page: ReactNode) => <Suspense fallback={<LoadingState />}>{page
 /** The staff and workspace-owner screens, behind the admin sign-in, each loaded on first use. */
 export const adminRoutes = (
   <Route element={<AuthedLayout role="ADMIN" />}>
+    <Route path="/admin/get-started" element={loading(<GetStartedPage />)} />
     <Route path="/admin" element={loading(<QueuePage />)} />
     <Route path="/admin/tickets/:id" element={loading(<TicketWorkspacePage />)} />
     <Route path="/admin/ai" element={loading(<ManagedPage />)} />

@@ -25,6 +25,7 @@ import { systemClock, type Clock } from './platform/clock.js';
 import type { Db } from './platform/db.js';
 import { createTenantDb } from './platform/tenant-db.js';
 import { createCategoryService } from './modules/categories/service.js';
+import { createOnboardingService } from './modules/onboarding/service.js';
 import type { Env } from './config/index.js';
 
 import { createProviders, type ProviderOverrides } from './container-providers.js';
@@ -165,6 +166,14 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
     ...createIntegrations(core),
     books: createBooksService(core),
     categories: createCategoryService({ db: core.db }),
+    onboarding: createOnboardingService({
+      db: core.db,
+      embedded: core.embedded,
+      originsFor: (slug) => core.embedOrigins.originsFor(slug),
+      tickets: core.ticketDeps,
+      supportUrl: env.APP_ORIGIN,
+      docsUrl: env.INTEGRATION_DOCS_URL ?? null,
+    }),
     conversations: createConversationService(core.db),
     platformConsole: createPlatformConsole(core, VOICE_PROVIDER_IDS),
     ...createAssistants(core),
