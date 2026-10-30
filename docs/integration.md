@@ -450,7 +450,7 @@ Presets: **Read only** = `tickets:read` + `customers:read`; **Read & write** = b
 | `GET /api/v1/server/tickets/:id` | `tickets:read` | the ticket and its conversation (author messages, replies, system notes; never internal notes) |
 | `GET /api/v1/server/customers/:customerId/tickets?status=&cursor=&limit=` | `customers:read` | the same page, for one customer only; 404 if support has no record of that customer |
 | `POST /api/v1/server/tickets` | `tickets:write` | raise a ticket for a customer: `{ "customerId", "subject" (5–150), "body" (20–4000), "itemId"? }`; 201 with the ticket, triage runs as usual |
-| `POST /api/v1/server/tickets/:id/messages` | `tickets:write` | a message from the customer: `{ "body" (1–4000) }`; 201 with the ticket |
+| `POST /api/v1/server/tickets/:id/messages` | `tickets:write` | a message from the customer: `{ "body" (1–4000) }`; 201 with the ticket; **409** `TICKET_SOLVED` on a Resolved or Closed ticket |
 | `PATCH /api/v1/server/tickets/:id` | `tickets:write` | `{ "status": "RESOLVED" \| "CLOSED" \| "OPEN" }` (resolve, close, reopen); 200 with the ticket |
 
 ```bash
@@ -462,13 +462,16 @@ curl -X POST https://support.example.com/api/v1/server/tickets \
 
 - **Your own ids.** `customerId` is the customer id your product sends (the token's `sub`), and
   `itemId` is the item id (book), or `null` / absent for an account-level ticket. A customer support
-  has not seen yet is read once from your customer endpoint (step 2b), like at sign-in; one your
+  has not seen yet is read once from your data sources (steps 2b/2c), like at sign-in; one your
   product does not know is **404**, and **503** when your product cannot be reached. An item that is
   not that customer's is **404**.
 - **Same rules as the widget and the staff app.** A new ticket gets the acknowledgement, triage and
   draft like any other (source shown to staff as "Your server (API)"); a message is the customer's
   own message; status changes follow the ticket status rules (a move they do not allow is **409**
-  `INVALID_TRANSITION`; moving to the status a ticket already has is a no-op). Live updates and
+  `INVALID_TRANSITION`; moving to the status a ticket already has is a no-op). A Resolved or Closed
+  ticket is locked for the customer (U-2), so a message on it is **409** `TICKET_SOLVED`; every ticket
+  read says so in `canReply`. Reopen it first (`PATCH … { "status": "OPEN" }`, or staff on the
+  ticket page), then the customer can write again. Live updates and
   webhooks (`ticket.created`, `ticket.status_changed`) fire as usual.
 - **Retries.** Send an `Idempotency-Key` header (a UUID) on every POST and PATCH. The same key
   again returns the first result and changes nothing (a repeated create answers 200 instead of 201);

@@ -102,6 +102,8 @@ export const ServerMessageSchema = z.object({
 });
 
 export const ServerTicketDetailSchema = ServerTicketSchema.extend({
+  /** False once the ticket is solved or closed: customer messages get 409 until it is reopened. */
+  canReply: z.boolean(),
   messages: z.array(ServerMessageSchema),
 });
 export type ServerTicketDetail = z.infer<typeof ServerTicketDetailSchema>;

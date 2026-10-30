@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import type { ServerTicket, ServerTicketDetail, ServerTicketQuery } from '@bookleaf/shared';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
+import { isSolved } from '../tickets/status-machine.js';
 import { SERVER_TICKET_SELECT, toServerTicket } from '../webhooks/payload.js';
 
 /**
@@ -58,5 +59,5 @@ export async function getServerTicket(
     body: m.body,
     createdAt: m.createdAt.toISOString(),
   }));
-  return { ...toServerTicket(t), messages };
+  return { ...toServerTicket(t), canReply: !isSolved(t.status), messages };
 }
