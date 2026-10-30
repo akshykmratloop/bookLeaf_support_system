@@ -23,28 +23,24 @@ async function platformSessionFor(
   return sessions.verify(token);
 }
 
-/** Checks the session, then calls `done` inside the platform scope so the handler inherits it. */
-function guardHook(sessions: PlatformSessions) {
-  return (req: FastifyRequest, _reply: unknown, done: HookHandlerDoneFunction) => {
-    const enter = (admin: PlatformSession | null) => {
-      req.platformAdmin = admin;
-      runAsPlatform(() => done());
-    };
-    platformSessionFor(req, sessions)
-      .then(enter)
-      .catch(done as (err: Error) => void);
-  };
-}
+/** Calls `done` inside the platform scope so the handler inherits it. */
+const enterPlatform = (_req: FastifyRequest, _reply: unknown, done: HookHandlerDoneFunction) =>
+  runAsPlatform(() => done());
 
 /**
  * Default deny for the /api/v1/platform scope (U-7): every route needs a super admin session
- * unless it is public (sign-in). The rest of the request runs on the owner connection, the only
- * one that may read platform tables.
+ * unless it is public (sign-in). The session is checked in `onRequest`, before the body is read,
+ * so a caller without one never gets a validation error. The rest of the request then runs on
+ * the owner connection, the only one that may read platform tables; that scope is entered after
+ * body parsing (see auth-guard.ts for why).
  */
 export const platformGuard = fp<{ sessions: PlatformSessions }>(
   async (app: FastifyInstance, { sessions }) => {
     app.decorateRequest('platformAdmin', null);
-    app.addHook('preHandler', guardHook(sessions));
+    app.addHook('onRequest', async (req) => {
+      req.platformAdmin = await platformSessionFor(req, sessions);
+    });
+    app.addHook('preHandler', enterPlatform);
   },
 );
 

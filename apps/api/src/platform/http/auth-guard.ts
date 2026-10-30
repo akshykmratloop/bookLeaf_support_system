@@ -35,17 +35,21 @@ function continueAs(req: FastifyRequest, session: Session | null, done: HookHand
  * is marked public. It is registered inside the /api/v1 scope, so it covers exactly the API
  * wherever the module is mounted, without looking at the URL.
  *
- * The rest of a signed-in request (the handler and everything it starts) then runs as the
- * session's workspace, so Postgres row-level security limits every query to it (S.8). That is
- * why this hook uses `done`: the handler is called from inside `runAsWorkspace`.
+ * Two steps. `onRequest` checks the session before the body is read, so a caller who is not
+ * signed in gets 401/403, never a validation error that describes the route's input. Then
+ * `preHandler` runs the rest of the request (the handler and everything it starts) as the
+ * session's workspace, so Postgres row-level security limits every query to it (S.8). The scope
+ * is entered there, after body parsing, because parsing runs in the request stream's own async
+ * context and would drop a scope entered earlier. `done` is called from inside the scope.
  */
 export const authGuard = fp<{ sessions: SessionCodec }>(
   async (app: FastifyInstance, { sessions }) => {
     app.decorateRequest('session', null);
+    app.addHook('onRequest', async (req) => {
+      req.session = await sessionFor(req, sessions);
+    });
     app.addHook('preHandler', (req, _reply, done: HookHandlerDoneFunction) => {
-      sessionFor(req, sessions)
-        .then((session) => continueAs(req, session, done))
-        .catch(done as (err: Error) => void);
+      continueAs(req, req.session, done);
     });
   },
 );

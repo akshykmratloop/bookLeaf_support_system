@@ -3,7 +3,7 @@ import type { FastifyRequest } from 'fastify';
 import { idempotencyKey } from '../../platform/http/idempotency.js';
 import { withWorkspace } from '../../platform/tenancy.js';
 import type { TicketDeps } from '../tickets/deps.js';
-import { requireKey, type VerifyKey } from './api-key-auth.js';
+import { authenticateKey, requireKey, type VerifyKey } from './api-key-auth.js';
 import { knownCustomerId } from './customers.js';
 import { getServerTicket, listServerTickets } from './queries.js';
 import { addServerMessage, changeServerStatus, createServerTicket } from './writes.js';
@@ -21,6 +21,8 @@ const writer = async (req: FastifyRequest, verify: VerifyKey) => ({
 export function createServerApiService(deps: TicketDeps, verify: VerifyKey) {
   const { db } = deps;
   return {
+    /** The early key check (401 before input validation); handlers reuse its result. */
+    authenticate: (req: FastifyRequest) => authenticateKey(req, verify),
     async listTickets(req: FastifyRequest, q: ServerTicketQuery) {
       const { workspaceId } = await requireKey(req, verify, 'tickets:read');
       return withWorkspace(workspaceId, () => listServerTickets(db, workspaceId, q));

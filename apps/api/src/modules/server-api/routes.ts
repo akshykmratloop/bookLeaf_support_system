@@ -84,6 +84,11 @@ function customerReads(app: RouteApp, server: ServerApiService) {
 
 /** The workspace's own server reads and changes its tickets with a scoped API key. */
 export const serverApiRoutes: FastifyPluginAsyncZod<Opts> = async (app, { server }) => {
+  // The key is checked after the rate limit (onRequest) and before input validation, so a
+  // caller without a valid key gets 401, never a validation error describing the input.
+  app.addHook('preValidation', async (req) => {
+    await server.authenticate(req);
+  });
   ticketReads(app, server);
   customerReads(app, server);
   await app.register(serverWriteRoutes, { server });
