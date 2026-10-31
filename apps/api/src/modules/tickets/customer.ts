@@ -16,6 +16,10 @@ import { labelOf, TICKET_LABEL_SELECT } from './ticket-ref.js';
 type Ticket = Awaited<ReturnType<typeof findTicketOrThrow>>;
 type LocalBook = { id: string; externalId: string; title: string };
 
+/** Upper bounds on what the customer panel reads (it shows far fewer in practice). */
+const MAX_BOOKS_SHOWN = 200;
+const MAX_FIELDS_SHOWN = 100;
+
 /** The ticket's customer as stored on our side (always there, even while the product is down). */
 const localAuthor = (db: Db, t: Ticket) =>
   db.author.findFirstOrThrow({
@@ -25,6 +29,7 @@ const localAuthor = (db: Db, t: Ticket) =>
       books: {
         select: { id: true, externalId: true, title: true },
         orderBy: { externalId: 'asc' },
+        take: MAX_BOOKS_SHOWN,
       },
     },
   });
@@ -34,6 +39,8 @@ const fieldLabels = (db: Db, workspaceId: string): Promise<FieldLabel[]> =>
   db.customerField.findMany({
     where: { workspaceId },
     select: { key: true, label: true, position: true },
+    orderBy: { position: 'asc' },
+    take: MAX_FIELDS_SHOWN,
   });
 
 const DEFAULT_ITEM_NOUN = 'item';

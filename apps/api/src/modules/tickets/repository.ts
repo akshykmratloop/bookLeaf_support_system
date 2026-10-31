@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import type { Db } from '../../platform/db.js';
 import { NotFoundError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import { dayRange } from './day-range.js';
 
 export const ticketInclude = {
   book: { select: { id: true, title: true } },
@@ -20,7 +21,6 @@ const messageInclude = {
 export type TicketListQuery = z.output<typeof TicketListQuerySchema>;
 
 const NO_AUTHOR = '00000000-0000-0000-0000-000000000000';
-const DAY_MS = 86_400_000;
 
 /**
  * The only place ticket visibility is decided: every query stays inside the session's workspace,
@@ -45,9 +45,6 @@ function searchFilter(q: string | undefined): Prisma.TicketWhereInput {
 }
 
 export function listFilter(session: Session, q: TicketListQuery): Prisma.TicketWhereInput {
-  const createdAt: Prisma.DateTimeFilter = {};
-  if (q.from) createdAt.gte = new Date(`${q.from}T00:00:00Z`);
-  if (q.to) createdAt.lt = new Date(new Date(`${q.to}T00:00:00Z`).getTime() + DAY_MS);
   const assignee =
     q.assignee === 'me'
       ? { assigneeId: session.userId }
@@ -59,7 +56,7 @@ export function listFilter(session: Session, q: TicketListQuery): Prisma.TicketW
     ...(q.status ? { status: q.status } : {}),
     ...(q.category ? { categoryKey: q.category } : {}),
     ...(q.priority ? { priority: q.priority } : {}),
-    ...(q.from || q.to ? { createdAt } : {}),
+    ...(q.from || q.to ? { createdAt: dayRange(q.from, q.to, q.tz) } : {}),
     ...assignee,
     ...searchFilter(q.q),
   };
@@ -98,10 +95,16 @@ export async function findTicketOrThrow(db: Db, session: Session, id: string) {
   return ticket;
 }
 
-export function findMessages(db: Db, ticketId: string, includeNotes: boolean) {
-  return db.ticketMessage.findMany({
+/** A ticket view shows at most this many messages: the newest ones. */
+export const TICKET_MESSAGES_SHOWN = 500;
+
+/** The newest `TICKET_MESSAGES_SHOWN` messages, returned oldest first. */
+export async function findMessages(db: Db, ticketId: string, includeNotes: boolean) {
+  const newest = await db.ticketMessage.findMany({
     where: { ticketId, ...(includeNotes ? {} : { kind: { not: 'INTERNAL_NOTE' } }) },
     include: messageInclude,
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: TICKET_MESSAGES_SHOWN,
   });
+  return newest.toReversed();
 }
