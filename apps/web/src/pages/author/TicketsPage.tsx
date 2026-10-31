@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { Card } from '../../components/atoms/Card';
 import { Skeleton } from '../../components/atoms/Skeleton';
 import { Tabs } from '../../components/atoms/Tabs';
+import { LoadMore } from '../../components/molecules/LoadMore';
 import { EmptyState, ErrorState } from '../../components/molecules/States';
 import { TicketCard } from '../../components/molecules/TicketCard';
 import { TicketCardFixture } from '../../components/molecules/TicketCardFixture';
@@ -102,6 +103,12 @@ export function TicketsPage() {
           )}
         </Skeleton>
       )}
+      <LoadMore
+        noun="tickets"
+        hasMore={tickets.hasNextPage}
+        isLoading={tickets.isFetchingNextPage}
+        onLoad={() => void tickets.fetchNextPage()}
+      />
     </div>
   );
 }

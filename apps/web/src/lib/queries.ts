@@ -1,4 +1,11 @@
-import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryKey,
+} from '@tanstack/react-query';
 import type {
   AdminTicket,
   AdminTicketListItem,
@@ -48,17 +55,42 @@ function toQuery(filters: Record<string, string>): string {
   return s ? `?${s}` : '';
 }
 
-export const useAuthorTickets = () =>
-  useQuery({
-    queryKey: keys.tickets(),
-    queryFn: () => api<Page<AuthorTicketListItem>>('/tickets?limit=200'),
+/** Tickets per request; "Load more" asks for the next page with the API's cursor. */
+export const TICKET_PAGE_SIZE = 50;
+
+/** One page of the ticket list: the filters, the page size and, after the first, the cursor. */
+export const ticketListPath = (filters: Record<string, string>, cursor: string | null) =>
+  `/tickets${toQuery({ ...filters, limit: String(TICKET_PAGE_SIZE), cursor: cursor ?? '' })}`;
+
+/** The cursor of the next page, or undefined when this was the last one. */
+export const nextCursorOf = <T>(page: Page<T>): string | undefined => page.nextCursor ?? undefined;
+
+/** Every page loaded so far, as one list. */
+export const allItems = <T>(data: InfiniteData<Page<T>, string | null>) => ({
+  items: data.pages.flatMap((p) => p.items),
+});
+
+/** The browser's time zone, so date filters ("from", "to") mean the staff member's own days. */
+export const browserTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** A ticket list read page by page; `data.items` holds every page loaded so far. */
+function useTicketPages<T>(key: QueryKey, filters: Record<string, string>) {
+  return useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ pageParam, signal }) =>
+      api<Page<T>>(ticketListPath(filters, pageParam), { signal }),
+    initialPageParam: null as string | null,
+    getNextPageParam: nextCursorOf<T>,
+    select: allItems<T>,
   });
+}
+
+export const useAuthorTickets = () => useTicketPages<AuthorTicketListItem>(keys.tickets(), {});
 
 export const useAdminTickets = (filters: Record<string, string>) =>
-  useQuery({
-    queryKey: keys.tickets(filters),
-    queryFn: () =>
-      api<Page<AdminTicketListItem>>(`/tickets${toQuery({ limit: '200', ...filters })}`),
+  useTicketPages<AdminTicketListItem>(keys.tickets(filters), {
+    ...filters,
+    tz: browserTimeZone(),
   });
 
 export const useAuthorTicket = (id: string) =>
