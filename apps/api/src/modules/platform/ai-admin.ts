@@ -1,6 +1,5 @@
 import type {
   PlatformAiSettings,
-  PlatformAiStatus,
   SavePlatformKey,
   UpdatePlatformAiSettings,
 } from '@bookleaf/shared';
@@ -12,6 +11,7 @@ import { asPlatform } from '../../platform/tenancy.js';
 import { SecretsNotConfiguredError } from '../connectors/store.js';
 import { platformAiStatus, toPlatformAiSettings, type PlatformAiDeps } from './ai-status.js';
 import { removePlatformKey, savePlatformKey } from './keys.js';
+import { readLastTest, saveLastTest } from './last-test.js';
 
 type FieldError = { path: string; message: string };
 const MODEL_FIELDS = ['triageModel', 'draftModel', 'chatModel'] as const;
@@ -86,9 +86,9 @@ async function testConnection(deps: PlatformAiDeps): Promise<{ ok: boolean; deta
 
 /** The console's AI screen (U-7): platform keys are write-only and shown by their last 4 only. */
 export function createPlatformAiAdmin(deps: PlatformAiDeps) {
-  let lastTest: PlatformAiStatus['lastTest'] = null;
+  const status = async () => platformAiStatus(deps, await readLastTest(deps.db));
   return {
-    status: () => platformAiStatus(deps, lastTest),
+    status,
     update: (input: UpdatePlatformAiSettings): Promise<PlatformAiSettings> =>
       updateSettings(deps, input),
     async saveKey(capability: ProviderCapability, provider: string, input: SavePlatformKey) {
@@ -96,7 +96,7 @@ export function createPlatformAiAdmin(deps: PlatformAiDeps) {
       assertProvider(deps, capability, provider);
       await savePlatformKey(deps.db, deps.envelope, { capability, provider, apiKey: input.apiKey });
       deps.providers.invalidate();
-      return platformAiStatus(deps, lastTest);
+      return status();
     },
     async removeKey(capability: ProviderCapability, provider: string): Promise<void> {
       if (!(await removePlatformKey(deps.db, capability, provider)))
@@ -105,7 +105,7 @@ export function createPlatformAiAdmin(deps: PlatformAiDeps) {
     },
     async test() {
       const result = await testConnection(deps);
-      lastTest = { ...result, at: deps.clock.now().toISOString() };
+      await saveLastTest(deps.db, result, deps.clock.now());
       return result;
     },
   };

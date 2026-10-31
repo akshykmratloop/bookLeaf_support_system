@@ -126,6 +126,10 @@ describe('platform provider keys (U-7)', () => {
   it('tests the connection with the active key, and removing the key falls back to env', async () => {
     const test = await call(h, 'POST', '/platform/ai/test', platform);
     expect(test.json()).toMatchObject({ ok: true });
+    // Kept in the database, so every copy of the API (and a restarted one) shows it.
+    const row = await h.db.platformSettings.findUniqueOrThrow({ where: { id: 1 } });
+    expect(row).toMatchObject({ lastTestOk: true });
+    expect((await status()).lastTest).toMatchObject({ ok: true });
     expect((await call(h, 'DELETE', '/platform/ai/keys/AI/anthropic', platform)).statusCode).toBe(
       204,
     );

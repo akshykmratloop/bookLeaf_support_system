@@ -618,6 +618,10 @@ model AiSettings {
   triageModel    String   @map("triage_model")
   draftModel     String   @map("draft_model")
   simulateOutage Boolean  @default(false) @map("simulate_outage")
+  /// The console's last "Test connection" result, so every copy shows the same one after restarts.
+  lastTestAt     DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk     Boolean?  @map("last_test_ok")
+  lastTestDetail String?   @map("last_test_detail")
   version        Int      @default(0)
   updatedById    String?  @map("updated_by_id") @db.Uuid
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -962,6 +966,10 @@ model PlatformSettings {
   /// Null = VOICE_MODEL from env.
   voiceModel     String?  @map("voice_model")
   simulateOutage Boolean  @default(false) @map("simulate_outage")
+  /// The console's last "Test connection" result, so every copy shows the same one after restarts.
+  lastTestAt     DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk     Boolean?  @map("last_test_ok")
+  lastTestDetail String?   @map("last_test_detail")
   version        Int      @default(0)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
