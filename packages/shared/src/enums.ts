@@ -47,7 +47,7 @@ export type FieldSource = (typeof FIELD_SOURCES)[number];
 export const AI_STATES = ['PENDING', 'DONE', 'FALLBACK'] as const;
 export type AiState = (typeof AI_STATES)[number];
 
-export const AI_JOB_STATUSES = ['QUEUED', 'RUNNING', 'SUCCEEDED', 'FALLBACK'] as const;
+export const AI_JOB_STATUSES = ['QUEUED', 'RUNNING', 'SUCCEEDED', 'FALLBACK', 'FAILED'] as const;
 export type AiJobStatus = (typeof AI_JOB_STATUSES)[number];
 
 export const DRAFT_SOURCES = ['AI', 'TEMPLATE'] as const;

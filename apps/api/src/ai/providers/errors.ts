@@ -63,3 +63,9 @@ export class NoCategoriesError extends AiError {
     super('The workspace has no active ticket category');
   }
 }
+
+/** The workspace used up its daily AI runs for tickets: rules and templates run instead. */
+export class AiBudgetExceededError extends AiError {
+  readonly code = 'AI_BUDGET';
+  readonly retryable = false;
+}

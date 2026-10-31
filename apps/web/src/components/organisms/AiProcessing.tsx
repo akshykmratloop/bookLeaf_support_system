@@ -8,6 +8,7 @@ const JOB_TEXT: Record<string, string> = {
   RUNNING: 'Running',
   SUCCEEDED: 'Done',
   FALLBACK: 'Fell back to rules',
+  FAILED: 'AI failed — write the reply yourself',
 };
 
 /** The ticket's AI jobs and their state, with a button to run classification again. */

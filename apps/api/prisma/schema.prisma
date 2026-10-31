@@ -161,6 +161,8 @@ enum AiJobStatus {
   RUNNING
   SUCCEEDED
   FALLBACK
+  /// Terminal: the rules fallback itself failed. Never reclaimed; staff write the reply.
+  FAILED
 }
 
 enum DraftSource {

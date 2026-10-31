@@ -13,6 +13,7 @@ import { loadTicketContext, type TicketContext } from '../context.js';
 import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
+import { assertWithinBudget } from '../budget.js';
 import { categoryOf } from '../../knowledge/knowledge.js';
 
 function triageInput(ctx: TicketContext): TriageInput {
@@ -90,6 +91,7 @@ async function applyDecision(
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
     const ctx = await loadTicketContext(deps, job.ticketId);
+    await assertWithinBudget(deps, ctx.ticket.workspaceId);
     const { provider, model, providerId } = await deps.ai.resolve('TRIAGE', {
       workspaceId: ctx.ticket.workspaceId,
     });
