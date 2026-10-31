@@ -12,8 +12,13 @@ export const HostConfig = z.object({
   HOST_API_KEY: z.string().min(24, 'HOST_API_KEY must be at least 24 characters'),
   /** Verifies the host's hand-over tokens (HS256). */
   HOST_SIGNING_SECRET: z.string().min(32, 'HOST_SIGNING_SECRET must be at least 32 characters'),
-  /** Where authors sign in on the host; the support login page links there. */
-  HOST_SIGN_IN_URL: z.url().optional(),
+  /**
+   * Where authors sign in on the host; the support login page links there. Web addresses only
+   * (http/https): the link is shown to authors, so `javascript:` and the like are refused.
+   */
+  HOST_SIGN_IN_URL: z
+    .url({ protocol: /^https?$/, error: 'must be an http(s):// address' })
+    .optional(),
   /**
    * Comma-separated origins allowed to show the support widget in an iframe (embed mode),
    * e.g. `https://app.bookleaf.in`. Empty: the widget cannot be framed.

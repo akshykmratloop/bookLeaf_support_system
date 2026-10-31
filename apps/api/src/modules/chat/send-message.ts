@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { ChatReply } from '@bookleaf/shared';
 import { ConflictError, UsageLimitError } from '../../platform/errors.js';
 import { QueueFullError } from '../../platform/shared-state/errors.js';
-import { startOfUtcDay, type AssistantLimits } from '../assistant/limits.js';
+import type { AssistantLimits } from '../assistant/limits.js';
 import { authorIdOf, type Session } from '../auth/session.js';
 import { toTicketDraft } from '../ticket-drafts/mappers.js';
 import { produceAnswer, type StoredAnswer } from './answer.js';
@@ -10,7 +10,7 @@ import { type ChatContext, type ChatDeps } from './deps.js';
 import { applyDraftAction } from './draft-turn.js';
 import { turnLimitError } from './limit.js';
 import { toChatMessage } from './mappers.js';
-import { authorMessagesSince, findOwnSession, reserveTurn } from './repository.js';
+import { findOwnSession, reserveTurn } from './repository.js';
 import { loadChat } from './sessions.js';
 
 /** The model sees the last few exchanges only, which bounds cost per turn. */
@@ -24,22 +24,36 @@ export interface ChatMessageInput {
 type ChatLimits = AssistantLimits['chat'];
 
 const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 
-/** The workspace's per-minute and per-day message limits for this author. */
+/**
+ * The shared counters for one author's typed messages. Counted in shared state (one count on
+ * every copy of the API), so several chats open at once still add up to one limit.
+ */
+export const chatLimitKeys = (authorId: string) => ({
+  minute: `chat:msg:min:${authorId}`,
+  day: `chat:msg:day:${authorId}`,
+});
+
+/**
+ * The workspace's per-minute and per-day message limits for this author. The day is a 24-hour
+ * window from the author's first message, not the calendar day. A message refused for the minute
+ * limit does not use up the day's allowance.
+ */
 async function enforceRateLimits(deps: ChatDeps, authorId: string, limits: ChatLimits) {
-  const now = deps.clock.now();
-  const perDay = limits.messagesPerDay;
-  const used = await authorMessagesSince(deps.db, authorId, startOfUtcDay(now));
-  if (used >= perDay)
-    throw new UsageLimitError(
-      'CHAT_DAILY_LIMIT',
-      `You've reached today's limit of ${perDay} chat messages. You can still raise a ticket.`,
-    );
-  const recent = await authorMessagesSince(deps.db, authorId, new Date(now.getTime() - MINUTE_MS));
-  if (recent >= limits.messagesPerMinute)
+  const keys = chatLimitKeys(authorId);
+  const minute = await deps.counters.hit(keys.minute, MINUTE_MS);
+  if (minute.count > limits.messagesPerMinute)
     throw new UsageLimitError(
       'CHAT_RATE_LIMIT',
       'You are sending messages very quickly. Please wait a minute and try again.',
+    );
+  const perDay = limits.messagesPerDay;
+  const day = await deps.counters.hit(keys.day, DAY_MS);
+  if (day.count > perDay)
+    throw new UsageLimitError(
+      'CHAT_DAILY_LIMIT',
+      `You've reached the limit of ${perDay} chat messages in 24 hours. You can still raise a ticket.`,
     );
 }
 

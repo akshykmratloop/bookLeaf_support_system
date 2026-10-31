@@ -3,6 +3,7 @@ import swaggerUi from '@fastify/swagger-ui';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { jsonSchemaTransform, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { Container } from './container.js';
+import { logSerializers } from './platform/http/log-serializers.js';
 import { supportPlugin } from './plugin.js';
 
 const BODY_LIMIT = 64 * 1024;
@@ -15,14 +16,29 @@ const REDACT = [
   '*.token',
 ];
 
+/**
+ * Node's own timeouts. `requestTimeout` only covers receiving the request (headers and body), so a
+ * slow client cannot hold a connection open; once received, slow AI answers, live updates (SSE)
+ * and call sockets are not cut. Keep-alive outlasts Caddy's 2-minute upstream idle, so the proxy
+ * closes idle connections first and never reuses one the API has just closed (a 502).
+ * `connectionTimeout` (socket inactivity) stays off: it would also cut a request whose handler
+ * takes longer than the limit, and every live-update stream between heartbeats.
+ */
+const TIMEOUTS = { requestTimeout: 30_000, keepAliveTimeout: 125_000 } as const;
+
 function createServer(c: Container) {
   return Fastify({
     logger:
       c.env.NODE_ENV === 'test'
         ? false
-        : { level: c.env.LOG_LEVEL, redact: { paths: REDACT, censor: '[redacted]' } },
+        : {
+            level: c.env.LOG_LEVEL,
+            redact: { paths: REDACT, censor: '[redacted]' },
+            serializers: logSerializers,
+          },
     bodyLimit: BODY_LIMIT,
     trustProxy: c.env.NODE_ENV === 'production',
+    ...TIMEOUTS,
   }).withTypeProvider<ZodTypeProvider>();
 }
 

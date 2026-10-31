@@ -1,4 +1,5 @@
 import type { Problem } from '@bookleaf/shared';
+import { signalSessionExpired } from './sessionExpiry';
 
 /** A failed API call, carrying the RFC 7807 problem the server returned. */
 export class ApiError extends Error {
@@ -66,14 +67,42 @@ async function send(path: string, opts: RequestOptions): Promise<Response> {
   }
 }
 
+/** Marks a body that is not JSON, e.g. a proxy's HTML 502 page. */
+const NOT_JSON = Symbol('not-json');
+
+/** The body as JSON: undefined when empty, NOT_JSON when it cannot be read as JSON. */
+function parseBody(text: string): unknown {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return NOT_JSON;
+  }
+}
+
+/** A problem body has at least a title; anything else is replaced by a generic one. */
+const isProblem = (data: unknown): data is Problem =>
+  typeof data === 'object' && data !== null && typeof (data as Problem).title === 'string';
+
+/**
+ * Calls whose 401 is an answer, not an ended session: the "who am I" probe and signing in. Every
+ * other 401 means the session ended, and the app is told once (sessionExpiry).
+ */
+const SIGN_IN_PATHS = /^\/(platform\/)?auth\/(me|login|host)(\?|$)/;
+
+function failure(path: string, status: number, data: unknown): ApiError {
+  if (status === 401 && !SIGN_IN_PATHS.test(path)) signalSessionExpired();
+  return new ApiError(status, isProblem(data) ? data : fallbackProblem(status));
+}
+
 /** JSON-only client. Cookies carry the session; the server never sees a token in JS. */
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const res = await send(path, opts);
   if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  const data: unknown = text ? JSON.parse(text) : undefined;
-  if (!res.ok)
-    throw new ApiError(res.status, (data as Problem | undefined) ?? fallbackProblem(res.status));
+  const data = parseBody(await res.text());
+  if (!res.ok) throw failure(path, res.status, data);
+  // A success that is not JSON came from something in between (a proxy page), not the API.
+  if (data === NOT_JSON) throw new ApiError(502, fallbackProblem(502));
   return data as T;
 }
 

@@ -1,4 +1,6 @@
 import {
+  VOICE_SOCKET_PROTOCOL,
+  VOICE_TICKET_PROTOCOL_PREFIX,
   VoiceServerMessageSchema,
   type StartVoiceCall,
   type VoiceServerMessage,
@@ -18,6 +20,12 @@ export interface StartCallOptions {
 }
 
 const HANGUP_GRACE_MS = 3000;
+
+/** The ticket rides as a subprotocol beside `bookleaf.v1`: never in the URL, so never logged. */
+export const socketProtocols = (ticket?: string): string[] =>
+  ticket
+    ? [VOICE_SOCKET_PROTOCOL, `${VOICE_TICKET_PROTOCOL_PREFIX}${ticket}`]
+    : [VOICE_SOCKET_PROTOCOL];
 /** Longest the goodbye may keep playing after the server ends the call. */
 const DRAIN_LIMIT_MS = 8000;
 
@@ -105,11 +113,10 @@ export class VoiceCallSession {
   }
 
   /** The server's absolute URL (API on another site, with a ticket), else the path on this host. */
-  private openSocket(call: Pick<StartVoiceCall, 'socketPath' | 'socketUrl'>) {
+  private openSocket(call: Pick<StartVoiceCall, 'socketPath' | 'socketUrl' | 'socketTicket'>) {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(
-      call.socketUrl ?? `${scheme}://${window.location.host}${call.socketPath}`,
-    );
+    const url = call.socketUrl ?? `${scheme}://${window.location.host}${call.socketPath}`;
+    const ws = new WebSocket(url, socketProtocols(call.socketTicket));
     ws.binaryType = 'arraybuffer';
     ws.onmessage = (e: MessageEvent<ArrayBuffer | string>) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);

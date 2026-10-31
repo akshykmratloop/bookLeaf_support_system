@@ -38,7 +38,10 @@ class FakeSocket {
   sent: unknown[] = [];
   onmessage: ((e: { data: unknown }) => void) | null = null;
   onclose: ((e: { code: number }) => void) | null = null;
-  constructor(readonly url: string) {
+  constructor(
+    readonly url: string,
+    readonly protocols: string[] = [],
+  ) {
     FakeSocket.last = this;
   }
   send(data: unknown) {
@@ -84,9 +87,22 @@ describe('VoiceCallSession', () => {
   it('connects to the call socket on the same host and goes live on ready', async () => {
     const { session, ws } = await startedCall();
     expect(ws.url).toBe('ws://localhost:3100/api/v1/voice/calls/call-1/stream');
+    expect(ws.protocols).toEqual(['bookleaf.v1']);
     expect(session.snapshot().phase).toBe('connecting');
     ws.server({ type: 'ready', maxSeconds: 300 });
     expect(session.snapshot()).toMatchObject({ phase: 'live', secondsLeft: 300 });
+  });
+
+  it('opens the API on another site with the ticket as a subprotocol, never in the URL', async () => {
+    mocks.api.mockResolvedValueOnce({
+      id: 'call-1',
+      socketPath: '/api/v1/voice/calls/call-1/stream',
+      socketUrl: 'wss://api.example.com/api/v1/voice/calls/call-1/stream',
+      socketTicket: 'aaa.bbb.ccc',
+    });
+    const { ws } = await startedCall();
+    expect(ws.url).toBe('wss://api.example.com/api/v1/voice/calls/call-1/stream');
+    expect(ws.protocols).toEqual(['bookleaf.v1', 'ticket.aaa.bbb.ccc']);
   });
 
   it('counts down from the server limit', async () => {

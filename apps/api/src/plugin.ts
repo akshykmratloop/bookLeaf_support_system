@@ -8,6 +8,7 @@ import type { Env } from './config/index.js';
 import { runInBackground } from './background.js';
 import { createContainer, type Container } from './container.js';
 import { MAX_FRAME_BYTES } from './modules/voice/gateway.js';
+import { chooseProtocol } from './modules/voice/stream-route.js';
 import { recordWidgetLoad } from './modules/onboarding/signals.js';
 import { DEFAULT_WORKSPACE_SLUG } from './modules/workspaces/constants.js';
 import { authGuard } from './platform/http/auth-guard.js';
@@ -64,9 +65,11 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
     global: false,
     store: sharedRateLimitStore(c.shared.state.counters),
   });
-  await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
+  await app.register(websocket, {
+    options: { maxPayload: MAX_FRAME_BYTES, handleProtocols: chooseProtocol },
+  });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
-  await app.register(healthRoutes, { db: c.db });
+  await app.register(healthRoutes, { db: c.db, shared: c.shared.state });
   await registerApi(app, c);
   if (await registerSpa(app, c.env.WEB_DIST_DIR))
     registerWidgetPages(app, {

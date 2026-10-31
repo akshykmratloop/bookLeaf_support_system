@@ -20,7 +20,12 @@
  * app in a panel; Expand makes it full screen over the page. The user never leaves the host
  * page. Remove the tag and the widget is gone: nothing else to undo.
  *
- * window.BookLeafSupport: open(), close(), expand(), collapse().
+ * window.BookLeafSupport: open(), close(), expand(), collapse(), signOut(). Call signOut() (it
+ * returns a promise) when the user signs out of the host product, before leaving the page: the
+ * support app inside the frame signs out too.
+ *
+ * Every message to the frame names this page's origin, so the frame learns where to send
+ * messages that carry content (a page path, the brand and logo) instead of using '*'.
  */
 (() => {
   if (window.BookLeafSupport) return; // the tag was added twice
@@ -118,14 +123,31 @@
     for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
     el.style.colorScheme = colorScheme;
   }
+  /** A message to the support app in `frame`; it always names this page's origin. */
+  const toFrame = (frame, type, extra = {}) =>
+    frame?.contentWindow?.postMessage(
+      { type: `${MSG}${type}`, origin: location.origin, ...extra },
+      supportUrl,
+    );
+  /** Introduces this page to the frame: its origin and the current theme. */
+  const hello = (frame) => toFrame(frame, 'hello', { theme: currentTheme() });
+
   /** Repaints the frame around the support app and tells the app inside, so both match. */
   const repaint = () => {
     [launcher, state.panel].forEach(paint);
-    const theme = currentTheme();
-    state.frame?.contentWindow?.postMessage({ type: 'bookleaf-support:theme', theme }, supportUrl);
+    toFrame(state.frame, 'theme', { theme: currentTheme() });
   };
 
-  const state = { panel: null, frame: null, backdrop: null, expanded: false, reauths: [] };
+  const state = {
+    panel: null,
+    frame: null,
+    backdrop: null,
+    expanded: false,
+    reauths: [],
+    /** Resolves a waiting signOut() once the frame says it has signed out. */
+    signedOut: null,
+  };
+  const SIGN_OUT_WAIT_MS = 2000;
 
   async function freshToken() {
     const res = await fetch(tokenUrl, {
@@ -231,6 +253,7 @@
     f.allow = 'microphone';
     f.src = `${supportUrl}${path}#t=${encodeURIComponent(token)}&theme=${currentTheme()}`;
     style(f, { border: '0', width: '100%', flex: '1', background: 'var(--bl-bg)' });
+    f.addEventListener('load', () => hello(f));
     return f;
   }
 
@@ -428,6 +451,25 @@
     if (state.frame) state.frame.title = title;
   }
 
+  /**
+   * Signs the support app out (the host user signed out). Resolves once the frame confirms, or
+   * after a short wait if it does not answer; at once when the widget is not open.
+   */
+  function signOut() {
+    const frame = state.frame;
+    if (!frame) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        state.signedOut = null;
+        resolve();
+      };
+      const timer = setTimeout(done, SIGN_OUT_WAIT_MS);
+      state.signedOut = done;
+      toFrame(frame, 'signout');
+    });
+  }
+
   /** Messages from our own frame only: checked by origin and by the sending window. */
   window.addEventListener('message', (e) => {
     if (e.origin !== supportUrl || !state.frame || e.source !== state.frame.contentWindow) return;
@@ -439,6 +481,8 @@
     else if (type === 'expand') expand();
     else if (type === 'close') close();
     else if (type === 'brand') applyBrand(data);
+    else if (type === 'ready') hello(state.frame);
+    else if (type === 'signedout') state.signedOut?.();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && state.panel) escape();
@@ -492,5 +536,5 @@
   });
   darkQuery.addEventListener('change', repaint);
 
-  window.BookLeafSupport = { open, close, expand, collapse };
+  window.BookLeafSupport = { open, close, expand, collapse, signOut };
 })();

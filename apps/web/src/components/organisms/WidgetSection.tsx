@@ -1,4 +1,5 @@
 import { WIDGET_THEMES, type WidgetTheme } from '@bookleaf/shared';
+import { useEffect, useRef } from 'react';
 import { Input, Textarea } from '../atoms/Input';
 import { Dropdown } from '../molecules/Dropdown';
 import { Field } from '../molecules/Field';
@@ -29,6 +30,7 @@ function OriginsField({ status, isSaving, update, fieldError }: SectionProps) {
       error={error}
     >
       <Textarea
+        key={s.allowedOrigins.join('\n')}
         id="allowedOrigins"
         name="allowedOrigins"
         rows={3}
@@ -48,21 +50,44 @@ function OriginsField({ status, isSaving, update, fieldError }: SectionProps) {
   );
 }
 
-function LookFields({ status, isSaving, update, fieldError }: SectionProps) {
+/** While the colour picker is dragged it reports every step; only the colour it settles on saves. */
+const COLOUR_SETTLE_MS = 400;
+
+function ColourField({ status, isSaving, update, fieldError }: SectionProps) {
+  const saved = status.settings.brandColor;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const onPick = (brandColor: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (brandColor !== saved) update({ brandColor });
+    }, COLOUR_SETTLE_MS);
+  };
+  return (
+    <Field id="brandColor" label="Brand colour" error={fieldError('brandColor')}>
+      <Input
+        key={saved}
+        id="brandColor"
+        type="color"
+        defaultValue={saved}
+        disabled={isSaving}
+        onChange={(e) => onPick(e.target.value)}
+      />
+    </Field>
+  );
+}
+
+function LookFields(props: SectionProps) {
+  const { status, isSaving, update, fieldError } = props;
   const s = status.settings;
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <Field id="brandColor" label="Brand colour" error={fieldError('brandColor')}>
-        <Input
-          id="brandColor"
-          type="color"
-          defaultValue={s.brandColor}
-          disabled={isSaving}
-          onBlur={(e) => {
-            if (e.target.value !== s.brandColor) update({ brandColor: e.target.value });
-          }}
-        />
-      </Field>
+      <ColourField {...props} />
       <Field
         id="logoUrl"
         label="Logo address"
@@ -70,6 +95,7 @@ function LookFields({ status, isSaving, update, fieldError }: SectionProps) {
         error={fieldError('logoUrl')}
       >
         <Input
+          key={s.logoUrl ?? ''}
           id="logoUrl"
           type="url"
           inputMode="url"
@@ -96,6 +122,11 @@ function LookFields({ status, isSaving, update, fieldError }: SectionProps) {
   );
 }
 
+/**
+ * Inputs here are uncontrolled and save on blur (the colour once the picker settles). Each is
+ * keyed by its saved value, so after a save (the server may tidy the value) or a reload it shows
+ * what is really stored, while a field still being edited keeps the typing when another saves.
+ */
 export function WidgetSection(props: SectionProps) {
   const { status, isSaving, update, fieldError } = props;
   const s = status.settings;
@@ -113,6 +144,7 @@ export function WidgetSection(props: SectionProps) {
         {TEXT_FIELDS.map((f) => (
           <Field key={f.key} id={f.key} label={f.label} hint={f.hint} error={fieldError(f.key)}>
             <Input
+              key={s[f.key]}
               id={f.key}
               defaultValue={s[f.key]}
               disabled={isSaving}

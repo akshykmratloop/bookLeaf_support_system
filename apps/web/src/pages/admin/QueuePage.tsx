@@ -1,5 +1,6 @@
 import { useDeferredValue, useState } from 'react';
 import { Card } from '../../components/atoms/Card';
+import { LoadMore } from '../../components/molecules/LoadMore';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
 import { QueueFilters } from '../../components/organisms/QueueFilters';
@@ -65,6 +66,12 @@ export function QueuePage() {
           />
         ) : null}
         {items.length > 0 ? <QueueTable items={items} /> : null}
+        <LoadMore
+          noun="tickets"
+          hasMore={tickets.hasNextPage}
+          isLoading={tickets.isFetchingNextPage}
+          onLoad={() => void tickets.fetchNextPage()}
+        />
       </Card>
     </>
   );

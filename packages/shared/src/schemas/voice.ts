@@ -32,14 +32,24 @@ export const StartVoiceCallSchema = z.object({
   id: z.uuid(),
   socketPath: z.string(),
   /**
-   * Set when the web app is served from another site than the API: open this absolute URL (it
-   * carries a 60-second, one-time ticket) instead of `socketPath` on the page's own host.
+   * Set when the web app is served from another site than the API: open this absolute URL
+   * instead of `socketPath` on the page's own host, with `socketTicket`.
    */
   socketUrl: z.string().optional(),
+  /**
+   * The 60-second, one-time ticket for `socketUrl`. It travels as a WebSocket subprotocol
+   * (`ticket.<ticket>`, beside `bookleaf.v1`), never in the URL, so it is not logged anywhere.
+   */
+  socketTicket: z.string().optional(),
   maxSeconds: z.int(),
   connectWithinSeconds: z.int(),
 });
 export type StartVoiceCall = z.infer<typeof StartVoiceCallSchema>;
+
+/** The call socket's subprotocol; the server answers with it. */
+export const VOICE_SOCKET_PROTOCOL = 'bookleaf.v1';
+/** A one-time stream ticket is offered as the subprotocol `ticket.<ticket>`. */
+export const VOICE_TICKET_PROTOCOL_PREFIX = 'ticket.';
 
 /** A dropped call can be continued within this many minutes if its ticket wasn't sent. */
 export const RESUME_WITHIN_MINUTES = 60;
