@@ -57,10 +57,22 @@ export function countCallsSince(tx: Prisma.TransactionClient, authorId: string, 
   });
 }
 
-/** On server start: calls that were live in a previous process can never resume. */
-export function failInterruptedCalls(db: Db, now: Date) {
+/**
+ * On server start: calls that cannot still be live anywhere. With several copies, a starting copy
+ * must not end calls another copy is serving, so only calls older than the platform's hard cap
+ * plus the grace are failed (PENDING by when they were made, ACTIVE by when they connected).
+ * Younger ones are left to `expireStale` and to the copy that holds their socket.
+ */
+export function failInterruptedCalls(db: Db, now: Date, maxCallSeconds: number) {
+  const before = new Date(now.getTime() - (maxCallSeconds + ACTIVE_GRACE_SECONDS) * 1000);
   return db.voiceSession.updateMany({
-    where: { status: { in: ['PENDING', 'ACTIVE'] } },
+    where: {
+      OR: [
+        { status: 'PENDING', createdAt: { lt: before } },
+        { status: 'ACTIVE', startedAt: { lt: before } },
+        { status: 'ACTIVE', startedAt: null, createdAt: { lt: before } },
+      ],
+    },
     data: { status: 'FAILED', endReason: 'SERVER_RESTART', endedAt: now },
   });
 }

@@ -7,7 +7,27 @@
 
 {$API_HOST} {
 	encode gzip
-	reverse_proxy 127.0.0.1:3000
+
+	# Live ticket events (Server-Sent Events) and the voice call socket stay open for minutes.
+	# Both answer their headers at once (SSE: 200 + text/event-stream, which Caddy flushes as it
+	# goes; the socket: 101), so a header timeout would not cut them, but they get their own proxy
+	# with low-latency flushing and no timeout so no future timeout added below can.
+	# A chat message waits in its conversation's line (up to 3) for the AI: no header timeout.
+	@long path /api/v1/events /api/v1/events/* /api/v1/voice/calls/*/stream /api/v1/chat/*
+	handle @long {
+		reverse_proxy 127.0.0.1:3000 {
+			flush_interval -1
+		}
+	}
+
+	# Everything else: a hung request gets a 502 after 30 s instead of holding a connection.
+	handle {
+		reverse_proxy 127.0.0.1:3000 {
+			transport http {
+				response_header_timeout 30s
+			}
+		}
+	}
 }
 
 {$HOST_API_HOST} {

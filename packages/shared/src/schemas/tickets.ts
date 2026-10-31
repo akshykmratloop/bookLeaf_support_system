@@ -128,6 +128,28 @@ export type AdminTicket = z.infer<typeof AdminTicketSchema>;
 export const TICKET_SORTS = ['urgency', 'oldest', 'newest'] as const;
 export type TicketSort = (typeof TICKET_SORTS)[number];
 
+/** "Area/Location" style IANA names (and "UTC"); offsets like "+05:30" are not zone names. */
+const ZONE_NAME = /^(?:UTC|[A-Za-z]+(?:\/[A-Za-z0-9_+-]+){1,2})$/;
+
+let timeZones: Set<string> | undefined;
+
+/**
+ * A time zone name this runtime knows. Intl.supportedValuesOf lists ICU's canonical names, which
+ * are sometimes the older ones ("Asia/Calcutta", not "Asia/Kolkata"), so a name it does not list
+ * is still accepted when Intl.DateTimeFormat resolves it.
+ */
+export function isTimeZone(tz: string): boolean {
+  if (!ZONE_NAME.test(tz)) return false;
+  timeZones ??= new Set(Intl.supportedValuesOf('timeZone'));
+  if (tz === 'UTC' || timeZones.has(tz)) return true;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false; // RangeError: not a time zone name. A validation answer, not a failure.
+  }
+}
+
 export const TicketListQuerySchema = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
   category: CategoryKeySchema.optional(),
@@ -135,9 +157,12 @@ export const TicketListQuerySchema = z.object({
   assignee: z.enum(['me', 'unassigned']).optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
+  /** The viewer's time zone: `from` and `to` are calendar days there. */
+  tz: z.string().max(64).refine(isTimeZone, 'Unknown time zone').default('UTC'),
   q: z.string().trim().max(100).optional(),
   sort: z.enum(TICKET_SORTS).default('urgency'),
-  cursor: z.uuid().optional(),
+  /** Opaque: the `nextCursor` of the previous page, for the same sort. */
+  cursor: z.string().min(1).max(512).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type TicketListQuery = z.input<typeof TicketListQuerySchema>;

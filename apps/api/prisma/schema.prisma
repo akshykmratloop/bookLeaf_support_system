@@ -522,6 +522,8 @@ model Ticket {
   @@index([status, priority, slaDueAt])
   @@index([authorId, createdAt])
   @@index([workspaceId, categoryKey])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, updatedAt])
   @@map("tickets")
 }
 

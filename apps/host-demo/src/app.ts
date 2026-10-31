@@ -1,4 +1,5 @@
 import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   serializerCompiler,
@@ -17,10 +18,15 @@ export async function buildHostApp(
   config: HostConfig,
   authors: AuthorAccount[] = loadAuthors(),
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+  const app = Fastify({
+    logger: false,
+    trustProxy: config.HOST_TRUST_PROXY,
+  }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   await app.register(cookie);
+  // Per-route limits only (sign-in, support tokens): one copy, so in-memory counting is exact.
+  await app.register(rateLimit, { global: false });
   // Liveness for the deploy check and the proxy; no data, no sign-in.
   app.get('/health', async () => ({ status: 'ok' }));
   await app.register(customerRoutes, {

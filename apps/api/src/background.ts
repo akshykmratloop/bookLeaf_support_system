@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { createWorker } from './ai/jobs/worker.js';
 import type { Container } from './container.js';
 import { ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
+import { createRetention } from './modules/retention/scheduler.js';
 import { failInterruptedCalls } from './modules/voice/repository.js';
 import { createWebhookDispatcher } from './modules/webhooks/dispatcher.js';
 import { asPlatform } from './platform/tenancy.js';
@@ -9,7 +10,8 @@ import { asPlatform } from './platform/tenancy.js';
 /**
  * The work the module does beside its routes, tied to the app's lifecycle so a host that
  * mounts the plugin gets it with nothing else to start or stop:
- * on ready it closes calls cut off by a restart, then starts the AI worker (WORKER_ENABLED).
+ * on ready it closes calls cut off by a restart, then starts the AI worker, the webhook sender
+ * and the daily retention pass (WORKER_ENABLED).
  * The caller stops it on close, before the database goes away.
  */
 export function runInBackground(app: FastifyInstance, c: Container): { stop(): Promise<void> } {
@@ -39,14 +41,20 @@ export function runInBackground(app: FastifyInstance, c: Container): { stop(): P
     },
     { pollMs: c.env.WORKER_POLL_MS },
   );
+  const retention = createRetention({ db: c.db, clock: c.clock, log: app.log });
   app.addHook('onReady', async () => {
-    // Calls live in the process that holds their socket, so any left PENDING or ACTIVE died with
-    // the last one. With several copies this must be scoped first (docs/architecture.md §21).
-    const interrupted = await asPlatform(() => failInterruptedCalls(c.db, c.clock.now()));
+    // A call lives in the copy that holds its socket. Other copies may be serving calls right
+    // now, so only calls past the hard cap (+ grace) are failed: no copy can still hold those.
+    const interrupted = await asPlatform(() =>
+      failInterruptedCalls(c.db, c.clock.now(), c.env.VOICE_MAX_CALL_SECONDS),
+    );
     if (interrupted.count) app.log.warn({ count: interrupted.count }, 'marked interrupted calls');
     if (!c.env.WORKER_ENABLED) return;
     worker.start();
     webhooks.start();
+    retention.start();
   });
-  return { stop: async () => void (await Promise.all([worker.stop(), webhooks.stop()])) };
+  return {
+    stop: async () => void (await Promise.all([worker.stop(), webhooks.stop(), retention.stop()])),
+  };
 }

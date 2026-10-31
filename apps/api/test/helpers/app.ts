@@ -126,6 +126,7 @@ async function startHost() {
       HOST_DEMO_PASSWORD: 'Author@Test1',
       HOST_WEB_DIST: '/nonexistent/host-web-dist',
       HOST_SECURE_COOKIES: false,
+      HOST_TRUST_PROXY: false,
     },
     HOST_AUTHORS,
   );

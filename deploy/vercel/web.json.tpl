@@ -19,7 +19,10 @@
     {
       "source": "/((?!embed).*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' wss://${API_HOST}; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        },
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
     },

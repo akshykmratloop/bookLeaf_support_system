@@ -100,6 +100,17 @@ export async function revokeApiKey(
   });
 }
 
+/** "Last used" is shown to the minute: a busy product costs one small UPDATE a minute per key. */
+export const LAST_USED_EVERY_MS = 60_000;
+
+function touchLastUsed(db: Db, id: string, now: Date) {
+  const stale = new Date(now.getTime() - LAST_USED_EVERY_MS);
+  return db.workspaceApiKey.updateMany({
+    where: { id, OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: stale } }] },
+    data: { lastUsedAt: now },
+  });
+}
+
 /**
  * The workspace and scopes a presented key grants, or null (unknown, revoked, malformed). The key
  * itself names the workspace, so this lookup runs on the platform path (S.8).
@@ -116,10 +127,7 @@ export function verifyApiKey(
     });
     if (!key || key.revokedAt) return null;
     if (key.workspace.plan?.suspendedAt) throw new WorkspaceSuspendedError();
-    await deps.db.workspaceApiKey.update({
-      where: { id: key.id },
-      data: { lastUsedAt: deps.clock.now() },
-    });
+    await touchLastUsed(deps.db, key.id, deps.clock.now());
     return { workspaceId: key.workspaceId, scopes: key.scopes, prefix: key.prefix };
   });
 }

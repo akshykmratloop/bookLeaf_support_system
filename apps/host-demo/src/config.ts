@@ -22,8 +22,22 @@ const ConfigSchema = z.object({
     .string()
     .min(1)
     .default(fileURLToPath(new URL('../../host-web/dist', import.meta.url))),
-  /** Password for every demo author account. */
-  HOST_DEMO_PASSWORD: z.string().min(8).default('Author@BookLeaf1'),
+  /**
+   * Password for every demo author account. Required, no default: production sets it from the
+   * secret store, local runs from .env (scripts/local/env.mjs copies .env.example's demo value).
+   */
+  HOST_DEMO_PASSWORD: z
+    .string()
+    .min(12, 'HOST_DEMO_PASSWORD must be at least 12 characters')
+    .max(128),
+  /**
+   * Behind the deploy's reverse proxy: take the client address from X-Forwarded-For, so sign-in
+   * limits count per visitor and not per proxy. Off locally, where nothing sets that header.
+   */
+  HOST_TRUST_PROXY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   /** Session cookie only over HTTPS. On when deployed behind TLS; off for plain-HTTP local runs. */
   HOST_SECURE_COOKIES: z
     .enum(['true', 'false'])

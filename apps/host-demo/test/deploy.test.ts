@@ -39,9 +39,26 @@ describe('running behind a proxy (deployment)', () => {
   });
 });
 
+describe('configuration', () => {
+  it('has no built-in demo password: it must be set, at least 12 characters', () => {
+    const { HOST_DEMO_PASSWORD: _unset, ...rest } = stringEnv();
+    expect(() => loadConfig(rest)).toThrow(/HOST_DEMO_PASSWORD/);
+    expect(() => loadConfig({ ...rest, HOST_DEMO_PASSWORD: 'short-pass' })).toThrow(
+      /at least 12 characters/,
+    );
+    expect(loadConfig(stringEnv()).HOST_DEMO_PASSWORD).toBe(TEST_CONFIG.HOST_DEMO_PASSWORD);
+  });
+
+  it('trusts X-Forwarded-For only when HOST_TRUST_PROXY is on', () => {
+    expect(loadConfig(stringEnv()).HOST_TRUST_PROXY).toBe(false);
+    expect(loadConfig({ ...stringEnv(), HOST_TRUST_PROXY: 'true' }).HOST_TRUST_PROXY).toBe(true);
+  });
+});
+
 function stringEnv(): Record<string, string> {
   return {
     HOST_API_KEY: TEST_CONFIG.HOST_API_KEY,
     HOST_SIGNING_SECRET: TEST_CONFIG.HOST_SIGNING_SECRET,
+    HOST_DEMO_PASSWORD: TEST_CONFIG.HOST_DEMO_PASSWORD,
   };
 }
