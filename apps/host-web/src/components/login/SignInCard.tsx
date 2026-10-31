@@ -6,7 +6,7 @@ import type { SignInForm } from './useSignInForm';
 const greeting = (h: number) =>
   h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 
-/** BookLeaf's sign-in, as a raised glass card. Demo accounts share HOST_DEMO_PASSWORD (README). */
+/** BookLeaf's sign-in, as a raised glass card. Every demo account uses the published demo password (README). */
 export function SignInCard({ form }: { form: SignInForm }) {
   const { email, setEmail, password, setPassword, error, busy } = form;
   const [capsLock, setCapsLock] = useState(false);

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { signIn } from '../../lib/api';
-import { fillAndSubmit, type DemoAuthor } from '../../lib/demoAccounts';
+import { DEMO_AUTHORS, fillAndSubmit, type DemoAuthor } from '../../lib/demoAccounts';
 import { DASHBOARD_KEY } from '../../lib/keys';
 
 function useSignIn() {
@@ -41,7 +41,7 @@ export interface SignInForm {
  * submit through the same `submit`, so they share its loading and error states.
  */
 export function useSignInForm(): SignInForm {
-  const [email, setEmail] = useState('priya.sharma@email.com');
+  const [email, setEmail] = useState(DEMO_AUTHORS[0]?.email ?? '');
   const [password, setPassword] = useState('');
   const [demoEmail, setDemoEmail] = useState<string | null>(null);
   const { error, busy, submit } = useSignIn();
