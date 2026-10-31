@@ -25,9 +25,29 @@ export async function recordHandOver(db: Db, workspaceId: string, now: Date): Pr
 }
 
 /**
+ * Each copy writes a slug's widget load at most once a minute, whichever site framed it: a page
+ * framed from many sites at once must not turn into a write per view. Bounded, oldest out first.
+ */
+const lastWidgetWrite = new Map<string, number>();
+const MAX_THROTTLED_SLUGS = 10_000;
+
+function widgetWriteDue(slug: string, now: Date): boolean {
+  const last = lastWidgetWrite.get(slug);
+  if (last !== undefined && now.getTime() - last < SIGNAL_EVERY_MS) return false;
+  lastWidgetWrite.delete(slug);
+  if (lastWidgetWrite.size >= MAX_THROTTLED_SLUGS) {
+    const oldest = lastWidgetWrite.keys().next().value;
+    if (oldest !== undefined) lastWidgetWrite.delete(oldest);
+  }
+  lastWidgetWrite.set(slug, now.getTime());
+  return true;
+}
+
+/**
  * The widget page was framed by one of the workspace's allowed sites. Called from the public
- * widget page, before anyone signs in, so it finds the workspace by slug (platform scope). A new
- * site is recorded at once; the same site again only once a minute.
+ * widget page, before anyone signs in, so it finds the workspace by slug (platform scope). This
+ * copy writes at most once a minute per slug; across copies, the database condition still skips
+ * the same site within a minute (a different site is written, at most once a minute per copy).
  */
 export async function recordWidgetLoad(
   db: Db,
@@ -35,6 +55,7 @@ export async function recordWidgetLoad(
   origin: string,
   now: Date,
 ): Promise<void> {
+  if (!widgetWriteDue(slug, now)) return;
   await asPlatform(
     () => db.$executeRaw`
       UPDATE "workspaces" SET "last_widget_load_at" = ${now}, "last_widget_origin" = ${origin}
