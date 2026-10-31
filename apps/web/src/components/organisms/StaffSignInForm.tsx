@@ -1,6 +1,7 @@
 import { ArrowRight, Building2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
+import { fillAndSubmit } from '../../lib/demoAccounts';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { DemoAccounts } from '../molecules/DemoAccounts';
@@ -35,7 +36,10 @@ function SignupLink() {
   );
 }
 
-/** Email + password for support staff; customers get help inside the product they use. */
+/**
+ * Email + password for support staff; customers get help inside the product they use. The demo
+ * admin button fills the same fields and submits through the same `onSubmit`.
+ */
 export function StaffSignInForm({ error, isSubmitting, onSubmit }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,17 +78,15 @@ export function StaffSignInForm({ error, isSubmitting, onSubmit }: Props) {
           Sign in
         </Button>
       </form>
+      <DemoAccounts
+        isSubmitting={isSubmitting}
+        onPick={(account) => fillAndSubmit(account, { setEmail, setPassword, submit: onSubmit })}
+      />
       <SignupLink />
       <p className="text-[12px] leading-relaxed text-ink-2">
         Need help as a customer or author? Open Help from inside the product you use: this page is
         for support teams only.
       </p>
-      <DemoAccounts
-        onPick={(pickedEmail) => {
-          setEmail(pickedEmail);
-          setPassword('');
-        }}
-      />
     </div>
   );
 }
