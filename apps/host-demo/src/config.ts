@@ -5,7 +5,7 @@ import { z } from 'zod';
 const ConfigSchema = z.object({
   HOST_DEMO_PORT: z.coerce.number().int().min(1).max(65535).default(3200),
   /** Where the support module runs; the demo page links to it and loads its widget. */
-  SUPPORT_URL: z.url().default('http://localhost:3100'),
+  SUPPORT_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:3100'),
   /** BookLeaf's workspace in the support module: the widget opens `/embed/<this>`. */
   SUPPORT_WORKSPACE: z
     .string()

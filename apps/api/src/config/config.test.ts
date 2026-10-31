@@ -54,6 +54,16 @@ describe('loadEnv', () => {
     expect(loadEnv(REQUIRED)).toMatchObject({ HOST_TIMEOUT_MS: 3000, HOST_CACHE_SECONDS: 60 });
   });
 
+  it('takes only an http(s) address as the host sign-in link', () => {
+    const signIn = (url: string) => loadEnv({ ...REQUIRED, HOST_SIGN_IN_URL: url });
+    expect(signIn('https://app.bookleaf.in/login').HOST_SIGN_IN_URL).toBe(
+      'https://app.bookleaf.in/login',
+    );
+    expect(signIn('http://localhost:3200/').HOST_SIGN_IN_URL).toBe('http://localhost:3200/');
+    for (const bad of ['javascript:alert(1)', 'data:text/html,hi', 'ftp://files.example.com'])
+      expect(() => signIn(bad), bad).toThrow(/HOST_SIGN_IN_URL/);
+  });
+
   it('refuses a host signing secret equal to the session secret', () => {
     const same = { ...REQUIRED, HOST_SIGNING_SECRET: REQUIRED.JWT_SECRET };
     expect(() => loadEnv(same)).toThrow(/HOST_SIGNING_SECRET/);
