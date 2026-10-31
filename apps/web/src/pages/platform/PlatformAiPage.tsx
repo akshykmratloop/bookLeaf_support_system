@@ -21,7 +21,7 @@ export function PlatformAiPage() {
         <>
           <OutageCard settings={ai.data.settings} />
           <AiModelsCard key={ai.data.settings.version} status={ai.data} />
-          <AiTestCard lastTest={ai.data.lastTest} />
+          <AiTestCard lastTest={ai.data.lastTest} recentJobs={ai.data.recentJobs} />
           <ProviderKeysCard status={ai.data} />
         </>
       ) : null}

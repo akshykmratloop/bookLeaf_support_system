@@ -12,6 +12,7 @@ import type { Clock } from '../../platform/clock.js';
 import type { Envelope } from '../../platform/crypto/envelope.js';
 import type { Db } from '../../platform/db.js';
 import { voiceModelsFor } from '../../voice/providers/registry.js';
+import { recentAiJobOutcomes } from './ai-outages.js';
 import type { PlanReader } from './plans.js';
 import type { PlatformProviders } from './providers.js';
 
@@ -75,17 +76,22 @@ function providerRows(deps: PlatformAiDeps, saved: PlatformProviderKey[]): Platf
   return [...ai, ...voice];
 }
 
-/** The console's AI screen: settings, each provider's key source (never a key), last test. */
+/** The console's AI screen: settings, each provider's key source (never a key), last test, recent outages. */
 export async function platformAiStatus(
   deps: PlatformAiDeps,
   lastTest: PlatformAiStatus['lastTest'],
 ): Promise<PlatformAiStatus> {
-  const [settings, saved] = await Promise.all([deps.ai.settings(), deps.providers.savedKeys()]);
+  const [settings, saved, recentJobs] = await Promise.all([
+    deps.ai.settings(),
+    deps.providers.savedKeys(),
+    recentAiJobOutcomes(deps.db, deps.clock.now()),
+  ]);
   return {
     settings: toPlatformAiSettings(settings),
     providers: providerRows(deps, saved),
     defaultVoiceModel: deps.defaultVoiceModel,
     secretsConfigured: deps.envelope !== null,
     lastTest,
+    recentJobs,
   };
 }
