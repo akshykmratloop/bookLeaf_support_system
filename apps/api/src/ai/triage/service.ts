@@ -1,6 +1,7 @@
 import type { Priority } from '@bookleaf/shared';
 import type { RoyaltyStatus } from '@bookleaf/shared';
-import { categoryKeysOf, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
+import { PRIORITY_RANK } from '@bookleaf/shared';
+import { categoryKeysOf, categoryOf, type WorkspaceKnowledge } from '../knowledge/knowledge.js';
 import {
   TRIAGE_PROMPT_VERSION,
   triageOutputSchema,
@@ -66,8 +67,14 @@ function keysOf(k: WorkspaceKnowledge): [string, ...string[]] | null {
   return first === undefined ? null : [first, ...rest];
 }
 
+/** The model chose a priority above the category's usual one, with no rule to explain it. */
+function raisedWithoutRule(k: WorkspaceKnowledge, out: TriageOutput, rulesFired: boolean) {
+  const usual = categoryOf(k, out.category)?.defaultPriority;
+  return !rulesFired && usual !== undefined && PRIORITY_RANK[out.priority] < PRIORITY_RANK[usual];
+}
+
 /** The model's answer with the business-rule priority floor applied on top. */
-function aiDecision(input: TriageInput, out: TriageOutput): TriageDecision {
+function aiDecision(input: TriageInput, out: TriageOutput, k: WorkspaceKnowledge): TriageDecision {
   const floor = priorityFloor({
     text: ticketText(input),
     category: out.category,
@@ -83,7 +90,10 @@ function aiDecision(input: TriageInput, out: TriageOutput): TriageDecision {
     needsInfo: tidy(out.needsInfo),
     confidence,
     source: 'AI',
-    needsReview: confidence < REVIEW_BELOW || raisedByRules,
+    needsReview:
+      confidence < REVIEW_BELOW ||
+      raisedByRules ||
+      raisedWithoutRule(k, out, floor.reasons.length > 0),
   };
 }
 
@@ -111,7 +121,7 @@ export async function runAiTriage(
     maxTokens: 400,
     effort: 'low',
   });
-  const decision = aiDecision(input, result.data);
+  const decision = aiDecision(input, result.data, knowledge);
   const { data: _data, ...run } = result;
   return { decision, run, promptVersion: TRIAGE_PROMPT_VERSION };
 }

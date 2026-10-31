@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { royaltySignals, stageOf } from '../../domain/signals.js';
 import { TRIAGE_PROMPT_VERSION } from '../../prompts/triage.v1.js';
+import { triageHistory } from '../../prompts/history.js';
 import {
   fallbackTriage,
   runAiTriage,
@@ -18,7 +19,7 @@ function triageInput(ctx: TicketContext): TriageInput {
   const bookId = ctx.book?.externalId ?? null;
   return {
     subject: ctx.ticket.subject,
-    description: ctx.authorMessages.join('\n\n'),
+    description: triageHistory(ctx.authorMessages),
     bookTitle: ctx.book?.title ?? null,
     bookStage: bookId ? stageOf(ctx.facts, bookId) : null,
     royaltyStatus: royaltySignals(ctx.facts, bookId).bookStatus,
