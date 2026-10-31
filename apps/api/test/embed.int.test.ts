@@ -118,6 +118,16 @@ describe('one widget address per workspace (/embed/<slug>, F-18)', () => {
     expect(await csp('/embed/bookleaf')).toContain("connect-src 'self' wss://api.example.com");
   });
 
+  it("lets the widget page show the workspace's https logo; other pages keep img-src strict", async () => {
+    expect(await csp('/embed/bookleaf')).toContain("img-src 'self' data: https:");
+    expect(await csp('/embed/bookleaf/tickets')).toContain("img-src 'self' data: https:");
+    for (const url of ['/login', '/admin', '/api/v1/auth/me']) {
+      const header = await csp(url);
+      expect(header).toContain("img-src 'self' data:;");
+      expect(header).not.toContain('https:;');
+    }
+  });
+
   it('keeps every other page unframeable', async () => {
     expect(await csp('/login')).toContain("frame-ancestors 'none'");
     expect(await csp('/api/v1/auth/me')).toContain("frame-ancestors 'none'");

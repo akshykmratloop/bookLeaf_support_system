@@ -1,6 +1,7 @@
 import { LEGACY_EMBED_SECTIONS } from '@bookleaf/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { allowWidgetImages } from './csp.js';
 import { framedFrom } from './widget-load.js';
 
 /** Which origins may frame one workspace's widget page; null when no workspace has the slug. */
@@ -94,6 +95,7 @@ export function registerWidgetPages(app: FastifyInstance, opts: WidgetPageOption
     if (FILE_PATH.test(pathOf(req.url, app.prefix))) return reply.callNotFound();
     const origins = await opts.framing.originsFor(workspace);
     if (!origins) return reply.callNotFound();
+    allowWidgetImages(reply);
     if (opts.embedded && origins.length > 0) {
       allowFraming(reply, origins);
       await noteFramed(req, workspace, origins, opts.onFramed);
