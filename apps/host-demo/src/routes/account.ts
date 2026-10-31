@@ -1,3 +1,4 @@
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { findByEmail, type AuthorAccount } from '../data/authors.js';
@@ -22,8 +23,33 @@ interface Options {
 const signedInAccount = (req: Parameters<typeof accountOf>[0], o: Options) =>
   accountOf(req, o.authors, o.signingSecret);
 
+/** Password guesses: 10 a minute per address and email (checked after the body is read). */
+export const LOGINS_PER_MINUTE = 10;
+/** Opening support mints a token; 30 a minute per session (or address, when signed out). */
+export const SUPPORT_TOKENS_PER_MINUTE = 30;
+
+const emailOf = (req: FastifyRequest) => {
+  const parsed = LoginSchema.shape.email.safeParse((req.body as { email?: unknown } | null)?.email);
+  return parsed.success ? parsed.data.toLowerCase() : '';
+};
+
+const perLogin = {
+  max: LOGINS_PER_MINUTE,
+  timeWindow: '1 minute',
+  hook: 'preHandler' as const,
+  keyGenerator: (req: FastifyRequest) => `login:${req.ip}:${emailOf(req)}`,
+};
+
+const perSession = {
+  max: SUPPORT_TOKENS_PER_MINUTE,
+  timeWindow: '1 minute',
+  keyGenerator: (req: FastifyRequest) =>
+    `support-token:${req.cookies[SESSION_COOKIE] ?? `ip:${req.ip}`}`,
+};
+
 function registerLogin(app: RouteApp, o: Options) {
-  app.post('/login', { schema: { body: LoginSchema } }, async (req, reply) => {
+  const config = { rateLimit: perLogin };
+  app.post('/login', { config, schema: { body: LoginSchema } }, async (req, reply) => {
     const account = findByEmail(o.authors, req.body.email);
     if (!account || !sameSecret(req.body.password, o.password))
       return reply.status(401).send({ error: 'Wrong email or password' });
@@ -49,7 +75,7 @@ function registerSupportToken(app: RouteApp, o: Options) {
     return { name: account.record.name, email: account.email };
   });
   // A fresh token each time support is opened: tokens live five minutes at most.
-  app.post('/support-token', async (req, reply) => {
+  app.post('/support-token', { config: { rateLimit: perSession } }, async (req, reply) => {
     const account = await signedInAccount(req, o);
     if (!account) return reply.status(401).send({ error: 'Not signed in' });
     return { token: await mintSupportToken(account, o.signingSecret) };

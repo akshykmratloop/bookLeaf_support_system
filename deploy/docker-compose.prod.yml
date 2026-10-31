@@ -67,6 +67,8 @@ services:
     image: bookleaf-host-demo:latest
     environment:
       HOST_DEMO_PORT: '3200'
+      # Reached only through Caddy: sign-in limits count the visitor from X-Forwarded-For.
+      HOST_TRUST_PROXY: 'true'
     ports: ['127.0.0.1:3200:3200']
     mem_limit: 256m
 
