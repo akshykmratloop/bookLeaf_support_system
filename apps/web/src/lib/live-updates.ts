@@ -2,11 +2,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { LiveConnection, type LiveState } from './liveConnection';
 import { keys } from './queries';
+import { onSessionExpired as onApiSessionExpired } from './sessionExpiry';
 
 export type { LiveState } from './liveConnection';
 
 /**
- * Keeps ticket data fresh. SSE events are hints: on each one (and on every reconnect) the
+ * Keeps ticket data fresh, and reports an ended session (from the stream, or a 401 on any API
+ * call) to `onSessionExpired`. SSE events are hints: on each one (and on every reconnect) the
  * matching queries are refetched through the REST API.
  */
 export function useLiveUpdates(onSessionExpired: () => void): LiveState {
@@ -29,7 +31,12 @@ export function useLiveUpdates(onSessionExpired: () => void): LiveState {
       },
     });
     connection.connect();
-    return () => connection.close();
+    // Any API call answered 401 ends the session the same way as the stream's own event.
+    const stopListening = onApiSessionExpired(onSessionExpired);
+    return () => {
+      connection.close();
+      stopListening();
+    };
   }, [qc, onSessionExpired]);
 
   return state;
