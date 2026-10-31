@@ -1,15 +1,9 @@
 import { LifeBuoy, LogOut, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { initials } from '../lib/format';
 import { applyTheme, readTheme, type Theme } from '../lib/theme';
 import { openHelp } from '../lib/useSupportWidget';
 import { Logo } from './Logo';
-
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(readTheme);

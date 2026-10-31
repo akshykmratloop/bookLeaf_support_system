@@ -1,17 +1,21 @@
 import { useRef } from 'react';
 import { Logo } from '../components/Logo';
 import { Aurora } from '../components/login/Aurora';
+import { DemoAccounts } from '../components/login/DemoAccounts';
 import { LeafBook } from '../components/login/LeafBook';
 import { SignInCard } from '../components/login/SignInCard';
+import { useSignInForm } from '../components/login/useSignInForm';
 import { useTilt } from '../components/login/useTilt';
 
 /**
  * BookLeaf's sign-in. One canvas: a living backdrop, BookLeaf's story as a book whose leaves
  * turn (it tilts with the pointer), and the sign-in card. The book is hidden on small screens.
+ * Below them, every demo author signs in with one click through the same form.
  */
 export function LoginPage() {
   const stage = useRef<HTMLDivElement>(null);
   useTilt(stage);
+  const form = useSignInForm();
   return (
     <div
       ref={stage}
@@ -39,9 +43,10 @@ export function LoginPage() {
             <LeafBook />
           </section>
           <div className="flex justify-center lg:justify-end">
-            <SignInCard />
+            <SignInCard form={form} />
           </div>
         </main>
+        <DemoAccounts busy={form.busy} activeEmail={form.demoEmail} onPick={form.signInAs} />
         <p className="text-center text-[12px] text-ink-3 lg:text-left">
           A demo of BookLeaf's author platform.
         </p>

@@ -13,3 +13,11 @@ export const compact = (n: number) => COMPACT.format(n);
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+
+/** Up to two capital letters for an avatar: "Priya Sharma" → "PS". */
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
