@@ -22,8 +22,9 @@ BookLeaf's product.
 
 | What | Link | Sign in with |
 | --- | --- | --- |
-| BookLeaf author dashboard (with the Help widget) | https://bookleaf-authors.vercel.app | `priya.sharma@email.com` / `Author@BookLeaf1` |
-| Support app (staff) | https://bookleaf-support-ak.vercel.app/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
+| BookLeaf author dashboard (with the Help widget) | https://bookleaf-authors.vercel.app | any author, e.g. `priya@bookleaf.com` / `TestBookLeaf@123`, or one click on the sign-in page |
+| Support app (staff) | https://bookleaf-support-ak.vercel.app/login | `admin@bookleaf.com` / `TestBookLeaf@123`, or the one-click admin button |
+| Super admin console | https://bookleaf-support-ak.vercel.app/platform/login | `superadmin@support.com` / `TestBookLeaf@123` (typed; no one-click) |
 | API docs (Swagger) | https://bookleaf-support-ak.vercel.app/api/docs | none |
 | API (AWS server) | https://api.35-154-85-87.sslip.io | none |
 
@@ -48,8 +49,8 @@ That one command does everything, and is safe to run again:
 
 | Open | URL | Sign in with |
 | --- | --- | --- |
-| BookLeaf author dashboard (start here) | http://localhost:5174 | `priya.sharma@email.com` / `Author@BookLeaf1` |
-| Support app (staff) | http://localhost:5173/login | `admin@bookleaf.demo` / `Admin@BookLeaf1` |
+| BookLeaf author dashboard (start here) | http://localhost:5174 | `priya@bookleaf.com` / `TestBookLeaf@123` (or one click) |
+| Support app (staff) | http://localhost:5173/login | `admin@bookleaf.com` / `TestBookLeaf@123` (or one click) |
 | API docs (Swagger) | http://localhost:3000/api/docs | — |
 
 AI keys are optional. Add `ANTHROPIC_API_KEY` (AI triage, drafts, chat) and `OPENAI_API_KEY`
@@ -184,7 +185,7 @@ stored in the repo. The ones you will most likely change:
 | `HOST_ORIGINS` | empty | Page origins allowed to frame the default workspace's (BookLeaf's) widget, `/embed/bookleaf`. Empty turns embed mode off |
 | `EMBED_ENABLED` | `false` | Embed mode for the origins each workspace saves in its settings screen, without `HOST_ORIGINS` |
 | `SEED_ADMIN_PASSWORD` · `HOST_DEMO_PASSWORD` | demo values below | Demo passwords for staff and for the host demo's authors |
-| `PLATFORM_ADMIN_EMAIL` · `PLATFORM_ADMIN_PASSWORD` | `owner@support.local` · `Platform@Owner1` (local) | The super admin account for the `/platform` console, created or updated by the seed. Set both or neither. Password: 12+ characters with a letter and a digit |
+| `PLATFORM_ADMIN_EMAIL` · `PLATFORM_ADMIN_PASSWORD` | `superadmin@support.com` · `TestBookLeaf@123` (demo) | The super admin account for the `/platform` console, created or updated by the seed. Set both or neither. Password: 12+ characters with a letter and a digit |
 
 `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are optional, and a key saved in the `/platform` console
 replaces the env key:
@@ -197,16 +198,21 @@ Everything else works without keys.
 
 ## Demo accounts
 
-These are documented demo values for local use only. Change them for any real deployment.
+Every demo account uses one published password, **`TestBookLeaf@123`** (live demo and local).
+The sign-in pages offer one-click buttons for every author and for the BookLeaf admin; manual
+sign-in still works. These are demo values only: change them for any real deployment.
 
-| Who | Where to sign in | Email | Password |
-| --- | --- | --- | --- |
-| Priya Sharma (author) | BookLeaf dashboard, http://localhost:5174 (`npm run local`) or :3400 | `priya.sharma@email.com` | `HOST_DEMO_PASSWORD` (`Author@BookLeaf1`) |
-| Arjun Malhotra (author) | BookLeaf dashboard | `arjun.malhotra@email.com` | same |
-| Kavita Deshmukh (author) | BookLeaf dashboard | `kavita.deshmukh@email.com` | same |
-| Neha Verma (support staff, admin) | support app, http://localhost:5173/login (`npm run local`) or :3300/login | `admin@bookleaf.demo` | `SEED_ADMIN_PASSWORD` (`Admin@BookLeaf1`) |
-| Karan Mehta (support staff) | support app | `ops2@bookleaf.demo` | same |
-| Super admin (support provider) | support app, http://localhost:5173/platform/login | `PLATFORM_ADMIN_EMAIL` (`owner@support.local`) | `PLATFORM_ADMIN_PASSWORD` (`Platform@Owner1`) |
+| Who | Where to sign in | Email |
+| --- | --- | --- |
+| The 10 BookLeaf authors | BookLeaf dashboard (live link above, or http://localhost:5174) | `<first name>@bookleaf.com`: `priya`, `rohit`, `ananya`, `vikram`, `meera`, `arjun`, `sneha`, `farhan`, `kavita`, `diya` |
+| Neha Verma (support staff, admin) | support app `/login` | `admin@bookleaf.com` |
+| Karan Mehta (support staff) | support app `/login` | `ops2@bookleaf.com` |
+| Super admin (support provider) | support app `/platform/login` | `superadmin@support.com` |
+
+The author emails are derived from each author's first name; BookLeaf's dataset file is kept
+exactly as provided (`apps/host-demo/src/data/authors.ts`). On the live box the values come from
+`deploy/demo-logins.env`; locally from `HOST_DEMO_PASSWORD`, `SEED_ADMIN_PASSWORD` and
+`PLATFORM_ADMIN_*` in `.env`.
 
 Authors sign in to the **BookLeaf dashboard**, not to the support app. Every author in
 `apps/host-demo/src/data/sample-data.json` can sign in.
