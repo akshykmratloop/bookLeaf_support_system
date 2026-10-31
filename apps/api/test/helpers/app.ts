@@ -14,6 +14,7 @@ import { createContainer, type Container } from '../../src/container.js';
 import type { Clock } from '../../src/platform/clock.js';
 import { createDb, type Db } from '../../src/platform/db.js';
 import { loadEnv } from '../../src/config/index.js';
+import { DEMO_ADMINS } from '../../src/seed/demo-accounts.js';
 import { buildHostApp, findByEmail, loadAuthors, mintSupportToken } from '@bookleaf/host-demo';
 
 export const ORIGIN = 'http://localhost:5173';
@@ -32,8 +33,8 @@ export const EMAILS = {
   rohit: 'rohit.kapoor@email.com',
   arjun: 'arjun.malhotra@email.com',
   kavita: 'kavita.deshmukh@email.com',
-  admin: 'admin@bookleaf.demo',
-  admin2: 'ops2@bookleaf.demo',
+  admin: 'admin@bookleaf.com',
+  admin2: 'ops2@bookleaf.com',
 } as const;
 
 /** Real wall clock plus an offset tests can advance (to make retry backoff due). */
@@ -243,7 +244,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
     },
     async login(email, password) {
       // A password means a staff account (any workspace); demo admins keep their default.
-      const isAdmin = password !== undefined || email.endsWith('@bookleaf.demo');
+      const isAdmin = password !== undefined || DEMO_ADMINS.some((a) => a.email === email);
       const res = isAdmin ? await passwordLogin(app, email, password) : await hostLogin(app, email);
       if (res.statusCode !== 200) throw new Error(`login failed for ${email}: ${res.statusCode}`);
       const cookie = res.cookies.find((c) => c.name === 'bl_session');
