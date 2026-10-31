@@ -9,6 +9,9 @@ ENV_FILE=${1:?usage: up.sh <env-file>}
 HERE=$(cd "$(dirname "$0")" && pwd)
 BACKUP_DIR=${BOOKLEAF_BACKUP_DIR:-/opt/bookleaf/backups}
 KEEP_BACKUPS=5
+STATE_DIR=${BOOKLEAF_STATE_DIR:-/opt/bookleaf/state}
+# A new id in deploy/demo-reset-id wipes the demo data once (database + Redis) and reseeds it.
+RESET_ID=$(tr -d '[:space:]' <"$HERE/demo-reset-id" 2>/dev/null || true)
 export BOOKLEAF_ENV_FILE=$ENV_FILE
 
 compose() { docker compose -f "$HERE/docker-compose.prod.yml" --env-file "$ENV_FILE" "$@"; }
@@ -44,6 +47,29 @@ backup_database() {
   ls -1t "$BACKUP_DIR"/bookleaf-*.sql.gz | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
 }
 
+# Wipes the demo database and shared state when deploy/demo-reset-id holds an id this box has not
+# applied yet. The apps are stopped first; migrations and the seed below rebuild everything. The
+# id is recorded only after the whole deploy succeeds, so a failed run resets again next time.
+reset_demo_if_requested() {
+  local applied=""
+  [ -f "$STATE_DIR/demo-reset-applied" ] && applied=$(tr -d '[:space:]' <"$STATE_DIR/demo-reset-applied")
+  if [ -z "$RESET_ID" ] || [ "$RESET_ID" = "$applied" ]; then
+    log "Demo reset: nothing to do (id '${RESET_ID:-none}' already applied)."
+    return
+  fi
+  log "Demo reset '$RESET_ID': wiping the database and Redis"
+  compose stop api host-demo || true
+  compose exec -T postgres psql -v ON_ERROR_STOP=1 -U bookleaf -d bookleaf -c \
+    'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION bookleaf;'
+  compose exec -T redis redis-cli FLUSHALL
+}
+
+record_demo_reset() {
+  [ -n "$RESET_ID" ] || return 0
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$RESET_ID" >"$STATE_DIR/demo-reset-applied"
+}
+
 wait_https() {
   local url=$1
   for _ in $(seq 1 60); do
@@ -62,6 +88,8 @@ compose up -d --wait postgres redis
 
 log "Backing up the database before migrations"
 backup_database
+
+reset_demo_if_requested
 
 log "Building the apps"
 compose build api host-demo
@@ -84,4 +112,5 @@ log "Checking the public endpoints"
 wait_https "https://$API_HOST/health"
 wait_https "https://$HOST_API_HOST/health"
 
+record_demo_reset
 log "Up: https://$API_HOST and https://$HOST_API_HOST"

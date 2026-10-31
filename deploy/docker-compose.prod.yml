@@ -10,7 +10,10 @@ name: bookleaf
 
 x-app: &app
   restart: unless-stopped
-  env_file: ${BOOKLEAF_ENV_FILE:?set BOOKLEAF_ENV_FILE to the rendered env file}
+  # The rendered secret env first, then the published demo logins (they win).
+  env_file:
+    - ${BOOKLEAF_ENV_FILE:?set BOOKLEAF_ENV_FILE to the rendered env file}
+    - ./demo-logins.env
   logging:
     driver: json-file
     options: { max-size: '10m', max-file: '3' }
