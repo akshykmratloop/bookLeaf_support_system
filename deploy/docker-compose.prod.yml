@@ -3,6 +3,9 @@
 # Every value comes from the env file rendered from AWS Secrets Manager (never committed).
 # That includes PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD (U-7): the super admin account the
 # seed in up.sh creates or updates. Add both keys to the secret; leave both out for no console login.
+# Images are pinned to exact versions (checked on Docker Hub 2026-11-01) so a redeploy never pulls
+# a different Postgres, Redis or Caddy. CPU caps follow each service's memory share of the
+# t4g.small (2 vCPU, 2 GB): about 0.75 CPU per 512 MB.
 name: bookleaf
 
 x-app: &app
@@ -14,7 +17,7 @@ x-app: &app
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: bookleaf
@@ -26,16 +29,31 @@ services:
       interval: 5s
       retries: 20
     mem_limit: 384m
+    cpus: 0.6
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.11-alpine
     restart: unless-stopped
-    command: ['redis-server', '--save', '', '--appendonly', 'no', '--maxmemory', '64mb']
+    # Shared state only (rate counters, one-use claims, chat lines), all with a TTL: when full,
+    # evict the keys closest to expiry rather than refuse writes.
+    command:
+      [
+        'redis-server',
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+        '--maxmemory',
+        '64mb',
+        '--maxmemory-policy',
+        'volatile-ttl',
+      ]
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       retries: 20
     mem_limit: 96m
+    cpus: 0.15
 
   api:
     <<: *app
@@ -59,7 +77,10 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       host-demo: { condition: service_started }
+    # Time to finish open requests and stop the worker before SIGKILL (the default is 10 s).
+    stop_grace_period: 30s
     mem_limit: 512m
+    cpus: 0.75
 
   host-demo:
     <<: *app
@@ -70,10 +91,12 @@ services:
       # Reached only through Caddy: sign-in limits count the visitor from X-Forwarded-For.
       HOST_TRUST_PROXY: 'true'
     ports: ['127.0.0.1:3200:3200']
+    stop_grace_period: 30s
     mem_limit: 256m
+    cpus: 0.4
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.4-alpine
     restart: unless-stopped
     network_mode: host
     environment:
@@ -85,6 +108,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     mem_limit: 128m
+    cpus: 0.2
 
 volumes:
   pgdata:
