@@ -168,6 +168,17 @@ export interface HarnessOptions {
   sharedPrefix?: string;
 }
 
+/**
+ * Each test file starts like a fresh server: calls left live by an earlier file's harness are
+ * ended. (Production start-up only ends calls past the hard cap, so other API copies keep theirs.)
+ */
+async function endLeftoverCalls(db: Db): Promise<void> {
+  await db.voiceSession.updateMany({
+    where: { status: { in: ['PENDING', 'ACTIVE'] } },
+    data: { status: 'FAILED', endReason: 'SERVER_RESTART', endedAt: new Date() },
+  });
+}
+
 export async function createHarness(opts: HarnessOptions = {}): Promise<Harness> {
   const { host, url: hostUrl } = await startHost();
   const redisPrefix = opts.sharedPrefix ?? `test-${randomUUID()}`;
@@ -216,6 +227,7 @@ export async function createHarness(opts: HarnessOptions = {}): Promise<Harness>
   });
   const app = await buildApp(container);
   await app.ready();
+  await endLeftoverCalls(db);
   const silent = { info: () => undefined, warn: () => undefined, error: () => undefined };
   const worker = createWorker(
     {
