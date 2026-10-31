@@ -11,16 +11,18 @@ let admin: string;
 interface Stream {
   events: { type: string; ticketId: string }[];
   close: () => void;
+  /** Resolves when the server ends the stream. */
+  ended: Promise<void>;
 }
 
 /** Opens /events over real HTTP and collects every `ticket` event it receives. */
-async function listen(cookie: string): Promise<Stream> {
+async function listen(cookie: string, at = base): Promise<Stream> {
   const ctrl = new AbortController();
-  const res = await fetch(`${base}/api/v1/events`, { headers: { cookie }, signal: ctrl.signal });
+  const res = await fetch(`${at}/api/v1/events`, { headers: { cookie }, signal: ctrl.signal });
   expect(res.headers.get('content-type')).toContain('text/event-stream');
   const events: Stream['events'] = [];
   const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
-  void (async () => {
+  const ended = (async () => {
     let buf = '';
     for (;;) {
       const { value, done } = await reader.read().catch(() => ({ value: '', done: true }));
@@ -31,7 +33,7 @@ async function listen(cookie: string): Promise<Stream> {
       buf = buf.slice(buf.lastIndexOf('\n\n') + 2);
     }
   })();
-  return { events, close: () => ctrl.abort() };
+  return { events, close: () => ctrl.abort(), ended };
 }
 
 const until = async (check: () => boolean) => {
@@ -79,5 +81,18 @@ describe('live updates over Server-Sent Events', () => {
   it('refuses a stream without a sign-in (401)', async () => {
     const res = await fetch(`${base}/api/v1/events`);
     expect(res.status).toBe(401);
+  });
+});
+
+describe('shutdown', () => {
+  it('ends open streams, so closing the server does not wait on them', async () => {
+    const other = await createHarness();
+    await other.app.listen({ port: 0, host: '127.0.0.1' });
+    const at = `http://127.0.0.1:${(other.app.server.address() as AddressInfo).port}`;
+    const stream = await listen(await other.login(EMAILS.kavita), at);
+    const started = Date.now();
+    await other.close();
+    await stream.ended;
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 });

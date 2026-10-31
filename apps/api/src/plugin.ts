@@ -66,7 +66,7 @@ export const supportPlugin: FastifyPluginAsync<SupportPluginOptions> = async (ap
   });
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   await app.register(csrfGuard, { appOrigin: c.env.APP_ORIGIN });
-  await app.register(healthRoutes, { db: c.db });
+  await app.register(healthRoutes, { db: c.db, shared: c.shared.state });
   await registerApi(app, c);
   if (await registerSpa(app, c.env.WEB_DIST_DIR))
     registerWidgetPages(app, {

@@ -2,6 +2,7 @@ import type { FastifyError, FastifyInstance, FastifyReply } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import type { Problem } from '@bookleaf/shared';
 import { AppError, CheckFailedError } from '../errors.js';
+import { SharedStateUnavailableError } from '../shared-state/errors.js';
 
 const problem = (
   status: number,
@@ -58,6 +59,26 @@ function frameworkProblem(err: FastifyError): ProblemBody | null {
   return null;
 }
 
+/** ioredis gives up on a command when Redis is unreachable; these are its connection errors. */
+const REDIS_DOWN_NAMES = new Set(['MaxRetriesPerRequestError', 'ClusterAllFailedError']);
+const REDIS_DOWN_MESSAGES = new Set([
+  'Connection is closed.',
+  "Stream isn't writeable and enableOfflineQueue options is false",
+]);
+
+/** Shared state (Redis) is down: the request may work again shortly, so it is a 503, not a 500. */
+export function isSharedStateDown(err: unknown): boolean {
+  if (err instanceof SharedStateUnavailableError) return true;
+  if (!(err instanceof Error)) return false;
+  return REDIS_DOWN_NAMES.has(err.name) || REDIS_DOWN_MESSAGES.has(err.message);
+}
+
+const UNAVAILABLE = problem(
+  503,
+  'SERVICE_UNAVAILABLE',
+  'The service is briefly unavailable. Please try again in a moment.',
+);
+
 const INTERNAL = problem(500, 'INTERNAL', 'Something went wrong on our side. Please try again.');
 
 const sendProblem = (reply: FastifyReply, body: ProblemBody) =>
@@ -68,6 +89,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((err: FastifyError, req, reply) => {
     const body = validationProblem(err) ?? appProblem(err) ?? frameworkProblem(err);
     if (body) return sendProblem(reply, body);
+    if (isSharedStateDown(err)) {
+      req.log.error({ err }, 'shared state (Redis) unavailable');
+      return sendProblem(reply, UNAVAILABLE);
+    }
     req.log.error({ err }, 'unhandled error');
     return sendProblem(reply, INTERNAL);
   });
