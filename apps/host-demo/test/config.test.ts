@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
-const REQUIRED = { HOST_API_KEY: 'k'.repeat(24), HOST_SIGNING_SECRET: 's'.repeat(32) };
+const REQUIRED = {
+  HOST_API_KEY: 'k'.repeat(24),
+  HOST_SIGNING_SECRET: 's'.repeat(32),
+  HOST_DEMO_PASSWORD: 'TestBookLeaf@123',
+};
 
 describe('SUPPORT_URL', () => {
   it('takes an http or https address (the widget script is loaded from it)', () => {

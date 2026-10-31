@@ -14,7 +14,7 @@ const signIn = (a: FastifyInstance) =>
   a.inject({
     method: 'POST',
     url: '/login',
-    payload: { email: 'priya.sharma@email.com', password: TEST_CONFIG.HOST_DEMO_PASSWORD },
+    payload: { email: 'priya@bookleaf.com', password: TEST_CONFIG.HOST_DEMO_PASSWORD },
   });
 
 describe('running behind a proxy (deployment)', () => {

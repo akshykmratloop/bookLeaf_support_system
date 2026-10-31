@@ -12,11 +12,24 @@ export interface AuthorAccount {
 
 const SAMPLE_FILE = new URL('./sample-data.json', import.meta.url);
 
+/** The domain every demo author signs in with. */
+export const DEMO_LOGIN_DOMAIN = 'bookleaf.com';
+
+/**
+ * The demo sign-in email: the author's first name at bookleaf.com ("Priya Sharma" signs in as
+ * priya@bookleaf.com). BookLeaf's dataset is kept exactly as provided; only the login is simpler,
+ * so reviewers can try every account with one published password.
+ */
+export function demoLoginEmail(name: string): string {
+  const first = name.trim().split(/\s+/)[0] ?? name;
+  return `${first.toLowerCase().replace(/[^a-z]/g, '')}@${DEMO_LOGIN_DOMAIN}`;
+}
+
 /** BookLeaf's sample dataset, checked against its own arithmetic. Book ids are BK001…. */
 export function loadAuthors(file: URL = SAMPLE_FILE): AuthorAccount[] {
   const data = SampleDataSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
   return data.authors.map((a) => ({
-    email: a.email.toLowerCase(),
+    email: demoLoginEmail(a.name),
     profile: { phone: a.phone, city: a.city, memberSince: a.joined_date },
     record: {
       id: a.author_id,

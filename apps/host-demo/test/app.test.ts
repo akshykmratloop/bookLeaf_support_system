@@ -15,7 +15,7 @@ const bearer = { authorization: `Bearer ${TEST_CONFIG.HOST_API_KEY}` };
 const customer = (id: string, headers: Record<string, string> = bearer) =>
   app.inject({ method: 'GET', url: `/support/customers/${id}`, headers });
 
-async function signIn(email = 'priya.sharma@email.com', password = TEST_CONFIG.HOST_DEMO_PASSWORD) {
+async function signIn(email = 'priya@bookleaf.com', password = TEST_CONFIG.HOST_DEMO_PASSWORD) {
   return app.inject({ method: 'POST', url: '/login', payload: { email, password } });
 }
 
@@ -50,7 +50,7 @@ describe('GET /support/customers/:id', () => {
 
 describe('sign-in and hand-over to support', () => {
   it('refuses a wrong password or an unknown email', async () => {
-    expect((await signIn('priya.sharma@email.com', 'nope-nope')).statusCode).toBe(401);
+    expect((await signIn('priya@bookleaf.com', 'nope-nope')).statusCode).toBe(401);
     expect((await signIn('nobody@email.com')).statusCode).toBe(401);
   });
 
@@ -65,7 +65,7 @@ describe('sign-in and hand-over to support', () => {
       { audience: HOST_TOKEN_AUDIENCE },
     );
     const claims = HostTokenClaimsSchema.parse(payload);
-    expect(claims).toMatchObject({ sub: 'AUTH001', email: 'priya.sharma@email.com' });
+    expect(claims).toMatchObject({ sub: 'AUTH001', email: 'priya@bookleaf.com' });
     expect(claims.exp - claims.iat).toBeLessThanOrEqual(HOST_TOKEN_MAX_SECONDS);
   });
 });
