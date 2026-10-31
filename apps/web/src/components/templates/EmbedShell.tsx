@@ -7,6 +7,7 @@ import { isFramed, requestReauth, tellHost } from '../../lib/frame';
 import { useSignInOptions } from '../../lib/hostSignIn';
 import { useAssistantAvailability } from '../../lib/assistant';
 import { useLiveUpdates } from '../../lib/live-updates';
+import { useHostSignOut } from '../../lib/useHostSignOut';
 import { useWorkspaceBrand } from '../../lib/useWorkspaceBrand';
 import { useAuthorTickets } from '../../lib/queries';
 import { Avatar } from '../atoms/Avatar';
@@ -69,6 +70,11 @@ export function EmbedShell({ user }: { user: AuthUser }) {
     else setExpired(true);
   }, [qc, framed]);
   useLiveUpdates(onExpired);
+  const onSignedOut = useCallback(() => {
+    qc.clear();
+    setExpired(true);
+  }, [qc]);
+  useHostSignOut(onSignedOut);
   useEscapeToHost();
   const brandName = useWorkspaceBrand();
   const logoUrl = useAssistantAvailability().data?.brand.logoUrl ?? null;

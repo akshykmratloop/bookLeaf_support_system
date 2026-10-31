@@ -13,7 +13,7 @@ import { Waves } from '../components/Waves';
 import { signOut } from '../lib/api';
 import { day, firstName, plural, rupees } from '../lib/format';
 import { DASHBOARD_KEY } from '../lib/keys';
-import { useSupportWidget } from '../lib/useSupportWidget';
+import { signOutOfHelp, useSupportWidget } from '../lib/useSupportWidget';
 
 function Kpis({ totals }: { totals: Dashboard['totals'] }) {
   return (
@@ -55,6 +55,7 @@ export function DashboardPage({ data }: { data: Dashboard }) {
   const qc = useQueryClient();
   useSupportWidget();
   const leave = async () => {
+    await signOutOfHelp(); // the support widget's own session ends with ours
     await signOut().catch(() => undefined);
     qc.removeQueries({ queryKey: DASHBOARD_KEY });
     window.location.reload(); // also removes the support widget

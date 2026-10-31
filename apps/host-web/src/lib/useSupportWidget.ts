@@ -26,10 +26,24 @@ export function useSupportWidget(): void {
   }, [supportUrl, workspace]);
 }
 
+/** What the widget script (embed.js) puts on `window.BookLeafSupport`. */
+interface SupportWidget {
+  open: () => void;
+  expand: () => void;
+  /** Older widget scripts do not have it. */
+  signOut?: () => Promise<void>;
+}
+
+const widget = (): SupportWidget | undefined =>
+  (window as Window & { BookLeafSupport?: SupportWidget }).BookLeafSupport;
+
 /** Opens the widget from our own buttons ("Get help", the overdue alert). */
 export function openHelp(expand = false): void {
-  const widget = (window as Window & { BookLeafSupport?: { open: () => void; expand: () => void } })
-    .BookLeafSupport;
-  if (expand) widget?.expand();
-  else widget?.open();
+  if (expand) widget()?.expand();
+  else widget()?.open();
+}
+
+/** Signs the author out of support too, before they leave; resolves at once without a widget. */
+export async function signOutOfHelp(): Promise<void> {
+  await widget()?.signOut?.();
 }
