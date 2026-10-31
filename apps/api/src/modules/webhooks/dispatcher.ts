@@ -124,6 +124,23 @@ async function deliverOne(deps: DispatcherDeps, id: string): Promise<void> {
   }
 }
 
+let warnedNoKey = false;
+
+/**
+ * Without the master key no signing secret can be read, so a send could only fail and burn one
+ * of the delivery's attempts. The batch waits instead (said once per process) until a key is set.
+ */
+function canSign(deps: DispatcherDeps): boolean {
+  if (deps.envelope) return true;
+  if (!warnedNoKey)
+    deps.log.warn(
+      {},
+      'webhooks are not sent: SECRETS_MASTER_KEY is not set, so signing secrets cannot be read',
+    );
+  warnedNoKey = true;
+  return false;
+}
+
 /** Polls the outbox. One failing receiver never blocks the others: each delivery is separate. */
 export function createWebhookDispatcher(deps: DispatcherDeps, opts: { pollMs: number }) {
   let running = false;
@@ -131,6 +148,7 @@ export function createWebhookDispatcher(deps: DispatcherDeps, opts: { pollMs: nu
   // Background work for every workspace: the platform (owner) path (S.8).
   const runOnce = (): Promise<number> =>
     asPlatform(async () => {
+      if (!canSign(deps)) return 0;
       const ids = await claimDue(deps.db, deps.clock.now());
       await Promise.all(ids.map((id) => deliverOne(deps, id)));
       return ids.length;
