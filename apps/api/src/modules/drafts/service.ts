@@ -40,13 +40,21 @@ export async function latestDraft(
   return { draft, pending };
 }
 
+/**
+ * Queues a new draft generation. The ticket row is locked first (as an author message and a
+ * triage result do), so two quick regenerates take generations one after the other instead of
+ * both reading the same latest generation and clashing on (ticket_id, kind, generation).
+ */
 export async function regenerateDraft(
   deps: TicketDeps,
   session: Session,
   ticketId: string,
 ): Promise<{ draft: Draft | null; pending: boolean }> {
   const ticket = await findTicketOrThrow(deps.db, session, ticketId);
-  await enqueueJob(deps.db, ticketId, 'DRAFT', deps.clock.now());
+  await deps.db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM tickets WHERE id = ${ticketId}::uuid FOR UPDATE`;
+    await enqueueJob(tx, ticketId, 'DRAFT', deps.clock.now());
+  });
   deps.events.publish({
     type: 'ticket.updated',
     ticketId,
