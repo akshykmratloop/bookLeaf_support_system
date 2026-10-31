@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AssistantSettings, ChatReply, ChatSession } from '@bookleaf/shared';
 import { defaultHandler, NO_DRAFT } from './helpers/app.js';
 import { AUTHOR_CHANGED_TEXT, CONFIRM_FIRST_TEXT } from '../src/modules/chat/draft-turn.js';
+import { chatLimitKeys } from '../src/modules/chat/send-message.js';
 import type { StructuredRequest } from '../src/ai/providers/types.js';
 import { sampleCustomer } from './fixtures/host.js';
 import { call, createHarness, EMAILS, type Harness } from './helpers/app.js';
@@ -242,23 +243,21 @@ describe('isolation and validation', () => {
     expect(turn.statusCode).toBe(409);
     expect(turn.json<{ code: string }>().code).toBe('CHAT_TURN_LIMIT');
     const chat = await startChat(rohit);
-    await h.db.chatMessage.createMany({
-      data: Array.from({ length: 100 }, () => ({
-        sessionId: chat.id,
-        role: 'AUTHOR' as const,
-        body: 'q',
-      })),
-    });
+    const { authorId } = await h.db.chatSession.findUniqueOrThrow({ where: { id: chat.id } });
+    // 100 messages already sent in the last 24 hours, counted in shared state (any copy, any chat).
+    const { day } = chatLimitKeys(authorId);
+    for (let i = 0; i < 100; i += 1)
+      await h.container.shared.state.counters.hit(day, 24 * 60 * 60 * 1000);
     const daily = await send(rohit, chat.id, 'hello again');
     expect(daily.statusCode).toBe(429);
     expect(daily.json<{ code: string }>().code).toBe('CHAT_DAILY_LIMIT');
   });
 
-  it('rate-limits each author to 20 messages per minute', async () => {
-    const chat = await startChat(arjun);
+  it('rate-limits each author to 20 messages per minute, across all their chats', async () => {
+    const chats = [await startChat(arjun), await startChat(arjun)];
     const codes: number[] = [];
     for (let i = 0; i < 21; i += 1)
-      codes.push((await send(arjun, chat.id, `question ${i}`)).statusCode);
+      codes.push((await send(arjun, chats[i % 2]!.id, `question ${i}`)).statusCode);
     expect(codes.slice(0, 20).every((c) => c === 200)).toBe(true);
     expect(codes[20]).toBe(429);
   });

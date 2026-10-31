@@ -38,10 +38,3 @@ export async function reserveTurn(db: Db, id: string, maxTurns: number): Promise
   });
   return res.count === 1;
 }
-
-export function authorMessagesSince(db: Db, authorId: string, since: Date): Promise<number> {
-  return db.chatMessage.count({
-    // Typed messages only: lines spoken on a call count against the call quota instead.
-    where: { role: 'AUTHOR', channel: 'CHAT', createdAt: { gte: since }, session: { authorId } },
-  });
-}

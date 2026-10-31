@@ -119,7 +119,11 @@ function createAssistants({ env, db, ai, configs, plans, ticketDeps, voiceFor, s
     assistant,
     draftLive,
     ticketDrafts,
-    chat: createChatService({ ...shared, queues: sh.state.queues }),
+    chat: createChatService({
+      ...shared,
+      queues: sh.state.queues,
+      counters: sh.state.counters,
+    }),
     voice: createVoiceService({
       ...shared,
       voiceFor,
