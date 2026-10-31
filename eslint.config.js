@@ -37,6 +37,19 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // A promise nobody awaits can reject with no one listening, so every one must be awaited,
+    // handled, or marked `void` on purpose (server.ts still logs any rejection that escapes).
+    files: ['apps/api/src/**/*.ts'],
+    ignores: ['apps/api/src/**/*.test.ts'],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname + '/apps/api' },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+    },
+  },
+  {
     // Plain browser scripts served as they are (the demo host page, the embed loader).
     files: ['apps/*/public/**/*.js'],
     languageOptions: { globals: globals.browser },
