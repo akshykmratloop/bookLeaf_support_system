@@ -1,3 +1,4 @@
+import type { WorkspaceRole } from '@bookleaf/shared';
 import type { FastifyInstance, FastifyRequest, HookHandlerDoneFunction } from 'fastify';
 import fp from 'fastify-plugin';
 import { SESSION_COOKIE, type Session, type SessionCodec } from '../../modules/auth/session.js';
@@ -5,6 +6,17 @@ import { PLATFORM_COOKIE } from '../../modules/platform/session.js';
 import { ForbiddenError, UnauthorizedError } from '../errors.js';
 import { runAsWorkspace } from '../tenancy.js';
 import './augment.js';
+
+/** Owner-only (and similar) routes: the user's role in the session's workspace must be listed. */
+async function requireWorkspaceRole(
+  sessions: SessionCodec,
+  session: Session,
+  allowed: readonly WorkspaceRole[],
+): Promise<void> {
+  const role = await sessions.workspaceRole(session);
+  if (!role || !allowed.includes(role))
+    throw new ForbiddenError(`Only a workspace ${allowed.join(' or ').toLowerCase()} can do this.`);
+}
 
 /** The session a route needs, or null for public and unknown routes. */
 async function sessionFor(req: FastifyRequest, sessions: SessionCodec): Promise<Session | null> {
@@ -20,6 +32,7 @@ async function sessionFor(req: FastifyRequest, sessions: SessionCodec): Promise<
   }
   const session = await sessions.verify(token);
   if (config.roles && !config.roles.includes(session.role)) throw new ForbiddenError();
+  if (config.workspaceRoles) await requireWorkspaceRole(sessions, session, config.workspaceRoles);
   return session;
 }
 

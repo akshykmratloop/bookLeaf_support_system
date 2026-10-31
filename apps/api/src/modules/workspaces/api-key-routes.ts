@@ -17,6 +17,8 @@ interface Opts {
 }
 
 const ADMIN = { roles: ['ADMIN'] as const };
+/** Changes to credentials and integrations: the workspace owner only (other staff may read). */
+const OWNER = { ...ADMIN, workspaceRoles: ['OWNER'] as const };
 const errors = { 401: ProblemSchema, 403: ProblemSchema, 404: ProblemSchema, 422: ProblemSchema };
 const tags = ['workspace'];
 
@@ -36,7 +38,7 @@ function registerKeys(app: RouteApp, { workspaces }: Opts) {
   app.post(
     '/workspace/api-keys',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Create an API key (the plain key is shown once)',
@@ -53,7 +55,7 @@ function registerRevoke(app: RouteApp, { workspaces }: Opts) {
   app.delete(
     '/workspace/api-keys/:id',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Revoke an API key',
