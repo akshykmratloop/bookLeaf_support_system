@@ -1,10 +1,12 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { z } from 'zod';
-import { ROLES } from '@bookleaf/shared';
+import { ROLES, type WorkspaceRole } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
 import { ForbiddenError, UnauthorizedError } from '../../platform/errors.js';
 
 export const SESSION_COOKIE = 'bl_session';
+/** Customer session tokens carry this audience; other tokens signed with JWT_SECRET do not. */
+export const SESSION_AUDIENCE = 'bookleaf-session';
 
 const SessionClaimsSchema = z.object({
   sub: z.uuid(),
@@ -34,19 +36,26 @@ export function authorIdOf(session: Session): string {
   return session.authorId;
 }
 
+/** How long one session lasts; the default is the codec's `ttlSeconds`. */
+export interface SignOptions {
+  ttlSeconds?: number;
+}
+
 /** Sessions as the rest of the app uses them: sign in, check on every request, sign out. */
 export interface SessionCodec {
   ttlSeconds: number;
-  sign(session: Session): Promise<string>;
+  sign(session: Session, options?: SignOptions): Promise<string>;
   verify(token: string): Promise<Session>;
   /** Ends every session of the token's user (logout). An invalid or ended token is a no-op. */
   end(token: string): Promise<void>;
+  /** The session user's role in the session's workspace, or null when not a member. */
+  workspaceRole(session: Session): Promise<WorkspaceRole | null>;
 }
 
 /** The signed token alone: claims plus the session version it was issued with. */
 export interface SessionTokens {
   ttlSeconds: number;
-  sign(session: Session, version: number): Promise<string>;
+  sign(session: Session, version: number, options?: SignOptions): Promise<string>;
   verify(token: string): Promise<{ session: Session; version: number }>;
 }
 
@@ -74,19 +83,21 @@ export function createSessionTokens(secret: string, ttlHours: number, clock: Clo
   const ttlSeconds = ttlHours * 3600;
   return {
     ttlSeconds,
-    async sign(s, version) {
+    async sign(s, version, options) {
       const iat = Math.floor(clock.now().getTime() / 1000);
       return new SignJWT(toClaims(s, version))
         .setProtectedHeader({ alg: 'HS256' })
         .setSubject(s.userId)
+        .setAudience(SESSION_AUDIENCE)
         .setIssuedAt(iat)
-        .setExpirationTime(iat + ttlSeconds)
+        .setExpirationTime(iat + (options?.ttlSeconds ?? ttlSeconds))
         .sign(key);
     },
     async verify(token) {
       try {
         const { payload } = await jwtVerify(token, key, {
           algorithms: ['HS256'],
+          audience: SESSION_AUDIENCE,
           currentDate: clock.now(),
         });
         const claims = SessionClaimsSchema.parse(payload);

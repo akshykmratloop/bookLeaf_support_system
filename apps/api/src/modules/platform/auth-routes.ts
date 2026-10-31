@@ -5,6 +5,8 @@ import '../../platform/http/augment.js';
 import type { PlatformAuth } from './auth.js';
 import { toPlatformAdmin } from './auth.js';
 import { platformAdminOf } from './guard.js';
+import { perAddressAndEmail } from '../auth/address-limits.js';
+import { DEVICE_COOKIES, deviceCookieOptions } from '../auth/device-token.js';
 import type { LoginThrottle } from '../auth/login-throttle.js';
 import { PLATFORM_COOKIE } from './session.js';
 
@@ -12,12 +14,12 @@ interface Opts {
   auth: PlatformAuth;
   ttlSeconds: number;
   secureCookies: boolean;
-  /** Counts sign-in attempts per account (10 per 15 minutes, from all addresses). */
+  /** Limits failed sign-ins per browser and per account (device cookies). */
   throttle: LoginThrottle;
 }
 
-/** A loose per-address backstop; guessing is limited per account by `throttle`. */
-const LOGIN_LIMIT = { max: 20, timeWindow: '1 minute' };
+/** A loose per-address-and-email backstop (address-limits.ts); guessing is limited by `throttle`. */
+const LOGIN_LIMIT = perAddressAndEmail('platform-login', 20, '1 minute');
 
 const tags = ['platform'];
 
@@ -44,10 +46,21 @@ function loginRoute(app: App, opts: Opts, cookie: Cookie): void {
       },
     },
     async (req, reply) => {
-      await opts.throttle('platform', req.body.email);
-      const { admin, token } = await opts.auth.login(req.body);
-      reply.setCookie(PLATFORM_COOKIE, token, { ...cookie, maxAge: opts.ttlSeconds });
-      return { admin };
+      const attempt = {
+        area: 'platform' as const,
+        email: req.body.email,
+        deviceToken: req.cookies[DEVICE_COOKIES.platform],
+      };
+      const { result, deviceToken } = await opts.throttle.guard(attempt, () =>
+        opts.auth.login(req.body),
+      );
+      reply.setCookie(PLATFORM_COOKIE, result.token, { ...cookie, maxAge: opts.ttlSeconds });
+      reply.setCookie(
+        DEVICE_COOKIES.platform,
+        deviceToken,
+        deviceCookieOptions(opts.secureCookies),
+      );
+      return { admin: result.admin };
     },
   );
 }

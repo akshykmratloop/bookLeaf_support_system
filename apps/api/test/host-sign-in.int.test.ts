@@ -1,7 +1,8 @@
 import { HOST_TOKEN_AUDIENCE, type AuthUser, type BookList } from '@bookleaf/shared';
 import { randomUUID } from 'node:crypto';
-import { SignJWT } from 'jose';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { SignJWT, decodeJwt } from 'jose';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { HostUnavailableError } from '../src/host/errors.js';
 import { syncCustomer } from '../src/host/sync.js';
 import { sampleCustomer } from './fixtures/host.js';
 import { call, createHarness, EMAILS, HOST, type Harness } from './helpers/app.js';
@@ -79,6 +80,28 @@ describe('POST /auth/host', () => {
     expect(first.statusCode).toBe(200);
     const replay = await call(h, 'POST', '/auth/host', undefined, { token: once });
     expect(replay.statusCode).toBe(401);
+  });
+
+  it('does not use a token up when the host is unavailable: the retry works, a replay does not', async () => {
+    const once = await token();
+    const outage = vi
+      .spyOn(h.container.records, 'customer')
+      .mockRejectedValueOnce(new HostUnavailableError('timeout'));
+    const down = await call(h, 'POST', '/auth/host', undefined, { token: once });
+    expect(down.statusCode).toBe(503);
+    outage.mockRestore();
+    expect((await call(h, 'POST', '/auth/host', undefined, { token: once })).statusCode).toBe(200);
+    const replay = await call(h, 'POST', '/auth/host', undefined, { token: once });
+    expect(replay.statusCode).toBe(401);
+    expect(replay.json<{ title: string }>().title).toMatch(/already been used/);
+  });
+
+  it('starts a short session: 2 hours (HOST_SESSION_TTL_HOURS), not the 8-hour staff session', async () => {
+    const res = await signIn();
+    const cookie = res.cookies.find((c) => c.name === 'bl_session');
+    expect(cookie?.maxAge).toBe(2 * 3600);
+    const claims = decodeJwt(cookie!.value);
+    expect(claims.exp! - claims.iat!).toBe(2 * 3600);
   });
 
   it('refuses a token without a token id (jti), which could not be checked for replay', async () => {

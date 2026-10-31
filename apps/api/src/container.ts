@@ -30,6 +30,7 @@ import type { Env } from './config/index.js';
 
 import { createProviders, type ProviderOverrides } from './container-providers.js';
 import { createSharedParts, type SharedOverrides } from './container-shared.js';
+import { createDeviceTokens } from './modules/auth/device-token.js';
 import { loginThrottle } from './modules/auth/login-throttle.js';
 import type { CacheSync } from './platform/shared-state/cache-sync.js';
 
@@ -96,8 +97,8 @@ function createCore(env: Env, overrides: ContainerOverrides) {
     voiceProvider,
     /** The platform's voice client for a customer's call (every customer uses the same one). */
     voiceFor: (_workspaceId: string) => platform.voice(),
-    /** Sign-in attempts per account, shared by every copy of the API. */
-    loginThrottle: loginThrottle(shared.state.counters),
+    /** Failed sign-ins per browser and account, shared by every copy of the API. */
+    loginThrottle: loginThrottle(shared.state.counters, createDeviceTokens(env.JWT_SECRET, clock)),
   };
 }
 
@@ -147,9 +148,11 @@ function createIntegrations(core: Core) {
 /** All wiring in one place: plain factories, explicit dependencies, no hidden globals. */
 export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
   const core = createCore(env, overrides);
-  const hostSignIn = { ...core, usedTokens: core.shared.usedTokens.host };
+  const hostSessionTtlSeconds = env.HOST_SESSION_TTL_HOURS * 3600;
+  const hostSignIn = { ...core, usedTokens: core.shared.usedTokens.host, hostSessionTtlSeconds };
   return {
     ...core,
+    hostSessionTtlSeconds,
     auth: createAuthService(core.db, core.sessions),
     signInFromHost: createHostSignIn(hostSignIn, {
       db: core.db,

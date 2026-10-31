@@ -11,6 +11,8 @@ import {
 } from '@bookleaf/shared';
 import '../../platform/http/augment.js';
 import { sessionOf } from '../../platform/http/auth-guard.js';
+import { perAddressAndEmail, perAddressAndWorkspace } from './address-limits.js';
+import { DEVICE_COOKIES, deviceCookieOptions } from './device-token.js';
 import type { LoginThrottle } from './login-throttle.js';
 import { toAuthUser, type AuthService } from './service.js';
 import { SESSION_COOKIE } from './session.js';
@@ -28,20 +30,18 @@ interface Opts {
   /** Where authors sign in on the host product; the login page links there. */
   hostSignInUrl: string | null;
   ttlSeconds: number;
+  /** Sessions started by a host hand-over are shorter (HOST_SESSION_TTL_HOURS). */
+  hostTtlSeconds: number;
   secureCookies: boolean;
   /** Embed mode: the cookie must also work inside the host's iframe. */
   embedded: boolean;
-  /** Counts sign-in attempts per account (10 per 15 minutes, from all addresses). */
+  /** Limits failed sign-ins per browser and per account (device cookies). */
   throttle: LoginThrottle;
 }
 
-/**
- * Per-address backstops. Behind a proxy (Vercel) many people can share one address, so these
- * are loose: password guessing is limited per account by `throttle`, and hand-over tokens are
- * signed and single-use.
- */
-const HOST_LIMIT = { max: 60, timeWindow: '1 minute' };
-const LOGIN_LIMIT = { max: 20, timeWindow: '1 minute' };
+/** Loose per-address backstops, keyed with the email or workspace too (see address-limits.ts). */
+const HOST_LIMIT = perAddressAndWorkspace('host-sign-in', 60, '1 minute');
+const LOGIN_LIMIT = perAddressAndEmail('staff-login', 20, '1 minute');
 
 /**
  * The session cookie. In embed mode it is a partitioned third-party cookie (SameSite=None;
@@ -53,11 +53,10 @@ const cookieFor = ({ secureCookies, embedded }: Pick<Opts, 'secureCookies' | 'em
     ? { httpOnly: true, sameSite: 'none' as const, secure: true, partitioned: true, path: '/' }
     : { httpOnly: true, sameSite: 'lax' as const, secure: secureCookies, path: '/' };
 
-/** Signing in and out: the session lives in an httpOnly cookie. */
+/** Signing in: the session lives in an httpOnly cookie; the browser is remembered (device). */
 function registerSignIn(app: RouteApp, opts: Opts) {
   const { auth, ttlSeconds } = opts;
   const cookie = cookieFor(opts);
-
   app.post(
     '/auth/login',
     {
@@ -70,13 +69,25 @@ function registerSignIn(app: RouteApp, opts: Opts) {
       },
     },
     async (req, reply) => {
-      await opts.throttle('staff', req.body.email);
-      const { user, token } = await auth.login(req.body);
-      reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: ttlSeconds });
-      return { user };
+      const attempt = {
+        area: 'staff' as const,
+        email: req.body.email,
+        deviceToken: req.cookies[DEVICE_COOKIES.staff],
+      };
+      const { result, deviceToken } = await opts.throttle.guard(attempt, () =>
+        auth.login(req.body),
+      );
+      reply.setCookie(SESSION_COOKIE, result.token, { ...cookie, maxAge: ttlSeconds });
+      reply.setCookie(DEVICE_COOKIES.staff, deviceToken, deviceCookieOptions(opts.secureCookies));
+      return { user: result.user };
     },
   );
+}
 
+/** Signing out ends every session of the user; the device cookie stays (it is no session). */
+function registerSignOut(app: RouteApp, opts: Opts) {
+  const { auth } = opts;
+  const cookie = cookieFor(opts);
   app.post(
     '/auth/logout',
     {
@@ -136,7 +147,7 @@ function registerHostSignIn(app: RouteApp, opts: Opts) {
         req.body.token,
         req.body.workspace,
       );
-      reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: opts.ttlSeconds });
+      reply.setCookie(SESSION_COOKIE, token, { ...cookie, maxAge: opts.hostTtlSeconds });
       return { user, workspace: { slug: workspaceSlug } };
     },
   );
@@ -160,6 +171,7 @@ function registerSignInOptions(app: RouteApp, opts: Opts) {
 
 export const authRoutes: FastifyPluginAsyncZod<Opts> = async (app, opts) => {
   registerSignIn(app, opts);
+  registerSignOut(app, opts);
   registerHostSignIn(app, opts);
   registerSignInOptions(app, opts);
   registerMe(app);

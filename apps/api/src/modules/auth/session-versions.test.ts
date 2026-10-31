@@ -1,3 +1,4 @@
+import { SignJWT, decodeJwt } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { UnauthorizedError } from '../../platform/errors.js';
 import { createSessionTokens, type Session } from './session.js';
@@ -24,7 +25,8 @@ function setup() {
     },
   };
   const tokens = createSessionTokens(SECRET, 8, clock);
-  return { store, tokens, sessions: createSessionCodec(tokens, versions) };
+  const sessions = createSessionCodec(tokens, versions, async () => 'OWNER');
+  return { store, tokens, sessions };
 }
 
 describe('session versions', () => {
@@ -57,5 +59,29 @@ describe('session versions', () => {
     await expect(sessions.sign({ ...SESSION, userId: SESSION.workspaceId })).rejects.toBeInstanceOf(
       UnauthorizedError,
     );
+  });
+
+  it('signs for the session audience and lets one sign-in ask for a shorter session', async () => {
+    const { sessions } = setup();
+    const normal = decodeJwt(await sessions.sign(SESSION));
+    const short = decodeJwt(await sessions.sign(SESSION, { ttlSeconds: 2 * 3600 }));
+    expect(normal.aud).toBe('bookleaf-session');
+    expect(normal.exp! - normal.iat!).toBe(8 * 3600);
+    expect(short.exp! - short.iat!).toBe(2 * 3600);
+  });
+
+  it('refuses a token with the right key but no audience, or another audience', async () => {
+    const { sessions } = setup();
+    const claims = { ...SESSION, sv: 1 };
+    const forge = (aud?: string) => {
+      const jwt = new SignJWT(claims).setProtectedHeader({ alg: 'HS256' });
+      const signed = (aud ? jwt.setAudience(aud) : jwt).setSubject(SESSION.userId).setIssuedAt();
+      return signed.setExpirationTime('1h').sign(new TextEncoder().encode(SECRET));
+    };
+    await expect(sessions.verify(await forge())).rejects.toBeInstanceOf(UnauthorizedError);
+    await expect(sessions.verify(await forge('bookleaf-platform'))).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(sessions.verify(await forge('bookleaf-session'))).resolves.toEqual(SESSION);
   });
 });
