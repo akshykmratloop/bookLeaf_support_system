@@ -69,6 +69,11 @@ beforeAll(async () => {
   base = `ws://127.0.0.1:${(h.app.server.address() as AddressInfo).port}`;
   const admin = await h.login(EMAILS.admin);
   [priya, kavita] = await Promise.all([h.login(EMAILS.priya), h.login(EMAILS.kavita)]);
+  // Calls made by earlier test files count against these authors' hourly call quota; this file
+  // starts several calls, so it starts from none.
+  await h.db.voiceSession.deleteMany({
+    where: { author: { user: { email: { in: [EMAILS.priya, EMAILS.kavita] } } } },
+  });
   const { settings } = (await call(h, 'GET', '/admin/assistant', admin)).json<{
     settings: AssistantSettings;
   }>();
