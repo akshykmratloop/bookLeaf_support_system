@@ -23,7 +23,7 @@ export const HOST = {
   signingSecret: 'integration-test-host-signing-secret-123456',
 };
 const HOST_AUTHORS = loadAuthors();
-export const ADMIN_PASSWORD = 'Admin@Test1';
+export const ADMIN_PASSWORD = 'Admin@Test123';
 export const SENTINEL_KEY = 'sk-ant-SENTINEL-123';
 /** 32 zero bytes, base64: fine for tests, never for a real deployment. */
 export const TEST_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');

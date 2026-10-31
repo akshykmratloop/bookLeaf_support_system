@@ -3,7 +3,8 @@ import { ROLES } from '../enums.js';
 
 export const LoginRequestSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email().min(5).max(254)),
-  password: z.string().min(8).max(128),
+  /** The same 12-character floor as signup and password changes (PasswordSchema). */
+  password: z.string().min(12).max(128),
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
