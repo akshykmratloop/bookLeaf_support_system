@@ -29,6 +29,8 @@ export interface WindowCount {
 /** Shared request counters for rate limits: a fixed window that starts with the first hit. */
 export interface RateCounters {
   hit(key: string, windowMs: number): Promise<WindowCount>;
+  /** Forgets the count for `key` on every copy; the next hit starts a new window. */
+  clear(key: string): Promise<void>;
 }
 
 /** Runs tasks with the same key one at a time, in arrival order; other keys run in parallel. */

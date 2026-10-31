@@ -24,6 +24,17 @@ describe('loadEnv', () => {
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
+  it('keeps host hand-over sessions short: 2 hours by default, 1 to 24 allowed', () => {
+    expect(loadEnv(REQUIRED).HOST_SESSION_TTL_HOURS).toBe(2);
+    expect(loadEnv({ ...REQUIRED, HOST_SESSION_TTL_HOURS: '24' }).HOST_SESSION_TTL_HOURS).toBe(24);
+    expect(() => loadEnv({ ...REQUIRED, HOST_SESSION_TTL_HOURS: '0' })).toThrow(
+      /HOST_SESSION_TTL_HOURS/,
+    );
+    expect(() => loadEnv({ ...REQUIRED, HOST_SESSION_TTL_HOURS: '25' })).toThrow(
+      /HOST_SESSION_TTL_HOURS/,
+    );
+  });
+
   it('treats an empty key as not set', () => {
     expect(loadEnv({ ...REQUIRED, OPENAI_API_KEY: '' }).OPENAI_API_KEY).toBeUndefined();
   });

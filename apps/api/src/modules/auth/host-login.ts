@@ -19,6 +19,8 @@ export interface HostSignInDeps {
   workspaceId: string;
   signingSecret: string;
   usedTokens: UsedTokenIds;
+  /** How long a hand-over session lasts (HOST_SESSION_TTL_HOURS), shorter than staff sessions. */
+  hostSessionTtlSeconds: number;
 }
 
 async function customerFor(records: HostRecords, externalId: string, workspaceId: string) {
@@ -31,17 +33,20 @@ async function customerFor(records: HostRecords, externalId: string, workspaceId
 }
 
 /**
- * An author arrives from the host product with a hand-over token. We check it (once only), read
- * who they are from the host, keep a reference row, and start our own session (role AUTHOR only).
+ * An author arrives from the host product with a hand-over token. We check it, read who they are
+ * from the host, use the token up (once only), keep a reference row, and start our own short
+ * session (role AUTHOR only). The token is used up only after the host answered, so a host
+ * outage (503) does not burn it: the author can retry with the same link. The used-token key
+ * names the workspace, so two workspaces' token ids can never collide.
  */
 export async function signInFromHost(
   deps: HostSignInDeps,
   token: string,
 ): Promise<{ user: AuthUser; token: string }> {
   const claims = await verifyHostToken(token, deps.signingSecret, deps.clock.now());
-  if (!(await deps.usedTokens.claim(claims.jti, claims.exp)))
-    throw new UnauthorizedError('This sign-in link has already been used');
   const customer = await customerFor(deps.records, claims.sub, deps.workspaceId);
+  if (!(await deps.usedTokens.claim(`${deps.workspaceId}:${claims.jti}`, claims.exp)))
+    throw new UnauthorizedError('This sign-in link has already been used');
   const { userId, authorId } = await syncCustomer(deps.db, deps.workspaceId, customer);
   const session: Session = {
     userId,
@@ -51,5 +56,6 @@ export async function signInFromHost(
     name: customer.name,
     email: customer.email.toLowerCase(),
   };
-  return { user: toAuthUser(session), token: await deps.sessions.sign(session) };
+  const ttlSeconds = deps.hostSessionTtlSeconds;
+  return { user: toAuthUser(session), token: await deps.sessions.sign(session, { ttlSeconds }) };
 }

@@ -24,17 +24,21 @@ import { createStreamTickets } from './modules/voice/stream-ticket.js';
 import { apiKeyRoutes } from './modules/workspaces/api-key-routes.js';
 import { workspaceRoutes } from './modules/workspaces/routes.js';
 
+/** Sign-in: staff passwords, host hand-overs, and the session and device cookies. */
+const authOptions = (c: Container) => ({
+  auth: c.auth,
+  signInFromHost: c.signInFromHost,
+  hostSignInUrl: c.env.HOST_SIGN_IN_URL ?? null,
+  ttlSeconds: c.sessions.ttlSeconds,
+  hostTtlSeconds: c.hostSessionTtlSeconds,
+  secureCookies: c.env.NODE_ENV === 'production',
+  embedded: c.embedded,
+  throttle: c.loginThrottle,
+});
+
 /** Every module's routes, mounted under /api/v1. */
 export async function registerRoutes(api: FastifyInstance, c: Container) {
-  await api.register(authRoutes, {
-    auth: c.auth,
-    signInFromHost: c.signInFromHost,
-    hostSignInUrl: c.env.HOST_SIGN_IN_URL ?? null,
-    ttlSeconds: c.sessions.ttlSeconds,
-    secureCookies: c.env.NODE_ENV === 'production',
-    embedded: c.embedded,
-    throttle: c.loginThrottle,
-  });
+  await api.register(authRoutes, authOptions(c));
   await api.register(booksRoutes, { books: c.books });
   await api.register(ticketRoutes, { deps: c.ticketDeps });
   await api.register(draftRoutes, { deps: c.ticketDeps });
@@ -63,6 +67,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(workspaceRoutes, {
     workspaces: c.workspaces,
     signupsPerHour: c.env.SIGNUPS_PER_HOUR,
+    counters: c.shared.state.counters,
   });
 }
 

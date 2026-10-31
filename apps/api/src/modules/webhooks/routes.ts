@@ -22,6 +22,8 @@ interface Opts {
 }
 
 const ADMIN = { roles: ['ADMIN'] as const };
+/** Changes to credentials and integrations: the workspace owner only (other staff may read). */
+const OWNER = { ...ADMIN, workspaceRoles: ['OWNER'] as const };
 const errors = {
   401: ProblemSchema,
   403: ProblemSchema,
@@ -48,7 +50,7 @@ function registerManage(app: RouteApp, { webhooks }: Opts) {
   app.post(
     '/workspace/webhooks',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Add a webhook; its signing secret is returned once',
@@ -64,7 +66,7 @@ function registerRemove(app: RouteApp, { webhooks }: Opts) {
   app.delete(
     '/workspace/webhooks/:id',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Remove a webhook',
@@ -83,7 +85,7 @@ function registerEdit(app: RouteApp, { webhooks }: Opts) {
   app.patch(
     '/workspace/webhooks/:id',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Edit a webhook: address, events, or switch it on or off',
@@ -97,7 +99,7 @@ function registerEdit(app: RouteApp, { webhooks }: Opts) {
   app.post(
     '/workspace/webhooks/:id/rotate-secret',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags,
         summary: 'Replace the signing secret; the new one is returned once',

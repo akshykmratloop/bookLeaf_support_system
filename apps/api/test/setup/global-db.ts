@@ -18,7 +18,7 @@ declare module 'vitest' {
   }
 }
 
-export const TEST_ADMIN_PASSWORD = 'Admin@Test1';
+export const TEST_ADMIN_PASSWORD = 'Admin@Test123';
 
 const apiRoot = fileURLToPath(new URL('../../', import.meta.url));
 let container: StartedPostgreSqlContainer | undefined;

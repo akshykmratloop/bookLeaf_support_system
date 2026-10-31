@@ -9,6 +9,7 @@ import {
   type SessionCodec,
   type SessionTokens,
 } from './session.js';
+import { workspaceRolesIn, type WorkspaceRoleOf } from './workspace-role.js';
 
 /**
  * `users.session_version` (F-12 part 2). A token is valid only while the version it was issued
@@ -74,13 +75,17 @@ async function readOrNull(tokens: SessionTokens, token: string) {
 }
 
 /** Signed tokens plus the version check: one primary-key read per request, no cache. */
-export function createSessionCodec(tokens: SessionTokens, versions: SessionVersions): SessionCodec {
+export function createSessionCodec(
+  tokens: SessionTokens,
+  versions: SessionVersions,
+  workspaceRole: WorkspaceRoleOf,
+): SessionCodec {
   return {
     ttlSeconds: tokens.ttlSeconds,
-    async sign(session: Session) {
+    async sign(session: Session, options) {
       const version = await versions.current(session);
       if (version === null) throw new UnauthorizedError('Unknown account');
-      return tokens.sign(session, version);
+      return tokens.sign(session, version, options);
     },
     async verify(token) {
       const { session, version } = await tokens.verify(token);
@@ -91,15 +96,23 @@ export function createSessionCodec(tokens: SessionTokens, versions: SessionVersi
       const read = await readOrNull(tokens, token);
       if (read) await versions.bumpFrom(read.session, read.version);
     },
+    workspaceRole,
   };
 }
 
-/** The app's sessions: tokens signed with JWT_SECRET, checked against `users.session_version`. */
+/**
+ * The app's sessions: tokens signed with JWT_SECRET, checked against `users.session_version`,
+ * plus the user's workspace role for owner-only routes.
+ */
 export function createSessions(
   secret: string,
   ttlHours: number,
   clock: Clock,
   db: Db,
 ): SessionCodec {
-  return createSessionCodec(createSessionTokens(secret, ttlHours, clock), sessionVersionsIn(db));
+  return createSessionCodec(
+    createSessionTokens(secret, ttlHours, clock),
+    sessionVersionsIn(db),
+    workspaceRolesIn(db),
+  );
 }

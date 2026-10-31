@@ -26,6 +26,9 @@ export function redisCounters(redis: Redis, base: string): RateCounters {
       const [count, resetInMs] = parsed.data;
       return { count, resetInMs };
     },
+    async clear(key) {
+      await redis.del(`${base}:${key}`);
+    },
   };
 }
 

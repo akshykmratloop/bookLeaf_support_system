@@ -17,6 +17,8 @@ interface Opts {
 }
 
 const ADMIN = { roles: ['ADMIN'] as const };
+/** Changes to credentials and integrations: the workspace owner only (other staff may read). */
+const OWNER = { ...ADMIN, workspaceRoles: ['OWNER'] as const };
 const errors = { 401: ProblemSchema, 403: ProblemSchema, 409: ProblemSchema, 422: ProblemSchema };
 /** Testing hits the tenant's product; keep it to a few tries a minute per workspace. */
 const TEST_LIMIT = { max: 10, timeWindow: '1 minute' };
@@ -40,7 +42,7 @@ function registerWrite(app: RouteApp, { connectors }: Opts) {
   app.put(
     '/workspace/connector',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags: ['workspace'],
         summary: 'Set the data sources, API key and signing secret (secrets are write-only)',
@@ -53,7 +55,7 @@ function registerWrite(app: RouteApp, { connectors }: Opts) {
   app.post(
     '/workspace/connector/test',
     {
-      config: { ...ADMIN, rateLimit: TEST_LIMIT },
+      config: { ...OWNER, rateLimit: TEST_LIMIT },
       schema: {
         tags: ['workspace'],
         summary: 'Call every data source for one customer: raw answers and the merged record',
@@ -69,7 +71,7 @@ function registerMapping(app: RouteApp, { connectors }: Opts) {
   app.put(
     '/workspace/connector/mapping',
     {
-      config: ADMIN,
+      config: OWNER,
       schema: {
         tags: ['workspace'],
         summary: 'Where the customer name, email and item list come from in your data sources',
