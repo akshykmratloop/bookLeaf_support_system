@@ -67,6 +67,23 @@ own prefix instead (§15). The worker starts and stops with the plugin (`backgro
 copies can run side by side: everything they must share (events, rate limits, one-use tokens,
 the chat queue, settings-cache clearing) goes through Redis (§21).
 
+**Health, timeouts and shutdown (2026-11-01).**
+
+- `GET /health` checks Postgres and Redis. It answers 503 if either is down. A Redis error on a
+  request is also a 503, not a 500.
+- `requestTimeout` is 30 s and `keepAliveTimeout` is 125 s. `connectionTimeout` is not set on purpose:
+  it is a socket idle timeout and would cut live streams and slow AI answers.
+- Shutdown (`shutdown.ts`, on `SIGTERM`): live streams are ended in a `preClose` hook so the server
+  can close. The worker stops and waits at most 15 s for running jobs. If anything hangs, the
+  process exits after a fixed limit.
+- An `unhandledRejection` is logged and the process keeps serving. An `uncaughtException` starts the
+  same bounded shutdown and exits with code 1. Lint (`no-floating-promises`, `no-misused-promises`)
+  refuses unhandled promises in `apps/api/src`.
+- A daily retention job (`modules/retention/`) deletes in batches of 1,000: finished AI jobs older
+  than 30 days (never the newest generation of each ticket and kind), settled webhook deliveries
+  older than 30 days, and AI runs older than 90 days. Audit events, tickets, messages and chats are
+  never deleted.
+
 ---
 
 ## 3. Layers inside the API
@@ -164,6 +181,13 @@ sequenceDiagram
     BUS-->>A: hint → client refetches ticket via REST
 ```
 
+**4a. Queue paging.** The staff queue (`GET /tickets`) uses an opaque keyset cursor on the sort key
+(`modules/tickets/list-cursor.ts`), for oldest-first or newest-first. A ticket that moves while
+someone pages is never skipped or repeated. An old plain-id cursor gets 422. The optional `tz` query
+parameter (an IANA name such as `Asia/Kolkata`) sets the time zone for the `from` and `to` day
+filters. The queue and the author ticket list load 50 at a time with a "Load more" button, with no
+200-row cap. The ticket view returns the newest 500 messages and the last 20 AI jobs.
+
 ---
 
 ## 5. AI job states, retries and recovery
@@ -176,9 +200,23 @@ stateDiagram-v2
     RUNNING --> QUEUED: transient error, attempts left (backoff 5 s / 30 s / 120 s)
     RUNNING --> RUNNING: lease expired → reclaimed (crash or restart)
     RUNNING --> FALLBACK: attempts = 3, or auth / config error, or outage switch
+    RUNNING --> FAILED: the fallback itself threw
     SUCCEEDED --> [*]
     FALLBACK --> [*]: rule triage or template draft applied
+    FAILED --> [*]: ticket keeps its rule-based fields; staff can retry
 ```
+
+`FAILED` is a final state (migration `20261101090000_ai_job_failed`). A fallback that throws ends
+the job as `FAILED` instead of looping. A job is reclaimed after a lease expiry only while
+`attempts <= max + 1`. Finishing or requeuing a job works only while the worker still holds the
+lease. A job whose generation was replaced skips the model. The worker runs `WORKER_CONCURRENCY`
+jobs at once (default 2), and start-up fails if the lease is not longer than the AI plus host
+timeouts.
+
+**Cost caps.** A draft sends the last 6 earlier author messages. Triage sends the description and the
+last 3 messages. After `AI_TICKET_RUNS_PER_WORKSPACE_PER_DAY` AI runs in a day (default 2,000) a
+workspace gets the rules fallback with code `AI_BUDGET`. Prompt knowledge is at most 100 articles of
+8,000 characters, cached per process and checked against `updatedAt`.
 
 Every exit leaves the ticket with a category, a priority, an SLA and a usable draft. "Retry AI" or
 "Regenerate" creates a new job with `generation + 1`; stale generations never overwrite newer results.
@@ -217,14 +255,21 @@ flowchart TD
 flowchart LR
     env[/"ANTHROPIC_API_KEY (env)"/] --> registry["Provider registry<br/>builds client at startup"]
     settings[("ai_settings row<br/>provider + model per task<br/>outage switch · version")] --> cache["settings cache<br/>invalidated on save"]
-    ui["Admin → AI Settings<br/>shows: configured yes/no, last test<br/>edits: model (allowlist), outage switch"] -- "PUT /admin/ai/settings" --> settings
-    ui -- "POST /admin/ai/test" --> registry
+    ui["Platform console (super admin)<br/>shows: configured yes/no, last test<br/>edits: model (allowlist), outage switch"] -- "PUT /platform/ai/settings" --> settings
+    ui -- "POST /platform/ai/test" --> registry
     cache --> jobs["AI worker"]
     registry --> jobs
 ```
 
 Keys come only from env. The UI can choose among providers whose key is present and models from a
 server-side allowlist; it can never read or write a key.
+
+These controls belong to the super admin, under `/api/v1/platform` (`modules/platform/console-routes.ts`).
+The old workspace-admin routes `GET /admin/ai/status`, `GET` and `PUT /admin/ai/settings`,
+`POST /admin/ai/test` and `/workspace/provider-keys` now always answer 403 "Managed by your
+support provider" (`modules/managed/routes.ts`). The console also shows how many jobs in the last
+hour ran without AI (fallback, failed, auth). The "last test" result is stored in `platform_settings`
+(migration `20261101110000_platform_last_test`).
 
 ---
 
@@ -243,9 +288,12 @@ sequenceDiagram
     Note over C,S: connection drops
     C->>S: auto-reconnect after 3 s
     C->>R: on open: refetch all active ticket queries (catch-up)
-    Note over C: after 3 failed reconnects → poll every 15 s, retry SSE every 60 s
+    Note over C: after 3 failed reconnects, or a stream the browser closed → poll at once, retry SSE with growing waits
     S-->>C: session-expired → client redirects to login
 ```
+
+The server sends `session-expired` from the heartbeat only for sign-in or suspension errors. A
+database blip no longer signs everyone out. Any 401 in the web app signals session expiry.
 
 Events carry only `{ type, ticketId }`, so a missed or duplicated event cannot lose or leak data.
 
@@ -595,7 +643,7 @@ sequenceDiagram
     UI->>API: POST /voice/calls (limits, quota, voice switched on?)
     API->>H: facts for this author
     API-->>UI: call id (must connect within a short window)
-    UI->>API: WebSocket /voice/calls/:id/stream (session cookie, Origin checked; PENDING → ACTIVE once)
+    UI->>API: WebSocket /voice/calls/:id/stream (ticket in the subprotocol, Origin checked; PENDING → ACTIVE once)
     API->>C: instructions with the facts, tools: draft fields + end_call
     C->>M: raw WebSocket (server-side key)
     loop the conversation
@@ -609,6 +657,9 @@ sequenceDiagram
 ```
 
 - The browser never connects to the model vendor. The key stays on the server.
+- The one-time stream ticket is sent in the WebSocket subprotocol header
+  (`bookleaf.v1, ticket.<jwt>`), not in the URL. Redeeming it re-checks the session version. The
+  server answers with `bookleaf.v1` only. Request logs drop query strings.
 - Every call has a hard time cap (`VOICE_MAX_CALL_SECONDS`, at most 300) with a spoken warning
   before it. There are per-author hourly and daily limits, and one call at a time.
 - A call that ended without a ticket can be continued within 60 minutes. It joins the same thread
@@ -634,7 +685,8 @@ the plugin is mounted (`apps/api/test/plugin.int.test.ts` checks this under `/su
 
 `GET /conversations` merges the author's chats and call threads (one row per thread), newest first.
 It pages with a `(createdAt, id)` cursor, so rows created in the same millisecond are never skipped
-or repeated. Each row shows the date, a title (the ticket draft's subject, otherwise the first thing
+or repeated. (The staff ticket queue uses a different, opaque keyset cursor on its sort key: see §4a
+below.) Each row shows the date, a title (the ticket draft's subject, otherwise the first thing
 the author said), the message count and the ticket it led to. `GET /conversations/chats/:id` and
 `/conversations/calls/:id` return a read-only transcript. Another author's conversation is a 404.
 
@@ -824,18 +876,18 @@ A reaches a call watching on B.
   so it stays on the copy that holds the connection and cannot move mid-call. The load balancer
   does not need sticky sessions for this: the socket itself stays where it was opened. Draft edits
   made through other copies still reach it (table above).
-- **The startup sweep of open calls** (`background.ts`, `failInterruptedCalls`) marks every call
-  that is still PENDING or ACTIVE as failed, because it assumes those calls died with the last
-  process. With several copies, a copy that restarts would also end calls that live on another copy.
-  Before a rolling restart with more than one copy, scope that sweep (for example to calls older
-  than the call time cap). The demo box runs one API copy, so this does not happen there today.
+- **The startup sweep of open calls** (`background.ts`, `failInterruptedCalls`) fails only calls
+  that are still PENDING or ACTIVE and older than `VOICE_MAX_CALL_SECONDS` + 60 s (changed
+  2026-11-01). A call past the hard cap cannot be alive on any copy, so a restarting copy no longer
+  ends calls that live on another copy.
 - **Read caches of customer data** from the host product (`host/workspaces.ts`, `host/http/cache.ts`,
   60 s by default) are per copy on purpose. They are only faster reads; a copy may show data up to
   that age, as a single copy already did.
 
 Already safe with several copies, because they use the database: the AI job worker and the webhook
-sender (both claim work with `SKIP LOCKED` leases), the chat message limits per minute and per day,
-the chat turn counter, the voice call quotas and call claiming (single atomic updates or counts).
+sender (both claim work with `SKIP LOCKED` leases), the chat turn counter, the voice call quotas and
+call claiming (single atomic updates or counts). The chat limits per minute and per rolling 24 hours
+are shared Redis counters per author (changed 2026-11-01).
 
 ## 22. Admin dropdown (U-6)
 

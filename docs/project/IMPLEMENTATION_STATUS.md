@@ -40,6 +40,17 @@ AI calls used tonight: 143 text-model calls (limit agreed: about 150). No live v
 
 **31 Oct re-check (main at `27c4843`, then the audit fixes):** typecheck, lint, format and build pass. Tests: API 731, web 176, shared 46, host-demo 31, host-web 4 (988 in total). After the 31 Oct fixes the API has 762 tests, all passing. `pnpm audit --prod`: no known vulnerabilities. Details: `docs/qa/security-report.md` ("2026-10-31 re-audit").
 
+**1 Nov 2026 hardening round (branch `fix/hardening-2026-11-01`, merged).** Details and a table of each finding: `docs/qa/security-report.md` ("2026-11-01 hardening round"). In short:
+
+- **Sign-in and sessions.** Outsiders can no longer lock an account: failures are counted per browser (10 in 15 minutes). Address limits behind Vercel are keyed by address plus email or workspace. The host hand-over token is used up only after the customer lookup works, and author sessions from it last 2 hours (was 8). Session tokens need the audience `bookleaf-session`. Login passwords need 12 characters. API keys, webhooks and data sources are owner-only. The voice ticket moved from the URL to the WebSocket subprotocol.
+- **AI.** The fact checker now catches number words, bare amounts of 1,000 or more, dates without a year, weeks, months, quarters and more currency forms. The triage prompt fences author text. Jobs have a final `FAILED` state, a lost lease cannot finish a job, and each workspace has a daily AI run cap (2,000, then rules fallback with code `AI_BUDGET`). Prompts send less history.
+- **Runtime and data.** `/health` checks Postgres and Redis. Shutdown is bounded and ends live streams. Unhandled errors are logged and handled. The staff queue uses a keyset cursor and "Load more" (50 at a time). Two new ticket indexes. A daily purge removes old AI jobs, settled webhook deliveries and AI runs (tickets, messages, chats and audit events are kept).
+- **Widget and deploy.** The widget sends content only to the host origin it learned, and `window.BookLeafSupport.signOut()` is new. Both Vercel apps send a full Content-Security-Policy. Docker images are pinned, with CPU caps and a 30 s stop grace. Demo logins are published in `deploy/demo-logins.env` (one password; authors at `<first name>@bookleaf.com`, staff `admin@bookleaf.com` and `ops2@bookleaf.com`, super admin `superadmin@support.com`) and a one-time demo reset runs through `deploy/demo-reset-id`.
+- **Dependencies.** `pnpm audit --prod`: 0 known problems.
+- **Kept on purpose:** sign-up still answers "email taken" (there is no email provider), and Swagger stays public (reviewers need the API docs). **Not done by decision:** S3/EBS backups and pre-deploy snapshots (the owner's call for a demo).
+- **Migrations added:** `20261101090000_ai_job_failed`, `20261101100000_ticket_list_indexes`, `20261101110000_platform_last_test`.
+- **Not re-run for this entry:** the test counts above are from 31 Oct. This documentation update ran no tests.
+
 ## 3. Git
 
 110 local commits on `feature/support-saas` ahead of `main`, conventional format with the Co-Authored-By trailer. Tonight's

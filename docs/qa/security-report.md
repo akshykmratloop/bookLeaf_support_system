@@ -95,4 +95,52 @@ AI provider keys can be set in env (defaults) or stored encrypted per workspace 
 - The Vercel HTML has no `script-src` CSP.
 - The host hand-over token `jti` is not scoped to a workspace. Tokens are signed per host and can be used once.
 - The `customers:read` API scope also returns ticket summaries.
-- The voice ticket in the URL can appear in access logs.
+- The voice ticket in the URL can appear in access logs. **Fixed 2026-11-01:** the ticket now travels in the WebSocket subprotocol (see below).
+
+## 2026-11-01 hardening round
+
+Scope: the code on `fix/hardening-2026-11-01`, merged after the 31 Oct re-audit. The round covered sign-in limits,
+sessions, the AI checker and job queue, runtime safety, database speed, the widget and the deploy files.
+`pnpm audit --prod` reports 0 known problems (the `glob` and `minimatch` overrides are in `pnpm-workspace.yaml`).
+
+### Fixed on 2026-11-01
+
+| Finding (plain words) | Severity | Fix | Where | Test |
+| --- | --- | --- | --- | --- |
+| Anyone could lock a real user out by typing wrong passwords for their email. | HIGH | Failures are counted per browser. A signed 90-day cookie (`bl_device`, console `bl_platform_device`) gives a browser that signed in before its own count. Unknown browsers share one count per email. Limit: 10 failures in 15 minutes. A success clears that browser's count. | `apps/api/src/modules/auth/login-throttle.ts`, `device-token.ts` | `login-throttle.test.ts` |
+| Behind Vercel everyone shares one address, so address limits blocked real users or let one attacker use all of them. | MEDIUM | Address limits now include a second key: address + email (login), address + workspace slug (host hand-over), address + email plus an hourly cap for the whole platform (signup). | `apps/api/src/modules/auth/address-limits.ts` | API tests for login, hand-over and signup |
+| A host outage used up the one-time hand-over token, and the token was not tied to one workspace. | MEDIUM | The token is keyed per workspace. It is used up only after the customer lookup works. | `apps/api/src/modules/auth/host-login.ts`, `used-tokens.ts` | `test/host-sign-in.int.test.ts` |
+| Author sessions from a hand-over lasted 8 hours. | LOW | They last `HOST_SESSION_TTL_HOURS` (default 2). | `apps/api/src/config/auth.ts`, `apps/api/src/container.ts` | `test/host-sign-in.int.test.ts` |
+| A session token meant for something else could be accepted as a session. | MEDIUM | Session tokens carry the audience `bookleaf-session` and it is required. | `apps/api/src/modules/auth/session.ts` | `test/session-revocation.int.test.ts` |
+| The login password minimum was lower than the signup minimum. | LOW | Login now needs 12 characters, same as signup. | `packages/shared/src/schemas/auth.ts` | shared schema tests |
+| Any workspace staff member could manage API keys, webhooks and data sources. | HIGH | These routes are owner-only (`workspaceRoles`). | `apps/api/src/modules/auth/workspace-role.ts`, `workspaces/api-key-routes.ts`, `connectors/routes.ts` and the webhook routes | role tests in the API suite |
+| The voice ticket was in the URL, so it could land in logs. | MEDIUM | The ticket travels as a WebSocket subprotocol (`bookleaf.v1`, `ticket.<jwt>`). Redeeming it re-checks the session version. Request logs drop query strings. | `apps/api/src/modules/voice/stream-route.ts`, `apps/web/src/lib/voice/session.ts` | `test/voice-ticket.int.test.ts`, `session.test.ts` |
+| The AI fact checker missed money and dates written in other ways. | HIGH | It reads number words on every channel. It blocks bare amounts of 1,000 or more, amounts next to money words, day+month dates without a year, weeks, months, quarters, `$`, `USD`, `EUR`, lakh, crore, `k`, and bad grouping like ₹1,0000. Book-title exemptions ignore case, match whole words, and never apply to titles that are only a figure. | `apps/api/src/ai/checker/loose.ts`, `patterns.ts`, `titles.ts` | checker unit tests |
+| Author text in a ticket could push instructions into the triage prompt. | MEDIUM | Subject, description and book title are fenced as untrusted. Description is cut at 6,000 characters. If the AI raises priority above the category default with no rule, the ticket is marked needs-review. | `apps/api/src/ai/prompts/` | triage prompt tests |
+| A failing fallback could loop forever, and two workers could finish the same job. | HIGH | New final state `FAILED` (migration `20261101090000_ai_job_failed`). A fallback that throws ends in `FAILED`. A job is reclaimed only while attempts <= max + 1. Finish and requeue work only while the worker still holds the lease. Old generations skip the model. Start-up checks that the lease is longer than the AI and host timeouts. | `apps/api/src/ai/jobs/` | `test/worker.int.test.ts` |
+| One ticket could cost a lot of AI calls. | MEDIUM | Drafts send the last 6 earlier author messages. Triage sends the description and the last 3. After `AI_TICKET_RUNS_PER_WORKSPACE_PER_DAY` runs (default 2,000) a workspace gets the rules fallback with code `AI_BUDGET`. | `apps/api/src/ai/jobs/budget.ts`, `apps/api/src/config/ai.ts` | worker tests |
+| Two staff clicks on Regenerate could race; a reply retry could hide a real error. | LOW | `regenerateDraft` locks the ticket row. `writeOnce` treats only an Idempotency-Key clash as a replay. | `apps/api/src/modules/messages/` and `apps/api/src/ai/jobs/` | `test/replies.int.test.ts` |
+| The webhook sender used up attempts when the master key was missing. | LOW | It waits and does not count an attempt. | `apps/api/src/modules/webhooks/` | webhook tests |
+| An unhandled error could crash the API silently. | MEDIUM | `unhandledRejection` is logged and the process keeps serving. `uncaughtException` starts a bounded shutdown and exits with code 1. Lint now refuses floating and misused promises in `apps/api/src`. | `apps/api/src/shutdown.ts`, `eslint.config.js` | `src/shutdown.test.ts` |
+| Slow or stuck connections could hold the server. | LOW | `requestTimeout` 30 s, `keepAliveTimeout` 125 s. | `apps/api/src/app.ts` | startup tests |
+| `/health` said OK when Redis was down; Redis errors showed as 500. | MEDIUM | `/health` checks Postgres and Redis (503 if either is down). Redis errors map to 503. | `apps/api/src/platform/http/health.ts` | `health.test.ts` |
+| Open live streams could stop the server from shutting down; a database blip signed everyone out. | MEDIUM | Streams end in a `preClose` hook. The heartbeat sends session-expired only for sign-in or suspension errors. | `apps/api/src/modules/events/routes.ts` | `test/live-events.int.test.ts` |
+| Chat limits were counted in one process only. | MEDIUM | Per-minute and rolling 24-hour limits use shared Redis counters per author. | `apps/api/src/modules/chat/limit.ts` | `test/multi-instance.int.test.ts`, `test/chat.int.test.ts` |
+| A restarting API copy marked other copies' live calls as failed. | MEDIUM | On start-up only calls older than `VOICE_MAX_CALL_SECONDS` + 60 s are failed. | `apps/api/src/background.ts` | voice tests |
+| Old ticket and message rows grew without limit; the ticket view read everything. | LOW | Daily purge (batched): AI jobs older than 30 days (never the newest generation per ticket and kind), settled webhook deliveries older than 30 days, AI runs older than 90 days. Audit events, tickets, messages and chats are kept. Ticket view returns the newest 500 messages and the last 20 AI jobs. Knowledge in the prompt is at most 100 articles of 8,000 characters. | `apps/api/src/modules/retention/purge.ts`, `scheduler.ts` | retention tests |
+| The widget sent content to any page that framed it. | HIGH | The frame sends content only to the host origin it learned from a handshake. New `window.BookLeafSupport.signOut()` ends the widget session with the host's. | `apps/web/public/embed.js`, `apps/web/src/lib/frame.ts` | web `frame` tests, `test/embed.int.test.ts` |
+| Vercel apps had no full Content-Security-Policy. | MEDIUM | The support app and author dashboard send a full CSP. The widget CSP allows https images (workspace logo). `HOST_SIGN_IN_URL` and `SUPPORT_URL` accept only http or https. | `deploy/vercel/*.tpl`, `apps/api/src/config/` | config tests |
+| host-demo had open sign-in and a default password. | MEDIUM | Sign-in: 10 a minute per address + email. Support token: 30 a minute. `HOST_DEMO_PASSWORD` is required (no default). | `apps/host-demo/src/` | `apps/host-demo/test/app.test.ts` |
+| Two packages (`glob`, `minimatch`) had known problems. | LOW | Overrides in `pnpm-workspace.yaml`. | `pnpm-workspace.yaml` | `pnpm audit --prod` = 0 |
+| Containers used loose image versions and no limits. | LOW | Pinned images (node 22.23.4-alpine, postgres 16.15-alpine, redis 7.4.11-alpine, caddy 2.11.4-alpine). CPU caps, 30 s stop grace, Redis `volatile-ttl`, Caddy 30 s response-header timeout except live-stream, voice and chat paths. | `docker-compose.yml`, `deploy/` | deploy review (not a unit test) |
+
+### Kept on purpose
+
+- **Sign-up still answers "email taken".** There is no email provider. A silent answer would confuse real users.
+- **Swagger stays public.** Reviewers need the API docs, and it is a read-only schema with no data.
+- **`connectionTimeout` is not set.** It is a socket idle timeout and would cut live streams and slow AI answers.
+- **Demo logins are published** (`deploy/demo-logins.env`): one password for all, authors at `<first name>@bookleaf.com`, staff at `admin@bookleaf.com` and `ops2@bookleaf.com`, super admin at `superadmin@support.com`. The brief requires reviewers to have logins. One-time reset: `deploy/demo-reset-id`.
+
+### Not done by decision
+
+- **Database backups to S3 or EBS, and snapshots before each deploy.** The owner decided this is not needed for a demo.

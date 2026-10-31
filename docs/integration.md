@@ -87,7 +87,9 @@ exchanges it at `POST /api/v1/auth/host` for its own session cookie.
   seconds, or was already used. An email that belongs to a staff account is refused with 409.
 - Customer and item ids may use letters, digits and `. _ @ : -`, but may not be `.` or `..`. An item
   already linked to another customer is never moved (409).
-- Used token ids are remembered in memory until they expire, because support runs as one instance.
+- Used token ids are remembered in shared Redis until they expire, keyed per workspace. A token is
+  marked used only after the customer lookup at the host succeeds, so a host outage does not burn it
+  (changed 2026-11-01). A session started this way lasts `HOST_SESSION_TTL_HOURS` (default 2).
 - On sign-in, support stores only a reference to the customer: the external id, name and email,
   plus each item's id and title. Everything else is read live (step 2b).
 
@@ -105,7 +107,7 @@ Return 404 for an unknown id. Otherwise return the JSON below. Support checks ev
 {
   "id": "AUTH001",
   "name": "Priya Sharma",
-  "email": "priya.sharma@email.com",
+  "email": "priya@bookleaf.com",
   "facts": [
     { "id": "author.total_pending", "label": "Total royalty pending", "type": "MONEY",
       "value": 357000, "display": "₹3,570",
@@ -241,8 +243,13 @@ workspace's address name, chosen at signup). Only that workspace's allowed origi
   margin of 24 px on wide screens, edge to edge on narrow ones) and dims the page behind it. The
   user never leaves the host page and no new tab opens. The same button collapses it again. `Esc`
   steps back: full screen, then the docked panel, then closed.
-- `window.BookLeafSupport` has `open()`, `close()`, `expand()` and `collapse()` if you want your
-  own buttons. `expand()` opens the panel first if it is closed.
+- `window.BookLeafSupport` has `open()`, `close()`, `expand()`, `collapse()` and `signOut()` if you
+  want your own buttons. `expand()` opens the panel first if it is closed.
+- **`signOut()`.** Call it when the user signs out of your product, before you leave the page. It
+  returns a promise. It asks the support app inside the frame to sign out and resolves when the frame
+  confirms, or after a short wait if the frame does not answer. If the panel was never opened it
+  resolves at once. It also works while the panel is open. The BookLeaf demo (`host-web`) calls
+  `await window.BookLeafSupport?.signOut?.()` on sign-out.
 - Remove the tag and the widget is gone. Nothing else needs to be undone.
 - Inside the panel the app scrolls up and down only, never sideways: cards, badges and long
   words (a long subject, book title or message) shrink, truncate or wrap at the docked width
@@ -255,6 +262,15 @@ is never sent to a server or logged. The support app reads it and exchanges it a
 workspace) must be that slug, or the server refuses with **403** before the token is used up, so a
 token can never start a session inside another workspace's widget. A token works once (`jti`), so
 every time the panel opens, or the app asks to sign in again, the script fetches a new one.
+
+**Origin handshake.** Every message `embed.js` sends to the frame names the host page's origin
+(`{ type, origin: location.origin, ... }`). The frame (`apps/web/src/lib/frame.ts`) tells the script
+it is `ready`, and the script answers with a `hello` that carries the origin and the theme. The
+frame accepts the first `hello` only when the origin inside it equals the real sender's origin. It
+sends content-bearing messages (`reauth` with a page path, `brand` with the name and logo) only to
+that learned host origin, and holds them until the origin is known. Messages that carry no content
+(`escape`, `expand`, `close`, `ready`, `signedout`) may go to any parent. The frame accepts host
+commands (`signout`) only from its parent window.
 
 **Theme.** The frame follows the host page, in both directions of time:
 
@@ -277,6 +293,8 @@ every time the panel opens, or the app asks to sign in again, the script fetches
 | `bookleaf-support:escape` | none | The user pressed `Esc` inside the frame | Steps back as above |
 | `bookleaf-support:expand` | none | Ask the host to go full screen | Calls `expand()` |
 | `bookleaf-support:close` | none | Ask the host to close the panel | Calls `close()` |
+| `bookleaf-support:ready` | none | The frame has loaded | Sends `hello` (origin and theme) |
+| `bookleaf-support:signedout` | none | The frame finished signing out | Resolves the waiting `signOut()` |
 
 `embed.js` accepts a message only when **both** are true: `event.origin` equals the support app's
 origin (taken from the script's own `src`), and `event.source` is the frame's own window. Anything
@@ -331,6 +349,12 @@ POST /api/v1/voice/calls
   `channel: "VOICE"` and the `callId` of the call. Typed messages have `channel: "CHAT"`. In
   History the call appears inside the chat, not as a second conversation. `resume` is ignored when
   `chatSessionId` is given.
+- **The voice socket ticket is not in the URL.** After `POST /voice/calls` the browser opens the
+  WebSocket `/api/v1/voice/calls/:id/stream` and offers two subprotocols:
+  `new WebSocket(url, ['bookleaf.v1', 'ticket.<jwt>'])`. The server reads the ticket from the
+  `Sec-WebSocket-Protocol` header, checks it (and that the session version is still current), and
+  answers with `bookleaf.v1` only. The server reads the ticket only from this header, never from the
+  query string, so it stays out of access logs. With no ticket it falls back to the session cookie.
 - `404` if the chat does not exist or belongs to another author.
 - `409` with code `CHAT_TURN_LIMIT` if the chat has already used all its messages.
 - **One limit for both.** Each question the author speaks counts as one message, like a typed one.
