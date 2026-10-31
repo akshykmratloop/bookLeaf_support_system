@@ -1,41 +1,18 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
-import { signIn } from '../../lib/api';
-import { DASHBOARD_KEY } from '../../lib/keys';
 import { Field } from './Field';
+import type { SignInForm } from './useSignInForm';
 
 const greeting = (h: number) =>
   h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 
-function useSignIn() {
-  const qc = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const submit = async (email: string, password: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await signIn(email.trim(), password);
-      await qc.invalidateQueries({ queryKey: DASHBOARD_KEY });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
-    } finally {
-      setBusy(false);
-    }
-  };
-  return { error, busy, submit };
-}
-
 /** BookLeaf's sign-in, as a raised glass card. Demo accounts share HOST_DEMO_PASSWORD (README). */
-export function SignInCard() {
-  const [email, setEmail] = useState('priya.sharma@email.com');
-  const [password, setPassword] = useState('');
+export function SignInCard({ form }: { form: SignInForm }) {
+  const { email, setEmail, password, setPassword, error, busy } = form;
   const [capsLock, setCapsLock] = useState(false);
-  const { error, busy, submit } = useSignIn();
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    void submit(email, password);
+    form.submitTyped();
   };
   const onKey = (e: KeyboardEvent) => setCapsLock(e.getModifierState('CapsLock'));
   return (
