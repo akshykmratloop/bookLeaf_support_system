@@ -322,44 +322,44 @@ model WorkspaceDataSource {
 /// "starting values". The model columns are no longer read or written: models are platform
 /// settings now (U-7 expand step; dropped in a later release).
 model WorkspaceSettings {
-  id                 String   @id @default(uuid()) @db.Uuid
-  workspaceId        String   @unique @map("workspace_id") @db.Uuid
-  triageModel        String?  @map("triage_model")
-  draftModel         String?  @map("draft_model")
-  chatModel          String?  @map("chat_model")
-  toneGuide          String   @default("") @map("tone_guide")
-  chatEnabled        Boolean  @default(false) @map("chat_enabled")
-  messagesPerMinute  Int      @default(20) @map("messages_per_minute")
-  messagesPerDay     Int      @default(100) @map("messages_per_day")
-  maxTurnsPerSession Int      @default(30) @map("max_turns_per_session")
-  voiceEnabled       Boolean  @default(false) @map("voice_enabled")
-  voiceName          String   @default("marin") @map("voice_name")
-  maxCallSeconds     Int      @default(300) @map("max_call_seconds")
-  callsPerHour       Int      @default(5) @map("calls_per_hour")
-  callsPerDay        Int      @default(10) @map("calls_per_day")
-  allowedOrigins     String[] @default([]) @map("allowed_origins")
-  brandName          String   @default("") @map("brand_name")
-  brandColor         String   @default("#2f6b4f") @map("brand_color")
-  customerNoun       String   @default("customer") @map("customer_noun")
-  itemNoun           String   @default("item") @map("item_noun")
+  id                 String          @id @default(uuid()) @db.Uuid
+  workspaceId        String          @unique @map("workspace_id") @db.Uuid
+  triageModel        String?         @map("triage_model")
+  draftModel         String?         @map("draft_model")
+  chatModel          String?         @map("chat_model")
+  toneGuide          String          @default("") @map("tone_guide")
+  chatEnabled        Boolean         @default(false) @map("chat_enabled")
+  messagesPerMinute  Int             @default(20) @map("messages_per_minute")
+  messagesPerDay     Int             @default(100) @map("messages_per_day")
+  maxTurnsPerSession Int             @default(30) @map("max_turns_per_session")
+  voiceEnabled       Boolean         @default(false) @map("voice_enabled")
+  voiceName          String          @default("marin") @map("voice_name")
+  maxCallSeconds     Int             @default(300) @map("max_call_seconds")
+  callsPerHour       Int             @default(5) @map("calls_per_hour")
+  callsPerDay        Int             @default(10) @map("calls_per_day")
+  allowedOrigins     String[]        @default([]) @map("allowed_origins")
+  brandName          String          @default("") @map("brand_name")
+  brandColor         String          @default("#2f6b4f") @map("brand_color")
+  customerNoun       String          @default("customer") @map("customer_noun")
+  itemNoun           String          @default("item") @map("item_noun")
   /// AI behaviour (U-7): the first line of replies and calls ({name} = the customer's first name).
-  greeting           String   @default("")
+  greeting           String          @default("")
   /// How reply drafts sign off; empty = "Warm regards, <brand> Support".
-  signature          String   @default("")
+  signature          String          @default("")
   /// Null = not chosen: replies behave as before (English; calls follow VOICE_STYLE).
-  replyLanguage      ReplyLanguage? @map("reply_language")
-  replyLength        ReplyLength?   @map("reply_length")
+  replyLanguage      ReplyLanguage?  @map("reply_language")
+  replyLength        ReplyLength?    @map("reply_length")
   formality          ReplyFormality?
   /// Subjects the AI must not discuss; it offers a ticket to the team instead.
-  topicsToAvoid      String[] @default([]) @map("topics_to_avoid")
+  topicsToAvoid      String[]        @default([]) @map("topics_to_avoid")
   /// Shown in the widget header (https only); null = no logo.
-  logoUrl            String?  @map("logo_url")
+  logoUrl            String?         @map("logo_url")
   /// The widget launcher's label on the host page; empty = "Help".
-  launcherText       String   @default("") @map("launcher_text")
-  widgetTheme        WidgetTheme @default(AUTO) @map("widget_theme")
-  version            Int      @default(0)
-  updatedById        String?  @map("updated_by_id") @db.Uuid
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  launcherText       String          @default("") @map("launcher_text")
+  widgetTheme        WidgetTheme     @default(AUTO) @map("widget_theme")
+  version            Int             @default(0)
+  updatedById        String?         @map("updated_by_id") @db.Uuid
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -620,10 +620,6 @@ model AiSettings {
   triageModel    String   @map("triage_model")
   draftModel     String   @map("draft_model")
   simulateOutage Boolean  @default(false) @map("simulate_outage")
-  /// The console's last "Test connection" result, so every copy shows the same one after restarts.
-  lastTestAt     DateTime? @map("last_test_at") @db.Timestamptz(3)
-  lastTestOk     Boolean?  @map("last_test_ok")
-  lastTestDetail String?   @map("last_test_detail")
   version        Int      @default(0)
   updatedById    String?  @map("updated_by_id") @db.Uuid
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -960,20 +956,20 @@ model PlatformAdmin {
 /// The one row of shared AI settings every customer runs on (U-7): provider, models and the
 /// global outage switch. Replaces the ai_settings / assistant_settings singletons. Platform table.
 model PlatformSettings {
-  id             Int      @id @default(1)
+  id             Int       @id @default(1)
   provider       String
-  triageModel    String   @map("triage_model")
-  draftModel     String   @map("draft_model")
-  chatModel      String   @map("chat_model")
+  triageModel    String    @map("triage_model")
+  draftModel     String    @map("draft_model")
+  chatModel      String    @map("chat_model")
   /// Null = VOICE_MODEL from env.
-  voiceModel     String?  @map("voice_model")
-  simulateOutage Boolean  @default(false) @map("simulate_outage")
+  voiceModel     String?   @map("voice_model")
+  simulateOutage Boolean   @default(false) @map("simulate_outage")
   /// The console's last "Test connection" result, so every copy shows the same one after restarts.
   lastTestAt     DateTime? @map("last_test_at") @db.Timestamptz(3)
   lastTestOk     Boolean?  @map("last_test_ok")
   lastTestDetail String?   @map("last_test_detail")
-  version        Int      @default(0)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int       @default(0)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("platform_settings")
 }
