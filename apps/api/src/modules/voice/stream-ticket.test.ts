@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { usedTokenIds } from '../auth/used-tokens.js';
 import { createSessionTokens, type Session } from '../auth/session.js';
+import type { SessionVersions } from '../auth/session-versions.js';
 import { UnauthorizedError } from '../../platform/errors.js';
 import { memoryBackend } from '../../platform/shared-state/memory/index.js';
 import { createStreamTickets, STREAM_TICKET_SECONDS } from './stream-ticket.js';
@@ -21,11 +22,20 @@ function setup() {
   let now = new Date('2026-10-29T10:00:00Z');
   const clock = { now: () => now, dataAsOf: () => new Date('2025-12-31T00:00:00Z') };
   const used = usedTokenIds(memoryBackend(() => now.getTime()).claims, clock, 'voice-stream');
-  const tickets = createStreamTickets(SECRET, clock, used);
+  /** The user's session version, as logout moves it on. */
+  let version = 1;
+  const versions: SessionVersions = {
+    current: async () => version,
+    bumpFrom: async (_user, from) => {
+      if (version === from) version += 1;
+    },
+  };
+  const tickets = createStreamTickets(SECRET, clock, used, versions);
   const advance = (seconds: number) => {
     now = new Date(now.getTime() + seconds * 1000);
   };
-  return { clock, tickets, advance };
+  const logout = () => versions.bumpFrom(SESSION, version);
+  return { clock, tickets, advance, logout };
 }
 
 describe('voice stream tickets', () => {
@@ -62,6 +72,13 @@ describe('voice stream tickets', () => {
     await expect(tickets.redeem(cookie, CALL)).rejects.toBeInstanceOf(UnauthorizedError);
     const ticket = await tickets.issue(SESSION, CALL);
     await expect(sessions.verify(ticket)).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+
+  it('is refused after the user signs out, even inside its 60 seconds', async () => {
+    const { tickets, logout } = setup();
+    const ticket = await tickets.issue(SESSION, CALL);
+    await logout();
+    await expect(tickets.redeem(ticket, CALL)).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it('refuses garbage', async () => {

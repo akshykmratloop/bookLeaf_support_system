@@ -62,9 +62,9 @@ function registerStartRoutes(app: RouteApp, { voice, tickets, publicWsOrigin }: 
         chatSessionId: req.body?.chatSessionId,
       });
       if (!publicWsOrigin) return reply.status(201).send(started);
-      const ticket = await tickets.issue(session, started.id);
-      const socketUrl = `${publicWsOrigin}${started.socketPath}?ticket=${encodeURIComponent(ticket)}`;
-      return reply.status(201).send({ ...started, socketUrl });
+      const socketTicket = await tickets.issue(session, started.id);
+      const socketUrl = `${publicWsOrigin}${started.socketPath}`;
+      return reply.status(201).send({ ...started, socketUrl, socketTicket });
     },
   );
 

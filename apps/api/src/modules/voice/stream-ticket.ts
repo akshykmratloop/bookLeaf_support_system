@@ -5,6 +5,7 @@ import { ROLES } from '@bookleaf/shared';
 import type { Clock } from '../../platform/clock.js';
 import { UnauthorizedError } from '../../platform/errors.js';
 import type { Session } from '../auth/session.js';
+import type { SessionVersions } from '../auth/session-versions.js';
 import type { UsedTokenIds } from '../auth/used-tokens.js';
 
 /** How long the browser has to open the call socket with its ticket. */
@@ -20,6 +21,8 @@ const TicketClaimsSchema = z.object({
   authorId: z.uuid().nullable(),
   name: z.string(),
   email: z.string(),
+  /** The user's session version when the ticket was issued (F-12): logout ends it too. */
+  sv: z.number().int().min(1),
   jti: z.uuid(),
   exp: z.number(),
 });
@@ -38,6 +41,8 @@ const refused = () =>
  * The web app may be served from another site than the API (e.g. a static host), so the call
  * socket cannot rely on the session cookie. The page asks for a ticket over its normal (cookie)
  * request and opens the socket with it: 60 seconds, one use, bound to one call and one session.
+ * Redeeming re-checks the user's session version, so a ticket issued before a logout (or a
+ * password change, or removal from the workspace) no longer opens the call.
  * Tickets are signed with a key derived from JWT_SECRET, so a ticket is never a valid session
  * cookie and a cookie is never a valid ticket.
  */
@@ -45,13 +50,16 @@ export function createStreamTickets(
   jwtSecret: string,
   clock: Clock,
   used: UsedTokenIds,
+  versions: SessionVersions,
 ): StreamTickets {
   const key = createHmac('sha256', jwtSecret).update('voice-stream-ticket').digest();
   return {
     async issue(session, callId) {
+      const sv = await versions.current(session);
+      if (sv === null) throw refused();
       const iat = Math.floor(clock.now().getTime() / 1000);
       const { userId, ...claims } = session;
-      return new SignJWT({ ...claims, cid: callId })
+      return new SignJWT({ ...claims, sv, cid: callId })
         .setProtectedHeader({ alg: 'HS256' })
         .setSubject(userId)
         .setAudience(AUDIENCE)
@@ -66,7 +74,9 @@ export function createStreamTickets(
       });
       if (claims.cid !== callId || !(await used.claim(claims.jti, claims.exp))) throw refused();
       const { sub, workspaceId, role, authorId, name, email } = claims;
-      return { userId: sub, workspaceId, role, authorId, name, email };
+      const session: Session = { userId: sub, workspaceId, role, authorId, name, email };
+      if ((await versions.current(session)) !== claims.sv) throw refused();
+      return session;
     },
   };
 }

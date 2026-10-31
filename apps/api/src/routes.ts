@@ -21,8 +21,18 @@ import { serverApiRoutes } from './modules/server-api/routes.js';
 import { webhookRoutes } from './modules/webhooks/routes.js';
 import { voiceRoutes } from './modules/voice/routes.js';
 import { createStreamTickets } from './modules/voice/stream-ticket.js';
+import { sessionVersionsIn } from './modules/auth/session-versions.js';
 import { apiKeyRoutes } from './modules/workspaces/api-key-routes.js';
 import { workspaceRoutes } from './modules/workspaces/routes.js';
+
+/** One-time call socket tickets, checked against the user's session version on redeem. */
+const streamTickets = (c: Container) =>
+  createStreamTickets(
+    c.env.JWT_SECRET,
+    c.clock,
+    c.shared.usedTokens.voiceStream,
+    sessionVersionsIn(c.db),
+  );
 
 /** Every module's routes, mounted under /api/v1. */
 export async function registerRoutes(api: FastifyInstance, c: Container) {
@@ -49,7 +59,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
     appOrigin: c.env.APP_ORIGIN,
     now: () => c.clock.now(),
     sessions: c.sessions,
-    tickets: createStreamTickets(c.env.JWT_SECRET, c.clock, c.shared.usedTokens.voiceStream),
+    tickets: streamTickets(c),
     publicWsOrigin: c.env.PUBLIC_API_WS_ORIGIN ?? null,
   });
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
