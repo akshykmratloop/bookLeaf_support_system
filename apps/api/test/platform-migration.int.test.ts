@@ -110,7 +110,18 @@ afterAll(async () => {
 
 describe('U-7 migration on a populated database', () => {
   it('makes the shared settings, with BookLeaf’s own model choice on top, the platform settings', async () => {
-    expect(await db.platformSettings.findUniqueOrThrow({ where: { id: 1 } })).toMatchObject({
+    // Only the columns that existed at this migration: later ones (e.g. last_test_at) are not here yet.
+    const settings = await db.platformSettings.findUniqueOrThrow({
+      where: { id: 1 },
+      select: {
+        provider: true,
+        triageModel: true,
+        draftModel: true,
+        chatModel: true,
+        simulateOutage: true,
+      },
+    });
+    expect(settings).toMatchObject({
       provider: 'anthropic',
       triageModel: 'claude-haiku-5-5',
       draftModel: 'claude-opus-5-5',
