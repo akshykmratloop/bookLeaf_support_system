@@ -1,97 +1,104 @@
 import { asPlatform } from '../../platform/tenancy.js';
-import { AiError, AiRateLimitedError } from '../providers/errors.js';
-import { draftHandler } from './handlers/draft.js';
-import { triageHandler } from './handlers/triage.js';
-import { claimNextJob, finishJob, requeueJob } from './queue.js';
-import type { ClaimedJob, JobDeps, JobHandler, JobKind } from './types.js';
+import { assertLeaseCoversCalls, DEFAULT_LEASE_MS } from './lease.js';
+import { HANDLERS, processJob, type JobHandlers } from './process.js';
+import { claimNextJob } from './queue.js';
+import type { JobDeps } from './types.js';
 
-const HANDLERS: Record<JobKind, JobHandler> = { TRIAGE: triageHandler, DRAFT: draftHandler };
-const BACKOFF_MS = [5_000, 30_000, 120_000] as const;
-const DEFAULT_LEASE_MS = 90_000;
+export { processJob } from './process.js';
+
+const DEFAULT_CONCURRENCY = 2;
+const STOP_TIMEOUT_MS = 15_000;
 
 export interface WorkerOptions {
   pollMs: number;
   leaseMs?: number;
-}
-
-function errorCodeOf(err: unknown): string {
-  return err instanceof AiError ? err.code : 'INTERNAL';
-}
-
-function retryDelay(err: unknown, attempts: number): number {
-  const base = BACKOFF_MS[Math.min(attempts - 1, BACKOFF_MS.length - 1)] ?? BACKOFF_MS[0];
-  return err instanceof AiRateLimitedError && err.retryAfterMs
-    ? Math.max(base, err.retryAfterMs)
-    : base;
-}
-
-async function applyFallback(job: ClaimedJob, deps: JobDeps, code: string): Promise<void> {
-  await HANDLERS[job.kind].fallback(job, deps);
-  await finishJob(deps.db, job, { status: 'FALLBACK', now: deps.clock.now(), errorCode: code });
-  deps.log.warn(
-    { jobId: job.id, ticketId: job.ticketId, kind: job.kind, code },
-    'ai job fell back to rules',
-  );
-}
-
-/** Runs one job end to end. Transient errors retry with backoff; the rest fall back immediately. */
-export async function processJob(job: ClaimedJob, deps: JobDeps): Promise<void> {
-  const ctx = { jobId: job.id, ticketId: job.ticketId, kind: job.kind, attempt: job.attempts };
-  if (job.attempts > job.maxAttempts) return applyFallback(job, deps, 'ATTEMPTS_EXHAUSTED');
-  try {
-    await HANDLERS[job.kind].runAi(job, deps);
-    await finishJob(deps.db, job, { status: 'SUCCEEDED', now: deps.clock.now(), errorCode: null });
-  } catch (err) {
-    const code = errorCodeOf(err);
-    const retryable = err instanceof AiError ? err.retryable : true;
-    if (!(err instanceof AiError)) deps.log.error({ ...ctx, err }, 'ai job failed unexpectedly');
-    if (retryable && job.attempts < job.maxAttempts) {
-      const runAfter = new Date(deps.clock.now().getTime() + retryDelay(err, job.attempts));
-      await requeueJob(deps.db, job, runAfter, code);
-      deps.log.warn({ ...ctx, code, runAfter }, 'ai job will retry');
-      return;
-    }
-    await applyFallback(job, deps, code);
-  }
+  /** Claim loops run side by side (WORKER_CONCURRENCY). */
+  concurrency?: number;
+  /** The host records timeout (HOST_TIMEOUT_MS): a job's lease must outlast it plus the model call. */
+  hostTimeoutMs?: number;
+  /** Longest stop() waits for running jobs. */
+  stopTimeoutMs?: number;
+  /** Tests swap the handlers; production uses the triage and draft handlers. */
+  handlers?: JobHandlers;
 }
 
 export interface Worker {
   start(): void;
+  /** Stops claiming and waits for running jobs, at most stopTimeoutMs. */
   stop(): Promise<void>;
   /** Processes at most one job. Returns false when nothing was runnable. */
   runOnce(): Promise<boolean>;
 }
 
+/** Sleeps that stop() can cut short, so a stopping worker does not wait out its poll interval. */
+function wakeableSleeps() {
+  const waking = new Set<() => void>();
+  return {
+    sleep: (ms: number) =>
+      new Promise<void>((resolve) => {
+        const done = () => {
+          clearTimeout(timer);
+          waking.delete(done);
+          resolve();
+        };
+        const timer = setTimeout(done, ms);
+        waking.add(done);
+      }),
+    wakeAll: () => [...waking].forEach((done) => done()),
+  };
+}
+
+/** Resolves when the work settles or the timeout passes; true when it timed out. */
+async function settleWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(true), ms);
+  });
+  const timedOut = await Promise.race([work.then(() => false), timeout]);
+  clearTimeout(timer);
+  return timedOut;
+}
+
+/** Claims and runs one job of any workspace: the platform (owner) path (S.8). */
+const claimAndRun = (deps: JobDeps, leaseMs: number, handlers: JobHandlers) => () =>
+  asPlatform(async () => {
+    const job = await claimNextJob(deps.db, deps.clock.now(), leaseMs);
+    if (!job) return false;
+    await processJob(job, deps, handlers);
+    return true;
+  });
+
 export function createWorker(deps: JobDeps, opts: WorkerOptions): Worker {
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
+  assertLeaseCoversCalls(leaseMs, opts.hostTimeoutMs ?? 0);
+  const handlers = opts.handlers ?? HANDLERS;
+  const { sleep, wakeAll } = wakeableSleeps();
   let running = false;
-  let loop: Promise<void> | null = null;
-  // Jobs of every workspace: the platform (owner) path (S.8).
-  const runOnce = () =>
-    asPlatform(async () => {
-      const job = await claimNextJob(deps.db, deps.clock.now(), leaseMs);
-      if (!job) return false;
-      await processJob(job, deps);
-      return true;
-    });
-  const tick = async () => {
+  let loops: Promise<void>[] = [];
+  const runOnce = claimAndRun(deps, leaseMs, handlers);
+  const loop = async () => {
     while (running) {
       const worked = await runOnce().catch((err: unknown) => {
         deps.log.error({ err }, 'ai worker poll failed');
         return false;
       });
-      if (!worked) await new Promise((r) => setTimeout(r, opts.pollMs));
+      if (!worked && running) await sleep(opts.pollMs);
     }
   };
   return {
     start() {
       if (running) return;
       running = true;
-      loop = tick();
+      loops = Array.from({ length: opts.concurrency ?? DEFAULT_CONCURRENCY }, loop);
     },
     async stop() {
       running = false;
-      await loop;
+      wakeAll();
+      const timedOut = await settleWithin(
+        Promise.all(loops),
+        opts.stopTimeoutMs ?? STOP_TIMEOUT_MS,
+      );
+      if (timedOut) deps.log.warn({}, 'ai worker stopped with jobs still running');
     },
     runOnce,
   };

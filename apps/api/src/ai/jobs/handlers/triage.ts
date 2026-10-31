@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { royaltySignals, stageOf } from '../../domain/signals.js';
 import { TRIAGE_PROMPT_VERSION } from '../../prompts/triage.v1.js';
+import { triageHistory } from '../../prompts/history.js';
 import {
   fallbackTriage,
   runAiTriage,
@@ -12,13 +13,14 @@ import { loadTicketContext, type TicketContext } from '../context.js';
 import { enqueueJob, isLatestGeneration } from '../queue.js';
 import type { ClaimedJob, JobDeps, JobHandler } from '../types.js';
 import { loggedCall } from './logged-call.js';
+import { assertWithinBudget } from '../budget.js';
 import { categoryOf } from '../../knowledge/knowledge.js';
 
 function triageInput(ctx: TicketContext): TriageInput {
   const bookId = ctx.book?.externalId ?? null;
   return {
     subject: ctx.ticket.subject,
-    description: ctx.authorMessages.join('\n\n'),
+    description: triageHistory(ctx.authorMessages),
     bookTitle: ctx.book?.title ?? null,
     bookStage: bookId ? stageOf(ctx.facts, bookId) : null,
     royaltyStatus: royaltySignals(ctx.facts, bookId).bookStatus,
@@ -89,6 +91,7 @@ async function applyDecision(
 export const triageHandler: JobHandler = {
   async runAi(job, deps) {
     const ctx = await loadTicketContext(deps, job.ticketId);
+    await assertWithinBudget(deps, ctx.ticket.workspaceId);
     const { provider, model, providerId } = await deps.ai.resolve('TRIAGE', {
       workspaceId: ctx.ticket.workspaceId,
     });

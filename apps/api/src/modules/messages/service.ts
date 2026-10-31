@@ -77,20 +77,22 @@ export async function addAdminMessage(
   const kind = input.kind ?? 'REPLY';
   const audit = kind === 'REPLY' ? await gateReply(deps, session, ticket, input) : null;
   const now = deps.clock.now();
-  await writeOnce(() =>
-    deps.db.$transaction(async (tx) => {
-      const message = await tx.ticketMessage.create({
-        data: {
-          ticketId,
-          kind,
-          body: input.body,
-          senderId: session.userId,
-          clientRequestId: key,
-          createdAt: now,
-        },
-      });
-      if (kind === 'REPLY') await recordReply(tx, { ticket, now, messageId: message.id, audit });
-    }),
+  await writeOnce(
+    () =>
+      deps.db.$transaction(async (tx) => {
+        const message = await tx.ticketMessage.create({
+          data: {
+            ticketId,
+            kind,
+            body: input.body,
+            senderId: session.userId,
+            clientRequestId: key,
+            createdAt: now,
+          },
+        });
+        if (kind === 'REPLY') await recordReply(tx, { ticket, now, messageId: message.id, audit });
+      }),
+    () => findByKey(deps, ticketId, key),
   );
   const authorVisible = kind === 'REPLY';
   deps.events.publish({

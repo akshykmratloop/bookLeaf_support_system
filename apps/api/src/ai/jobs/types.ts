@@ -14,6 +14,8 @@ export interface ClaimedJob {
   generation: number;
   attempts: number;
   maxAttempts: number;
+  /** The lease this worker set when it claimed the job; writes are conditional on it. */
+  leaseExpiresAt: Date;
 }
 
 export interface JobDeps {
@@ -23,6 +25,8 @@ export interface JobDeps {
   events: EventBus;
   records: HostRecords;
   log: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
+  /** Most AI runs a workspace may make in 24 h before ticket jobs fall back (AI_BUDGET). */
+  ticketRunsPerWorkspacePerDay?: number;
 }
 
 export interface JobHandler {

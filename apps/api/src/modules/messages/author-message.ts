@@ -65,7 +65,10 @@ export async function addAuthorMessage(
   assertAuthorCanWrite(ticket.status);
   const now = deps.clock.now();
   const write = { ticketId, body, senderId: session.userId, key, now };
-  await writeOnce(() => deps.db.$transaction((tx) => writeAuthorMessage(tx, write)));
+  await writeOnce(
+    () => deps.db.$transaction((tx) => writeAuthorMessage(tx, write)),
+    () => findByKey(deps, ticketId, key),
+  );
   deps.events.publish({
     type: 'ticket.updated',
     ticketId,

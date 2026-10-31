@@ -6,6 +6,7 @@ import { genericDraftContext, genericDraftSystem } from './draft-generic.js';
 import { examplesText } from './examples.js';
 import { behaviourBlock } from './behaviour.js';
 import { fenceSafe } from './untrusted.js';
+import { DRAFT_EARLIER_MESSAGES } from './history.js';
 
 export const DRAFT_PROMPT_VERSION = 'draft.v1.1';
 
@@ -97,12 +98,16 @@ RESPONSE GUIDANCE FROM BOOKLEAF:
 ${examplesText(input.category)}${style}`;
 }
 
-/** Per-ticket facts and conversation. Earlier messages are truncated, never the full history. */
+/**
+ * Per-ticket facts and conversation. Only the last DRAFT_EARLIER_MESSAGES earlier messages go,
+ * each truncated: never the full history.
+ */
 export function draftUserMessage(input: DraftPromptInput): string {
   const messages = input.authorMessages;
   const latest = messages[messages.length - 1] ?? '';
   const earlier = messages
     .slice(0, -1)
+    .slice(-DRAFT_EARLIER_MESSAGES)
     .map((m) => (m.length > MAX_EARLIER_CHARS ? `${m.slice(0, MAX_EARLIER_CHARS)}…` : m));
   return `Author first name: ${input.authorFirstName}
 Book: ${input.bookTitle ?? 'General / Account level (no specific book selected)'}

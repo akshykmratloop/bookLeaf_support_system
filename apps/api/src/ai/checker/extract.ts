@@ -2,18 +2,20 @@
  * Finds figures in free text and normalises them, so "Rs. 3570", "₹3,570.00" and
  * "3,570 rupees" all compare equal to 357000 paise.
  */
+import { blankOut, BARE_MULT, MONTH, monthIndex, MULT, NUM, pad, toPaise } from './patterns.js';
+import { stripTitle } from './titles.js';
+
 export interface Found<T> {
   raw: string;
   value: T;
 }
 
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-const MONTH =
-  '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-const NUM = '(\\d{1,3}(?:,\\d{2,3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
-
-const MONEY_PREFIX = new RegExp(`(?:₹|\\brs\\.?|\\binr)\\s*${NUM}`, 'gi');
-const MONEY_SUFFIX = new RegExp(`\\b${NUM}\\s*(?:rupees|inr)\\b`, 'gi');
+const MONEY_PREFIX = new RegExp(
+  `(?:₹|\\brs\\.?|\\binr)\\s*${NUM}(?:\\s*${MULT}\\b)?(?:\\s*(?:rupees|inr)\\b)?`,
+  'gi',
+);
+const MONEY_SUFFIX = new RegExp(`\\b${NUM}\\s*(?:${MULT}\\s*)?(?:rupees|inr)\\b`, 'gi');
+const MONEY_SCALED = new RegExp(`\\b${NUM}\\s*${BARE_MULT}\\b`, 'gi');
 const DATE_DMY = new RegExp(
   `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?${MONTH},?\\s+(\\d{4})\\b`,
   'gi',
@@ -33,20 +35,19 @@ const EXCLUSIONS = [/\b97[89][-\d\sX]{10,20}\b/gi, /\b[A-Z]{2,5}\d*-\d+\b/g];
 export function stripExclusions(text: string, extra: string[] = []): string {
   let out = text;
   for (const re of EXCLUSIONS) out = out.replace(re, ' ');
-  for (const phrase of extra) if (phrase) out = out.split(phrase).join(' ');
+  for (const phrase of extra) out = stripTitle(out, phrase.trim());
   return out;
 }
 
 const toNumber = (s: string) => Number(s.replace(/,/g, ''));
-const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
-const monthIndex = (name: string) => MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1;
 
 export function findMoney(text: string): Found<number>[] {
   const out: Found<number>[] = [];
-  for (const re of [MONEY_PREFIX, MONEY_SUFFIX]) {
-    for (const m of text.matchAll(re))
-      out.push({ raw: m[0], value: Math.round(toNumber(m[1] ?? '0') * 100) });
+  let rest = text;
+  for (const re of [MONEY_PREFIX, MONEY_SUFFIX, MONEY_SCALED]) {
+    for (const m of rest.matchAll(re)) out.push({ raw: m[0], value: toPaise(m[1]!, m[2]) });
+    rest = blankOut(rest, re);
   }
   return out;
 }

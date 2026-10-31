@@ -10,6 +10,8 @@ import {
   type Found,
 } from './extract.js';
 import { allowedValues, type Allowed } from './allowed.js';
+import { findLoose } from './loose.js';
+import { wordsToDigits } from './number-words.js';
 import { PHRASE_RULES } from './phrases.js';
 
 /** A statement the model says it made, pointing at the fact that supports it. */
@@ -36,8 +38,10 @@ function unsupported<T>(
   what: string,
 ): CheckIssue[] {
   const seen = new Set<string>();
+  // NaN marks a malformed figure ("₹1,0000"): it never matches a fact.
+  const isAllowed = (v: T) => !(typeof v === 'number' && Number.isNaN(v)) && allowed.has(v);
   return found
-    .filter((f) => !allowed.has(f.value))
+    .filter((f) => !isAllowed(f.value))
     .filter((f) => (seen.has(f.raw) ? false : (seen.add(f.raw), true)))
     .map((f) => ({
       code,
@@ -49,12 +53,17 @@ function unsupported<T>(
 }
 
 function figureIssues(text: string, allowed: Allowed): CheckIssue[] {
+  const loose = findLoose(text);
   return [
     ...unsupported(findMoney(text), allowed.money, 'UNSUPPORTED_AMOUNT', 'Amount'),
     ...unsupported(findDates(text), allowed.dates, 'UNSUPPORTED_DATE', 'Date'),
     ...unsupported(findDurations(text), allowed.durations, 'UNSUPPORTED_TIMELINE', 'Timeline'),
     ...unsupported(findPercents(text), allowed.percents, 'UNSUPPORTED_PERCENT', 'Percentage'),
     ...unsupported(findCopyCounts(text), allowed.counts, 'UNSUPPORTED_COUNT', 'Copy count'),
+    ...unsupported(loose.foreign, allowed.foreign, 'UNSUPPORTED_AMOUNT', 'Amount'),
+    ...unsupported(loose.shortDates, allowed.monthDays, 'UNSUPPORTED_DATE', 'Date'),
+    ...unsupported(loose.longDurations, allowed.durations, 'UNSUPPORTED_TIMELINE', 'Timeline'),
+    ...unsupported(loose.bare, allowed.figures, 'UNSUPPORTED_AMOUNT', 'Figure'),
   ];
 }
 
@@ -128,12 +137,16 @@ function shapeIssues(body: string): CheckIssue[] {
 
 /**
  * Independent of the model: scans the text itself, so a draft cannot pass by omitting claims.
+ * Every channel reads number words ("ten thousand rupees") as digits, not only voice.
  * Placeholders always block and cannot be overridden: an admin must fill them in.
  */
 export function checkReply(input: CheckInput): CheckResult {
   const placeholders = findPlaceholders(input.body);
   const withoutPlaceholders = input.body.replace(/\[CONFIRM:[^\]]*\]/gi, ' ');
-  const scanText = stripExclusions(withoutPlaceholders, [...(input.ignorePhrases ?? [])]);
+  // Titles come out first (a title may spell a number), then number words become digits.
+  const scanText = wordsToDigits(
+    stripExclusions(withoutPlaceholders, [...(input.ignorePhrases ?? [])]),
+  );
   const issues: CheckIssue[] = [
     ...placeholders.map((p) => ({
       code: 'PLACEHOLDER',

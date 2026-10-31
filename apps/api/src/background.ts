@@ -14,8 +14,20 @@ import { asPlatform } from './platform/tenancy.js';
  */
 export function runInBackground(app: FastifyInstance, c: Container): { stop(): Promise<void> } {
   const worker = createWorker(
-    { db: c.db, ai: c.ai, clock: c.clock, events: c.events, records: c.records, log: app.log },
-    { pollMs: c.env.WORKER_POLL_MS },
+    {
+      db: c.db,
+      ai: c.ai,
+      clock: c.clock,
+      events: c.events,
+      records: c.records,
+      log: app.log,
+      ticketRunsPerWorkspacePerDay: c.env.AI_TICKET_RUNS_PER_WORKSPACE_PER_DAY,
+    },
+    {
+      pollMs: c.env.WORKER_POLL_MS,
+      concurrency: c.env.WORKER_CONCURRENCY,
+      hostTimeoutMs: c.env.HOST_TIMEOUT_MS,
+    },
   );
   const webhooks = createWebhookDispatcher(
     {

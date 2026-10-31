@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { AiInvalidOutputError } from '../errors.js';
+import { AI_CALL_TIMEOUT_MS } from '../limits.js';
 import type { LlmProvider, StructuredRequest, StructuredResult, Usage } from '../types.js';
 import { mapAnthropicError } from './map-error.js';
 
@@ -68,7 +69,7 @@ export function anthropicProvider(opts: AnthropicProviderOptions): LlmProvider {
   const client = new Anthropic({
     apiKey: opts.apiKey,
     maxRetries: 0,
-    timeout: opts.timeoutMs ?? 20_000,
+    timeout: opts.timeoutMs ?? AI_CALL_TIMEOUT_MS,
   });
   const generateStructured = <T>(req: StructuredRequest<T>) => generateWith(client, req);
   return {

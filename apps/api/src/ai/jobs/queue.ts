@@ -6,7 +6,9 @@ type Tx = Prisma.TransactionClient | Db;
 
 /**
  * Claims one runnable job: queued and due, or running with an expired lease (crashed worker).
- * SKIP LOCKED lets several workers poll safely without taking the same row.
+ * A running job is reclaimed only while it has an attempt left for its fallback: a job that
+ * keeps killing its worker is not picked up forever. SKIP LOCKED lets several workers poll
+ * safely without taking the same row.
  */
 export async function claimNextJob(db: Db, now: Date, leaseMs: number): Promise<ClaimedJob | null> {
   const leaseUntil = new Date(now.getTime() + leaseMs);
@@ -16,11 +18,12 @@ export async function claimNextJob(db: Db, now: Date, leaseMs: number): Promise<
      WHERE id = (
        SELECT id FROM ai_jobs
         WHERE (status = 'QUEUED' AND run_after <= ${now})
-           OR (status = 'RUNNING' AND lease_expires_at < ${now})
+           OR (status = 'RUNNING' AND lease_expires_at < ${now} AND attempts <= max_attempts + 1)
         ORDER BY run_after
         FOR UPDATE SKIP LOCKED
         LIMIT 1)
-    RETURNING id, ticket_id AS "ticketId", kind::text AS kind, generation, attempts, max_attempts AS "maxAttempts"`;
+    RETURNING id, ticket_id AS "ticketId", kind::text AS kind, generation, attempts,
+              max_attempts AS "maxAttempts", lease_expires_at AS "leaseExpiresAt"`;
   return rows[0] ?? null;
 }
 
@@ -49,14 +52,26 @@ export async function isLatestGeneration(tx: Tx, job: ClaimedJob): Promise<boole
 }
 
 export interface JobOutcome {
-  status: 'SUCCEEDED' | 'FALLBACK';
+  status: 'SUCCEEDED' | 'FALLBACK' | 'FAILED';
   now: Date;
   errorCode: string | null;
 }
 
-export async function finishJob(db: Db, job: ClaimedJob, { status, now, errorCode }: JobOutcome) {
-  await db.aiJob.update({
-    where: { id: job.id },
+/** Only the worker still holding this lease may change the row (another may have reclaimed it). */
+const stillHeld = (job: ClaimedJob) => ({
+  id: job.id,
+  status: 'RUNNING' as const,
+  leaseExpiresAt: job.leaseExpiresAt,
+});
+
+/** Returns false when the lease was lost: the row is left to the worker that holds it now. */
+export async function finishJob(
+  db: Db,
+  job: ClaimedJob,
+  { status, now, errorCode }: JobOutcome,
+): Promise<boolean> {
+  const res = await db.aiJob.updateMany({
+    where: stillHeld(job),
     data: {
       status,
       finishedAt: now,
@@ -64,11 +79,19 @@ export async function finishJob(db: Db, job: ClaimedJob, { status, now, errorCod
       ...(errorCode ? { lastErrorCode: errorCode } : {}),
     },
   });
+  return res.count === 1;
 }
 
-export async function requeueJob(db: Db, job: ClaimedJob, runAfter: Date, errorCode: string) {
-  await db.aiJob.update({
-    where: { id: job.id },
+/** Returns false when the lease was lost, as finishJob. */
+export async function requeueJob(
+  db: Db,
+  job: ClaimedJob,
+  runAfter: Date,
+  errorCode: string,
+): Promise<boolean> {
+  const res = await db.aiJob.updateMany({
+    where: stillHeld(job),
     data: { status: 'QUEUED', runAfter, leaseExpiresAt: null, lastErrorCode: errorCode },
   });
+  return res.count === 1;
 }

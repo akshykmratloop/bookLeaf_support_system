@@ -53,6 +53,14 @@ export const PlatformAiStatusSchema = z.object({
   /** False when the server has no SECRETS_MASTER_KEY: keys cannot be saved here. */
   secretsConfigured: z.boolean(),
   lastTest: z.object({ ok: z.boolean(), at: z.iso.datetime(), detail: z.string() }).nullable(),
+  /** AI jobs that ended without AI in the last hour: a quiet outage shows here. */
+  recentJobs: z.object({
+    windowMinutes: z.int(),
+    fallback: z.int(),
+    failed: z.int(),
+    /** Of those, how many failed on a bad or missing key / provider setup. */
+    authOrNotConfigured: z.int(),
+  }),
 });
 export type PlatformAiStatus = z.infer<typeof PlatformAiStatusSchema>;
 
