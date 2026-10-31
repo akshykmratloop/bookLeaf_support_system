@@ -49,6 +49,9 @@ function memoryCounters(now: () => number): RateCounters {
       windows.set(key, next);
       return { count: next.count, resetInMs: next.endsAt - t };
     },
+    async clear(key) {
+      windows.delete(key);
+    },
   };
 }
 

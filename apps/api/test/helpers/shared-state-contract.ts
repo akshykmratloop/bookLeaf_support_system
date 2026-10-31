@@ -66,6 +66,16 @@ export function sharedStateContract(backend: string, pair: () => StatePair) {
       expect((await b.counters.hit(key, 1_000)).count).toBe(1);
     });
 
+    it('clears a rate count on every copy, so the next hit starts a new window', async () => {
+      const { a, b } = pair();
+      const key = `r-${randomUUID()}`;
+      await a.counters.hit(key, 60_000);
+      await b.counters.hit(key, 60_000);
+      await b.counters.clear(key);
+      expect((await a.counters.hit(key, 60_000)).count).toBe(1);
+      await a.counters.clear(`${key}-never-hit`);
+    });
+
     it('runs one key one task at a time across copies, in arrival order; other keys in parallel', async () => {
       const { a, b } = pair();
       const name = `q-${randomUUID()}`;
