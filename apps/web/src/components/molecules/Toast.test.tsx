@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ToastCard, toastDuration } from './Toast';
+import { toastDuration } from '../../lib/toast';
+import { ToastCard } from './Toast';
 
 const card = (tone: 'success' | 'error') =>
   renderToStaticMarkup(

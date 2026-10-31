@@ -1,7 +1,6 @@
 import { CheckCircle2, X, XCircle } from 'lucide-react';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-
-export type ToastTone = 'success' | 'error';
+import { toastDuration, type ToastTone } from '../../lib/toast';
 
 interface ToastItem {
   id: number;
@@ -10,10 +9,6 @@ interface ToastItem {
 }
 
 const ToastContext = createContext<(tone: ToastTone, text: string) => void>(() => undefined);
-
-/** Errors stay long enough to read and act on; confirmations pass quickly. */
-const TOAST_MS: Record<ToastTone, number> = { success: 4000, error: 8000 };
-export const toastDuration = (tone: ToastTone): number => TOAST_MS[tone];
 
 export function ToastCard({
   item,
