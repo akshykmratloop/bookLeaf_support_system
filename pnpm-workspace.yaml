@@ -13,3 +13,8 @@ allowBuilds:
 overrides:
   # Prisma 6 pulls deepmerge-ts 7.x transitively (via @prisma/config); 7.x has a published advisory.
   deepmerge-ts: '>=8.0.0'
+  # @fastify/static pulls glob 13 / minimatch 10 (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). Only
+  # those ranges move to the patched majors (same API, CommonJS kept); older glob/minimatch used by
+  # dev tools keep their own API.
+  'glob@>=9.0.0 <14.0.2': 14.0.3
+  'minimatch@>=10.0.0 <11.0.1': 11.0.3
