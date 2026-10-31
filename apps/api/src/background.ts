@@ -7,15 +7,9 @@ import { failInterruptedCalls } from './modules/voice/repository.js';
 import { createWebhookDispatcher } from './modules/webhooks/dispatcher.js';
 import { asPlatform } from './platform/tenancy.js';
 
-/**
- * The work the module does beside its routes, tied to the app's lifecycle so a host that
- * mounts the plugin gets it with nothing else to start or stop:
- * on ready it closes calls cut off by a restart, then starts the AI worker, the webhook sender
- * and the daily retention pass (WORKER_ENABLED).
- * The caller stops it on close, before the database goes away.
- */
-export function runInBackground(app: FastifyInstance, c: Container): { stop(): Promise<void> } {
-  const worker = createWorker(
+/** The AI worker with this deployment's limits (concurrency, daily budget, host timeout). */
+function workerFor(app: FastifyInstance, c: Container) {
+  return createWorker(
     {
       db: c.db,
       ai: c.ai,
@@ -31,6 +25,17 @@ export function runInBackground(app: FastifyInstance, c: Container): { stop(): P
       hostTimeoutMs: c.env.HOST_TIMEOUT_MS,
     },
   );
+}
+
+/**
+ * The work the module does beside its routes, tied to the app's lifecycle so a host that
+ * mounts the plugin gets it with nothing else to start or stop:
+ * on ready it closes calls cut off by a restart, then starts the AI worker, the webhook sender
+ * and the daily retention pass (WORKER_ENABLED).
+ * The caller stops it on close, before the database goes away.
+ */
+export function runInBackground(app: FastifyInstance, c: Container): { stop(): Promise<void> } {
+  const worker = workerFor(app, c);
   const webhooks = createWebhookDispatcher(
     {
       db: c.db,
