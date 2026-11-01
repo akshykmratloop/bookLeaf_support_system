@@ -5,6 +5,7 @@ import type {
   PlatformAdmin,
   PlatformAiSettings,
   PlatformAiStatus,
+  PlatformAiTestRun,
   ProviderCapability,
   UpdatePlan,
   UpdatePlatformAiSettings,
@@ -60,8 +61,8 @@ export const savePlatformKey = (input: {
 export const removePlatformKey = (input: { capability: ProviderCapability; provider: string }) =>
   api<void>(`${P}/ai/keys/${input.capability}/${input.provider}`, { method: 'DELETE' });
 
-export const testPlatformAi = () =>
-  api<{ ok: boolean; detail: string }>(`${P}/ai/test`, { method: 'POST' });
+/** Tests the AI (text) key and the voice key in one go; each gets its own result. */
+export const testPlatformAi = () => api<PlatformAiTestRun>(`${P}/ai/test`, { method: 'POST' });
 
 export const updateCustomerPlan = ({ id, ...input }: UpdatePlan & { id: string }) =>
   api<PlanStatus>(`${P}/customers/${id}/plan`, { method: 'PUT', body: input });

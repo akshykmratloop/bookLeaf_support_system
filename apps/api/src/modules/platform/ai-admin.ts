@@ -5,13 +5,13 @@ import type {
 } from '@bookleaf/shared';
 import type { ProviderCapability } from '@prisma/client';
 import { PROVIDER_CATALOG, findModel } from '../../ai/providers/catalog.js';
-import { AiError } from '../../ai/providers/errors.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../platform/errors.js';
 import { asPlatform } from '../../platform/tenancy.js';
 import { SecretsNotConfiguredError } from '../connectors/store.js';
 import { platformAiStatus, toPlatformAiSettings, type PlatformAiDeps } from './ai-status.js';
 import { removePlatformKey, savePlatformKey } from './keys.js';
-import { readLastTest, saveLastTest } from './last-test.js';
+import { testConnections } from './connection-tests.js';
+import { readLastTests, saveLastTests } from './last-test.js';
 
 type FieldError = { path: string; message: string };
 const MODEL_FIELDS = ['triageModel', 'draftModel', 'chatModel'] as const;
@@ -69,24 +69,9 @@ function assertProvider(deps: PlatformAiDeps, capability: ProviderCapability, pr
   ]);
 }
 
-/** A tiny live call with the triage model on the active key. Vendor error text is never shown. */
-async function testConnection(deps: PlatformAiDeps): Promise<{ ok: boolean; detail: string }> {
-  const s = await deps.ai.settings();
-  const provider = await deps.ai.provider(s.provider);
-  if (!provider)
-    return { ok: false, detail: 'No API key is saved or configured for this provider' };
-  try {
-    await provider.ping(s.triageModel);
-    return { ok: true, detail: `${s.triageModel} responded` };
-  } catch (err) {
-    if (!(err instanceof AiError)) throw err;
-    return { ok: false, detail: `Failed: ${err.code}` };
-  }
-}
-
 /** The console's AI screen (U-7): platform keys are write-only and shown by their last 4 only. */
 export function createPlatformAiAdmin(deps: PlatformAiDeps) {
-  const status = async () => platformAiStatus(deps, await readLastTest(deps.db));
+  const status = async () => platformAiStatus(deps, await readLastTests(deps.db));
   return {
     status,
     update: (input: UpdatePlatformAiSettings): Promise<PlatformAiSettings> =>
@@ -104,9 +89,9 @@ export function createPlatformAiAdmin(deps: PlatformAiDeps) {
       deps.providers.invalidate();
     },
     async test() {
-      const result = await testConnection(deps);
-      await saveLastTest(deps.db, result, deps.clock.now());
-      return result;
+      const results = await testConnections(deps);
+      await saveLastTests(deps.db, results, deps.clock.now());
+      return results;
     },
   };
 }

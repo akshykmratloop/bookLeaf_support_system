@@ -125,11 +125,14 @@ describe('platform provider keys (U-7)', () => {
 
   it('tests the connection with the active key, and removing the key falls back to env', async () => {
     const test = await call(h, 'POST', '/platform/ai/test', platform);
-    expect(test.json()).toMatchObject({ ok: true });
+    // Both keys: the AI (text) key and the voice key, each with its own result.
+    expect(test.json()).toMatchObject({ ai: { ok: true }, voice: { ok: true } });
     // Kept in the database, so every copy of the API (and a restarted one) shows it.
     const row = await h.db.platformSettings.findUniqueOrThrow({ where: { id: 1 } });
-    expect(row).toMatchObject({ lastTestOk: true });
-    expect((await status()).lastTest).toMatchObject({ ok: true });
+    expect(row).toMatchObject({ lastTestOk: true, lastVoiceTestOk: true });
+    const s0 = await status();
+    expect(s0.lastTest).toMatchObject({ ok: true });
+    expect(s0.lastVoiceTest).toMatchObject({ ok: true, detail: 'fake-realtime connected' });
     expect((await call(h, 'DELETE', '/platform/ai/keys/AI/anthropic', platform)).statusCode).toBe(
       204,
     );
@@ -138,6 +141,17 @@ describe('platform provider keys (U-7)', () => {
     );
     const s = await status();
     expect(s.providers.find((p) => p.id === 'anthropic')?.keySource).toBe('ENV');
+  });
+
+  it('shows a refused voice key as a failed voice test, without failing the AI test', async () => {
+    if (!h.voice) throw new Error('the harness runs with the fake voice provider');
+    h.voice.failNextConnect = 'VOICE_AUTH';
+    const test = await call(h, 'POST', '/platform/ai/test', platform);
+    expect(test.json()).toMatchObject({
+      ai: { ok: true },
+      voice: { ok: false, detail: 'Failed: VOICE_AUTH' },
+    });
+    expect((await status()).lastVoiceTest).toMatchObject({ ok: false });
   });
 
   it('refuses unknown providers and keys that look wrong', async () => {

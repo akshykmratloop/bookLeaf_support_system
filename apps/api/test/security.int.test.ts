@@ -60,7 +60,10 @@ describe('API key never leaves the server', () => {
 
   it('the AI test endpoint reports success without echoing provider details', async () => {
     const res = await call(h, 'POST', '/platform/ai/test', platform);
-    expect(res.json<{ ok: boolean }>().ok).toBe(true);
+    const run = res.json<{ ai: { ok: boolean }; voice: { ok: boolean } }>();
+    expect(run.ai.ok).toBe(true);
+    expect(run.voice.ok).toBe(true);
+    expect(res.body).not.toContain(SENTINEL_KEY);
   });
 
   it('rejects settings that pick a model outside the allowlist (422)', async () => {

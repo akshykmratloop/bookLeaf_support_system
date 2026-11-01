@@ -45,6 +45,8 @@ export const PlatformProviderSchema = z.object({
 });
 export type PlatformProvider = z.infer<typeof PlatformProviderSchema>;
 
+const LastTestSchema = z.object({ ok: z.boolean(), at: z.iso.datetime(), detail: z.string() });
+
 export const PlatformAiStatusSchema = z.object({
   settings: PlatformAiSettingsSchema,
   providers: z.array(PlatformProviderSchema),
@@ -52,7 +54,9 @@ export const PlatformAiStatusSchema = z.object({
   defaultVoiceModel: z.string(),
   /** False when the server has no SECRETS_MASTER_KEY: keys cannot be saved here. */
   secretsConfigured: z.boolean(),
-  lastTest: z.object({ ok: z.boolean(), at: z.iso.datetime(), detail: z.string() }).nullable(),
+  /** The last "Test connection" for the AI (text) provider and for the voice provider. */
+  lastTest: LastTestSchema.nullable(),
+  lastVoiceTest: LastTestSchema.nullable(),
   /** AI jobs that ended without AI in the last hour: a quiet outage shows here. */
   recentJobs: z.object({
     windowMinutes: z.int(),
@@ -63,6 +67,12 @@ export const PlatformAiStatusSchema = z.object({
   }),
 });
 export type PlatformAiStatus = z.infer<typeof PlatformAiStatusSchema>;
+
+const TestResultSchema = z.object({ ok: z.boolean(), detail: z.string() });
+
+/** One "Run test" in the console: a tiny call on the AI key and a voice session opened and closed. */
+export const PlatformAiTestRunSchema = z.object({ ai: TestResultSchema, voice: TestResultSchema });
+export type PlatformAiTestRun = z.infer<typeof PlatformAiTestRunSchema>;
 
 const modelId = z.string().trim().min(1).max(80);
 

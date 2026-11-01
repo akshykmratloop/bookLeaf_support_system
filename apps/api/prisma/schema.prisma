@@ -956,20 +956,24 @@ model PlatformAdmin {
 /// The one row of shared AI settings every customer runs on (U-7): provider, models and the
 /// global outage switch. Replaces the ai_settings / assistant_settings singletons. Platform table.
 model PlatformSettings {
-  id             Int       @id @default(1)
-  provider       String
-  triageModel    String    @map("triage_model")
-  draftModel     String    @map("draft_model")
-  chatModel      String    @map("chat_model")
+  id                  Int       @id @default(1)
+  provider            String
+  triageModel         String    @map("triage_model")
+  draftModel          String    @map("draft_model")
+  chatModel           String    @map("chat_model")
   /// Null = VOICE_MODEL from env.
-  voiceModel     String?   @map("voice_model")
-  simulateOutage Boolean   @default(false) @map("simulate_outage")
+  voiceModel          String?   @map("voice_model")
+  simulateOutage      Boolean   @default(false) @map("simulate_outage")
   /// The console's last "Test connection" result, so every copy shows the same one after restarts.
-  lastTestAt     DateTime? @map("last_test_at") @db.Timestamptz(3)
-  lastTestOk     Boolean?  @map("last_test_ok")
-  lastTestDetail String?   @map("last_test_detail")
-  version        Int       @default(0)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastTestAt          DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk          Boolean?  @map("last_test_ok")
+  lastTestDetail      String?   @map("last_test_detail")
+  /// The same for the voice provider's key (a session is opened and closed; no audio is sent).
+  lastVoiceTestAt     DateTime? @map("last_voice_test_at") @db.Timestamptz(3)
+  lastVoiceTestOk     Boolean?  @map("last_voice_test_ok")
+  lastVoiceTestDetail String?   @map("last_voice_test_detail")
+  version             Int       @default(0)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("platform_settings")
 }

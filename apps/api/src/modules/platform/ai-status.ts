@@ -79,7 +79,7 @@ function providerRows(deps: PlatformAiDeps, saved: PlatformProviderKey[]): Platf
 /** The console's AI screen: settings, each provider's key source (never a key), last test, recent outages. */
 export async function platformAiStatus(
   deps: PlatformAiDeps,
-  lastTest: PlatformAiStatus['lastTest'],
+  lastTests: { ai: PlatformAiStatus['lastTest']; voice: PlatformAiStatus['lastVoiceTest'] },
 ): Promise<PlatformAiStatus> {
   const [settings, saved, recentJobs] = await Promise.all([
     deps.ai.settings(),
@@ -91,7 +91,8 @@ export async function platformAiStatus(
     providers: providerRows(deps, saved),
     defaultVoiceModel: deps.defaultVoiceModel,
     secretsConfigured: deps.envelope !== null,
-    lastTest,
+    lastTest: lastTests.ai,
+    lastVoiceTest: lastTests.voice,
     recentJobs,
   };
 }

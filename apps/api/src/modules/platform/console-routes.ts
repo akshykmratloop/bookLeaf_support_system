@@ -1,12 +1,12 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
-  AiTestResultSchema,
   CustomerIdParamSchema,
   CustomerListSchema,
   PlanStatusSchema,
   PlatformAiSettingsSchema,
   PlatformAiStatusSchema,
+  PlatformAiTestRunSchema,
   PlatformKeyParamsSchema,
   ProblemSchema,
   SavePlatformKeySchema,
@@ -62,8 +62,9 @@ function registerAi(app: RouteApp, { ai }: Opts) {
       config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
       schema: {
         tags,
-        summary: 'Send a tiny test request with the active key',
-        response: { 200: AiTestResultSchema, ...errors },
+        summary:
+          'Test the active AI key (a tiny request) and voice key (a session opened and closed)',
+        response: { 200: PlatformAiTestRunSchema, ...errors },
       },
     },
     async () => ai.test(),
