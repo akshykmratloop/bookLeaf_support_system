@@ -5,6 +5,7 @@ import { Navigate, useNavigate } from 'react-router';
 import { Button } from '../../components/atoms/Button';
 import { Input } from '../../components/atoms/Input';
 import { Field } from '../../components/molecules/Field';
+import { PasswordField } from '../../components/molecules/PasswordField';
 import { errorMessage } from '../../lib/api';
 import { platformKeys, platformSignIn, usePlatformMe } from '../../lib/platform';
 
@@ -99,19 +100,13 @@ export function PlatformLoginPage() {
               required
             />
           </Field>
-          <Field id="platform-password" label="Password" error={error ?? undefined}>
-            <Input
-              id="platform-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? 'platform-password-error' : undefined}
-              required
-            />
-          </Field>
+          <PasswordField
+            id="platform-password"
+            name="password"
+            value={password}
+            onChange={setPassword}
+            error={error ?? undefined}
+          />
           <Button
             type="submit"
             size="lg"

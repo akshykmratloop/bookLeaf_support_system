@@ -6,6 +6,7 @@ import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/atoms/Card';
 import { Input } from '../../components/atoms/Input';
 import { Field } from '../../components/molecules/Field';
+import { PasswordField } from '../../components/molecules/PasswordField';
 import { errorMessage, isApiError } from '../../lib/api';
 import { useMe } from '../../lib/queries';
 import { useLogin } from '../../lib/useLogin';
@@ -113,24 +114,17 @@ export function SignupPage() {
               required
             />
           </Field>
-          <Field
+          <PasswordField
             id="password"
-            label="Password"
+            autoComplete="new-password"
             hint="At least 12 characters with a letter and a digit."
+            value={form.password}
+            onChange={(password) => set({ password })}
             error={
               fieldError('password') ??
               (error && !isApiError(error) ? errorMessage(error) : undefined)
             }
-          >
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              value={form.password}
-              onChange={(e) => set({ password: e.target.value })}
-              required
-            />
-          </Field>
+          />
           {isApiError(error) && !error.problem.errors?.length ? (
             <p role="alert" className="text-[12.5px] text-danger">
               {error.problem.title}
