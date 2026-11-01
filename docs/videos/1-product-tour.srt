@@ -1,0 +1,107 @@
+1
+00:00:00,600 --> 00:00:02,330
+Your customers need help.
+
+2
+00:00:02,260 --> 00:00:05,510
+So why do they have to leave your app to get it?
+
+3
+00:00:06,500 --> 00:00:08,330
+Meet BookLeaf Support.
+
+4
+00:00:08,680 --> 00:00:10,510
+Help that lives right inside your product.
+
+5
+00:00:11,900 --> 00:00:17,510
+One tap, and your customers get chat, voice, and tickets, without ever leaving your app.
+
+6
+00:00:18,300 --> 00:00:19,410
+Ask anything.
+
+7
+00:00:19,740 --> 00:00:22,110
+Every answer comes from their real account data.
+
+8
+00:00:22,620 --> 00:00:24,230
+Every number is checked.
+
+9
+00:00:24,400 --> 00:00:25,310
+Nothing is made up.
+
+10
+00:00:26,300 --> 00:00:27,670
+Want to talk instead?
+
+11
+00:00:28,320 --> 00:00:29,710
+Switch to voice, mid-conversation.
+
+12
+00:00:29,460 --> 00:00:34,090
+Chat and voice share one thread, so nobody repeats themselves.
+
+13
+00:00:35,800 --> 00:00:37,610
+Just say what's wrong.
+
+14
+00:00:38,120 --> 00:00:40,590
+The assistant fills in the ticket while you talk.
+
+15
+00:00:41,100 --> 00:00:44,170
+Say yes, or tap send, and it's on its way.
+
+16
+00:00:44,260 --> 00:00:45,070
+No forms.
+
+17
+00:00:45,260 --> 00:00:46,450
+No hunting for buttons.
+
+18
+00:00:47,800 --> 00:00:53,130
+Your team gets every ticket sorted, prioritized, and with a reply already drafted.
+
+19
+00:00:53,460 --> 00:00:56,350
+A built-in fact checker blocks any figure that isn't real.
+
+20
+00:00:57,800 --> 00:01:00,450
+And if the AI ever goes down?
+
+21
+00:01:00,900 --> 00:01:02,430
+Your desk keeps working.
+
+22
+00:01:03,300 --> 00:01:07,710
+Plug it into any app with one endpoint and one script tag.
+
+23
+00:01:07,820 --> 00:01:08,550
+Your login.
+
+24
+00:01:08,800 --> 00:01:09,430
+Your data.
+
+25
+00:01:09,760 --> 00:01:10,430
+Your brand.
+
+26
+00:01:12,020 --> 00:01:13,230
+BookLeaf Support.
+
+27
+00:01:13,560 --> 00:01:14,990
+Help, built right in.

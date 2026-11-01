@@ -12,6 +12,8 @@ Start with the [project README](../README.md) for setup (`npm run local`) and th
 | [deploy.md](deploy.md) | The live demo: AWS + Vercel setup, `-deploy` flags, checking the server, teardown |
 | [saas/PLAN.md](saas/PLAN.md) | Multi-company SaaS design: workspaces, connectors, data model, roadmap |
 | [eval-results.md](eval-results.md) | AI triage accuracy and cost on the evaluation set |
+| [reference.md](reference.md) | Full reference: setup details, settings, demo data, screens, AI, API, security, assumptions, limitations, deployment |
+| [videos/](videos/) | Scripts and subtitles of the three videos (the videos play in the [project README](../README.md)) |
 
 ## Quality and testing (`qa/`)
 
