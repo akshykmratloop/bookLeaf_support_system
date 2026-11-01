@@ -47,10 +47,11 @@ export function VoiceSection(props: SectionProps) {
         reason={lockReason(status.plan.voiceAllowed, status.plan.aiEnabled, s.voiceEnabled)}
         onChange={(voiceEnabled) => update({ voiceEnabled })}
       />
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
         <VoiceNameField
           value={s.voiceName}
           voices={status.voices}
+          samples={status.voiceSamples}
           disabled={isSaving}
           error={fieldError('voiceName')}
           onCommit={(voiceName) => {

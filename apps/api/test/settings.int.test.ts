@@ -183,6 +183,15 @@ describe('workspace settings', () => {
     expect(ok.json()).toMatchObject({ voiceName: 'cedar' });
   });
 
+  it('gives a pre-recorded sample for each voice, so a preview never calls the voice vendor', async () => {
+    const res = await call(h, 'GET', '/workspace/settings', acme);
+    const status = res.json<{ voices: string[]; voiceSamples: Record<string, string> }>();
+    expect(status.voiceSamples.marin).toBe('/voice-samples/openai/marin.mp3');
+    for (const path of Object.values(status.voiceSamples))
+      expect(path).toMatch(/^\/voice-samples\/openai\/[a-z]+\.mp3$/);
+    expect(Object.keys(status.voiceSamples).every((v) => status.voices.includes(v))).toBe(true);
+  });
+
   it("shows customers the workspace's own brand; BookLeaf keeps its name and coral", async () => {
     const acmeId = (await h.db.workspace.findUniqueOrThrow({ where: { slug: OWNER.slug } })).id;
     expect((await h.container.assistant.availability(acmeId)).brand).toEqual({

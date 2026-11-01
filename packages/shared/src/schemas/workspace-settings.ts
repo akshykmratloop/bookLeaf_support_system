@@ -115,6 +115,8 @@ export const WorkspaceSettingsStatusSchema = z.object({
   voiceConfigured: z.boolean(),
   /** The approved voices (the platform voice provider's); empty when there is none. */
   voices: z.array(z.string()),
+  /** A pre-recorded sample to hear each voice (a path on the web app); voices without one are left out. */
+  voiceSamples: z.record(z.string(), z.string()),
   aiConfigured: z.boolean(),
 });
 export type WorkspaceSettingsStatus = z.infer<typeof WorkspaceSettingsStatusSchema>;

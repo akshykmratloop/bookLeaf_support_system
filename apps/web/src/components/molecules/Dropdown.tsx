@@ -22,6 +22,8 @@ export interface DropdownProps<V extends string> {
   /** Shown when `value` matches no option. */
   placeholder?: string;
   className?: string;
+  /** Extra classes for the open list, for example a minimum width wider than the trigger. */
+  listClassName?: string;
 }
 
 type TriggerAttributes = Pick<
@@ -105,6 +107,7 @@ export function Dropdown<V extends string>(props: DropdownProps<V>) {
           activeIndex={state.activeIndex}
           selectedIndex={selectedIndex}
           isUpwards={isUpwards}
+          className={props.listClassName}
           onPick={commit}
           onHover={setActive}
         />

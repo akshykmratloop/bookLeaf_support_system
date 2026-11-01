@@ -1,5 +1,6 @@
 import type { Env } from '../../config/index.js';
 import { OPENAI_VOICE_MODELS, type VoiceModelInfo } from './openai/models.js';
+import { OPENAI_VOICE_SAMPLES } from './openai/samples.js';
 import { openAiVoiceProvider } from './openai/provider.js';
 import { OPENAI_VOICES } from './openai/voices.js';
 import type { VoiceProvider } from './types.js';
@@ -10,6 +11,18 @@ export const VOICE_PROVIDER_IDS: readonly string[] = ['openai'];
 /** The models a voice provider offers in the console; an unknown provider offers none. */
 export function voiceModelsFor(providerId: string): readonly VoiceModelInfo[] {
   return providerId === 'openai' ? OPENAI_VOICE_MODELS : [];
+}
+
+/**
+ * Where to hear each voice, for the voices given: a path on the web app, or nothing when the
+ * provider has no sample for it. The samples are static files, so a preview never calls the vendor.
+ */
+export function voiceSamplesFor(
+  providerId: string,
+  voices: readonly string[],
+): Record<string, string> {
+  const samples = providerId === 'openai' ? OPENAI_VOICE_SAMPLES : {};
+  return Object.fromEntries(voices.flatMap((v) => (samples[v] ? [[v, samples[v]] as const] : [])));
 }
 
 /** Voices a workspace may choose when the platform itself has no voice provider. */

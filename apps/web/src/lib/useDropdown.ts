@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { CLOSED, reduceKey, typeaheadIndex, type ListboxState } from './listbox';
 
 export interface DropdownOption<V extends string = string> {
@@ -9,6 +16,8 @@ export interface DropdownOption<V extends string = string> {
   disabled?: boolean;
   /** Why a disabled option cannot be picked: shown under it and read by screen readers. */
   disabledReason?: string;
+  /** A small control at the row's end (for example a voice sample's play button). */
+  trailing?: ReactNode;
 }
 
 /** Typed letters within this gap build one search ("gr" → "Grok"). */

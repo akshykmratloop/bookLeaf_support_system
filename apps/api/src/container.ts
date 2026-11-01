@@ -1,5 +1,5 @@
 import type { HostRecords } from './host/types.js';
-import { ALL_VOICES, VOICE_PROVIDER_IDS } from './voice/providers/registry.js';
+import { ALL_VOICES, VOICE_PROVIDER_IDS, voiceSamplesFor } from './voice/providers/registry.js';
 import { createConnectorService } from './modules/connectors/service.js';
 import { connectorDepsFromEnv, ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { createWebhookService } from './modules/webhooks/service.js';
@@ -169,6 +169,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       ai: core.ai,
       voiceConfigured: async (ws: string) => (await core.voiceFor(ws)) !== null,
       voices: core.voiceProvider?.voices ?? ALL_VOICES,
+      voiceSamples: voiceSamplesFor(env.VOICE_PROVIDER, core.voiceProvider?.voices ?? ALL_VOICES),
       configs: core.configs,
       plans: core.plans,
       embedOrigins: core.embedOrigins,

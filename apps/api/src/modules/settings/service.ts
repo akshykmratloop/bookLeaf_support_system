@@ -32,6 +32,8 @@ export interface SettingsDeps {
   voiceConfigured: (workspaceId: string) => Promise<boolean>;
   /** The approved voices: the platform voice provider's (empty without one). */
   voices: readonly string[];
+  /** Where to hear each voice (static files on the web app, shared by every customer). */
+  voiceSamples: Readonly<Record<string, string>>;
   configs: WorkspaceConfigs;
   plans: PlanReader;
   /** Allowed origins feed the widget's frame list: refreshed after a save. */
@@ -72,6 +74,7 @@ export function createSettingsService(deps: SettingsDeps) {
         plan,
         voiceConfigured,
         voices: [...deps.voices],
+        voiceSamples: { ...deps.voiceSamples },
         aiConfigured: configured,
       };
     },

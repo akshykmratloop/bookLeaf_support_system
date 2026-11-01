@@ -10,6 +10,7 @@ interface Props<V extends string> {
   activeIndex: number;
   selectedIndex: number;
   isUpwards: boolean;
+  className?: string;
   onPick: (index: number) => void;
   onHover: (index: number) => void;
 }
@@ -35,7 +36,7 @@ function OptionText<V extends string>({ option }: { option: DropdownOption<V> })
  * Focus stays on the trigger; the active option is announced through aria-activedescendant.
  */
 export function DropdownOptions<V extends string>(props: Props<V>) {
-  const { id, options, activeIndex, selectedIndex, isUpwards, onPick, onHover } = props;
+  const { id, options, activeIndex, selectedIndex, isUpwards, className, onPick, onHover } = props;
   const listRef = useRef<HTMLUListElement>(null);
   useEffect(() => {
     const active = listRef.current?.querySelector<HTMLElement>('[data-active="true"]');
@@ -50,7 +51,7 @@ export function DropdownOptions<V extends string>(props: Props<V>) {
       tabIndex={-1}
       className={`absolute inset-x-0 z-50 max-h-64 animate-pop-in overflow-y-auto overscroll-contain rounded-control border border-line-strong bg-panel p-1 shadow-float ${
         isUpwards ? 'bottom-full mb-1' : 'top-full mt-1'
-      }`}
+      } ${className ?? ''}`}
     >
       {options.map((option, index) => {
         const isActive = index === activeIndex;
@@ -76,6 +77,7 @@ export function DropdownOptions<V extends string>(props: Props<V>) {
               className={`mt-0.5 shrink-0 text-brand-ink ${isSelected ? '' : 'invisible'}`}
             />
             <OptionText option={option} />
+            {option.trailing ? <span className="shrink-0">{option.trailing}</span> : null}
           </li>
         );
       })}
