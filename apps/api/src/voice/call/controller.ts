@@ -1,4 +1,5 @@
 import type { VoiceEvent } from '../providers/types.js';
+import { addVoiceUsage, NO_VOICE_USAGE } from '../providers/usage.js';
 import { onDraftUpdate, runDraftTool } from './draft-sync.js';
 import { armLimits, endCall, endSoon, markActivity, secondsLeft } from './lifecycle.js';
 import { DRAFT_TOOLS, END_CALL } from './tool-defs.js';
@@ -60,8 +61,7 @@ const ON_EVENT: EventHandlers = {
     else if (e.final !== false) sayLimitGoodbye(st);
   },
   usage: (st, e) => {
-    st.usage.inputTokens += e.inputTokens;
-    st.usage.outputTokens += e.outputTokens;
+    st.usage = addVoiceUsage(st.usage, e.usage);
   },
   error: (st) => endSoon(st, 'PROVIDER_ERROR'),
   closed: (st) => endSoon(st, 'PROVIDER_ERROR'),
@@ -79,7 +79,7 @@ function newState(deps: CallDeps): CallState {
     startedAt: deps.now(),
     armedAt: performance.now(),
     transcript: [],
-    usage: { inputTokens: 0, outputTokens: 0 },
+    usage: NO_VOICE_USAGE,
     session: null,
     draftStatus: deps.draft.initial.status,
     confirmAsked: false,

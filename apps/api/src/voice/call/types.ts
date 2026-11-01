@@ -5,7 +5,12 @@ import type {
   VoiceEndReason,
   VoiceServerMessage,
 } from '@bookleaf/shared';
-import type { VoiceProvider, VoiceSession, VoiceSessionConfig } from '../providers/types.js';
+import type {
+  VoiceProvider,
+  VoiceSession,
+  VoiceSessionConfig,
+  VoiceUsage,
+} from '../providers/types.js';
 
 /** The browser side of the call (a WebSocket in production, a fake in tests). */
 export interface CallerChannel {
@@ -17,8 +22,8 @@ export interface CallerChannel {
 export interface CallOutcome {
   reason: VoiceEndReason;
   transcript: TranscriptLine[];
-  inputTokens: number;
-  outputTokens: number;
+  /** Every reply's tokens, summed over the call. */
+  usage: VoiceUsage;
   startedAt: Date;
   endedAt: Date;
 }
@@ -89,7 +94,7 @@ export interface CallState {
   /** Monotonic ms when the limit timers were armed (elapsed time only). */
   armedAt: number;
   transcript: TranscriptLine[];
-  usage: { inputTokens: number; outputTokens: number };
+  usage: VoiceUsage;
   session: VoiceSession | null;
   /** Draft status last shown, to tell the model when an edit cancelled its confirmation. */
   draftStatus: TicketDraft['status'];

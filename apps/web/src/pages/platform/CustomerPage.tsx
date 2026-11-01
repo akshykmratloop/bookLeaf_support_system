@@ -3,8 +3,10 @@ import { Link, useParams } from 'react-router';
 import { Pill } from '../../components/atoms/Pill';
 import { PageHeader } from '../../components/molecules/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../../components/molecules/States';
+import { AiUsagePanel } from '../../components/organisms/AiUsagePanel';
 import { PlanEditor } from '../../components/organisms/platform/PlanEditor';
 import { SuspendCard } from '../../components/organisms/platform/SuspendCard';
+import { useCustomerAiUsage } from '../../lib/aiUsage';
 import { formatCost, useCustomers } from '../../lib/platform';
 
 const BACK = (
@@ -16,7 +18,20 @@ const BACK = (
   </Link>
 );
 
-/** /platform/customers/:id — one customer's plan, limits and status. */
+/** The customer's AI cost: the same card its own admins see on /admin/usage. */
+function CustomerUsage({ id }: { id: string }) {
+  const usage = useCustomerAiUsage(id);
+  return (
+    <section aria-labelledby="customer-ai-usage" className="flex flex-col gap-3">
+      <h2 id="customer-ai-usage" className="text-[15px] font-semibold">
+        AI usage
+      </h2>
+      <AiUsagePanel query={usage} />
+    </section>
+  );
+}
+
+/** /platform/customers/:id — one customer's AI usage, plan, limits and status. */
 export function CustomerPage() {
   const { id } = useParams();
   const customers = useCustomers();
@@ -54,6 +69,7 @@ export function CustomerPage() {
           }
         />
       </div>
+      <CustomerUsage id={customer.id} />
       <PlanEditor key={`${customer.id}-${customer.planVersion}`} customer={customer} />
       <SuspendCard customer={customer} />
     </div>

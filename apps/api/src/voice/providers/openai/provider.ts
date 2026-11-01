@@ -26,6 +26,7 @@ export interface OpenAiVoiceOptions {
   connectTimeoutMs?: number;
 }
 
+import { realtimeCostMicros } from './prices.js';
 import { OPENAI_VOICES } from './voices.js';
 
 const DEFAULT_URL = 'wss://api.openai.com/v1/realtime';
@@ -38,6 +39,7 @@ export function openAiVoiceProvider(opts: OpenAiVoiceOptions): VoiceProvider {
     inputSampleRate: 24_000,
     outputSampleRate: 24_000,
     voices: OPENAI_VOICES,
+    costMicros: (usage) => realtimeCostMicros(opts.model, usage),
     connect: (config, onEvent) => connect(opts, config, onEvent),
   };
 }

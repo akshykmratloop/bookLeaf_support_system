@@ -133,7 +133,48 @@ describe('OpenAI Realtime protocol rules', () => {
       type: 'response.done',
       response: { usage: { input_tokens: 10, output_tokens: 20 } },
     });
-    expect(done.events).toContainEqual({ type: 'usage', inputTokens: 10, outputTokens: 20 });
+    // Without a breakdown, a speech model's tokens are counted as audio (the dearer rate).
+    expect(done.events).toContainEqual({
+      type: 'usage',
+      usage: {
+        textIn: 0,
+        audioIn: 10,
+        cachedTextIn: 0,
+        cachedAudioIn: 0,
+        textOut: 0,
+        audioOut: 20,
+      },
+    });
+  });
+
+  it('splits usage into text and audio, cached and not, as OpenAI reports it', () => {
+    const done = step(initialState(), {
+      type: 'response.done',
+      response: {
+        usage: {
+          input_tokens: 1_200,
+          output_tokens: 330,
+          input_token_details: {
+            text_tokens: 900,
+            audio_tokens: 300,
+            cached_tokens: 700,
+            cached_tokens_details: { text_tokens: 640, audio_tokens: 60 },
+          },
+          output_token_details: { text_tokens: 30, audio_tokens: 300 },
+        },
+      },
+    });
+    expect(done.events).toContainEqual({
+      type: 'usage',
+      usage: {
+        textIn: 260,
+        audioIn: 240,
+        cachedTextIn: 640,
+        cachedAudioIn: 60,
+        textOut: 30,
+        audioOut: 300,
+      },
+    });
   });
 });
 

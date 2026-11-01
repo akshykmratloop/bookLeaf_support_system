@@ -60,6 +60,8 @@ export interface EndedCall {
   maxTurns: number;
   /** The speech provider the call ran on. */
   provider: { id: string; model: string };
+  /** The call's cost at that provider's prices (null: no known price). */
+  costMicros: number | null;
 }
 
 /** Saves the transcript, the spoken-figure check and the AI run of a finished call. */

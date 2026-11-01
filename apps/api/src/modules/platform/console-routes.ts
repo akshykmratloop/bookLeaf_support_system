@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
+  AiUsageSchema,
   CustomerIdParamSchema,
   CustomerListSchema,
   PlanStatusSchema,
@@ -126,6 +127,18 @@ function registerCustomers(app: RouteApp, { customers }: Opts) {
       },
     },
     async (req) => customers.updatePlan(req.params.id, req.body),
+  );
+  app.get(
+    '/customers/:id/usage',
+    {
+      schema: {
+        tags,
+        summary: 'A customer’s AI cost over the last 30 days, per feature (counts and cost only)',
+        params: CustomerIdParamSchema,
+        response: { 200: AiUsageSchema, ...errors },
+      },
+    },
+    async (req) => customers.usage(req.params.id),
   );
 }
 

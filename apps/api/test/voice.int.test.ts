@@ -206,6 +206,8 @@ describe('voice: the call socket', () => {
     fake.emit({ type: 'audio', pcm16: Buffer.from([7, 7]) });
     fake.emit({ type: 'transcript', role: 'AUTHOR', text: 'My royalty statement looks wrong' });
     fake.emit({ type: 'transcript', role: 'ASSISTANT', text: 'You have ₹99,999 pending.' });
+    const usage = { textIn: 100, audioIn: 40, cachedTextIn: 900, cachedAudioIn: 10, textOut: 5 };
+    fake.emit({ type: 'usage', usage: { ...usage, audioOut: 300 } });
     c.ws.send(JSON.stringify({ type: 'hangup' }));
     expect(await c.closed).toBe(1000);
     expect(c.messages).toContainEqual({ type: 'ended', reason: 'USER_HANGUP' });
@@ -217,6 +219,19 @@ describe('voice: the call socket', () => {
     expect(saved.transcript.map((l) => l.role)).toEqual(['AUTHOR', 'ASSISTANT']);
     expect(saved.threadId).toBe(started.id);
     expect(await h.db.aiRun.count({ where: { task: 'VOICE' } })).toBeGreaterThan(0);
+    // The call's cost is the provider's own price for its tokens (the fake: 1 µ$ per token).
+    const run = await h.db.aiRun.findFirstOrThrow({
+      where: { task: 'VOICE' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(run).toMatchObject({
+      inputTokens: 1_050,
+      cacheReadTokens: 910,
+      outputTokens: 305,
+      costMicros: 1_355,
+    });
+    const row = await h.db.voiceSession.findUniqueOrThrow({ where: { id: started.id } });
+    expect(row).toMatchObject({ inputTokens: 1_050, outputTokens: 305 });
   });
 
   it('flags spoken figures that are not in the facts, and links one VOICE ticket per call', async () => {

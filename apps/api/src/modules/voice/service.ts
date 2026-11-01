@@ -35,6 +35,7 @@ export function createVoiceService(deps: VoiceDeps) {
         ignorePhrases: string[];
         maxTurns: number;
         provider: { id: string; model: string };
+        costMicros: number | null;
       },
     ) => saveCallOutcome(deps, { callId, outcome, ...ctx }),
     /** Last resort when saving the outcome failed: at least free the author's call slot. */

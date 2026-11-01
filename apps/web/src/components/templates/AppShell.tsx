@@ -1,6 +1,7 @@
 import type { AuthUser } from '@bookleaf/shared';
 import {
   BookOpen,
+  Coins,
   Database,
   Inbox,
   KeyRound,
@@ -59,6 +60,7 @@ const ADMIN_NAV: NavItem[] = [
     label: 'Workspace Settings',
     icon: <Settings2 size={16} aria-hidden />,
   },
+  { to: '/admin/usage', label: 'AI Usage', icon: <Coins size={16} aria-hidden /> },
   { to: '/admin/workspace/api-keys', label: 'API Keys', icon: <KeyRound size={16} aria-hidden /> },
   { to: '/admin/workspace/webhooks', label: 'Webhooks', icon: <Webhook size={16} aria-hidden /> },
 ];

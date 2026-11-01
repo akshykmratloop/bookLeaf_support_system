@@ -4,6 +4,10 @@
  * Checked against two vendors: OpenAI Realtime (24 kHz in) and Gemini Live (16 kHz in).
  */
 
+import type { VoiceUsage } from './usage.js';
+
+export type { VoiceUsage } from './usage.js';
+
 /** A function the model may call during the call. Runs on the BookLeaf server, never in the browser. */
 export interface VoiceTool {
   name: string;
@@ -38,7 +42,8 @@ export type VoiceEvent =
    * that was cut off or only ran a tool (its real answer follows); absent means final.
    */
   | { type: 'reply_done'; final?: boolean }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  /** Tokens one reply used. */
+  | { type: 'usage'; usage: VoiceUsage }
   | { type: 'error'; code: VoiceErrorCode; message: string }
   | { type: 'closed' };
 
@@ -66,6 +71,11 @@ export interface VoiceProvider {
   readonly outputSampleRate: number;
   /** Voice names this provider can speak with (what a workspace may choose). */
   readonly voices: readonly string[];
+  /**
+   * What the tokens given cost on this provider's model, in micro-dollars, at the vendor's
+   * published prices; null when the model has no known price.
+   */
+  costMicros(usage: VoiceUsage): number | null;
   /** Resolves once the vendor session is configured and ready for audio. */
   connect(config: VoiceSessionConfig, onEvent: (e: VoiceEvent) => void): Promise<VoiceSession>;
 }

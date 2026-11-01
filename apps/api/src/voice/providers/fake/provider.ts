@@ -5,6 +5,7 @@ import {
   type VoiceSession,
   type VoiceSessionConfig,
 } from '../types.js';
+import { voiceUsageTotals } from '../usage.js';
 
 export interface FakeVoiceProvider extends VoiceProvider {
   /** Push a provider event into the live call. */
@@ -47,6 +48,11 @@ export function fakeVoiceProvider(): FakeVoiceProvider {
     inputSampleRate: 24_000,
     outputSampleRate: 24_000,
     voices: ['marin', 'cedar', 'alloy'],
+    // A made-up flat price for tests: one micro-dollar per token, so a call's cost is checkable.
+    costMicros: (usage) => {
+      const t = voiceUsageTotals(usage);
+      return t.inputTokens + t.outputTokens;
+    },
     config: null,
     audioIn: [],
     toolResults: [],

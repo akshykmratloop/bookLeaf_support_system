@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Container } from './container.js';
+import { aiUsageRoutes } from './modules/ai-usage/routes.js';
 import { assistantRoutes } from './modules/assistant/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { booksRoutes } from './modules/books/routes.js';
@@ -69,6 +70,7 @@ export async function registerRoutes(api: FastifyInstance, c: Container) {
   await api.register(eventRoutes, { events: c.events, sessions: c.sessions });
   await api.register(connectorRoutes, { connectors: c.connectors });
   await api.register(settingsRoutes, { settings: c.settings });
+  await api.register(aiUsageRoutes, { usage: c.aiUsage });
   await api.register(categoryRoutes, { categories: c.categories });
   await api.register(webhookRoutes, { webhooks: c.webhooks });
   await api.register(serverApiRoutes, { server: c.serverApi });

@@ -32,3 +32,4 @@ export * from './schemas/platform.js';
 export * from './schemas/server-api.js';
 export * from './schemas/ticket-customer.js';
 export * from './schemas/onboarding.js';
+export * from './schemas/ai-usage.js';

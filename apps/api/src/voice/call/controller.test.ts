@@ -171,7 +171,9 @@ describe('voice call controller', () => {
     await call();
     provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'My payout is missing' });
     provider.emit({ type: 'transcript', role: 'ASSISTANT', text: 'I have started a ticket.' });
-    provider.emit({ type: 'usage', inputTokens: 100, outputTokens: 50 });
+    const reply = { textIn: 10, audioIn: 90, cachedTextIn: 0, cachedAudioIn: 0, textOut: 5 };
+    provider.emit({ type: 'usage', usage: { ...reply, audioOut: 45 } });
+    provider.emit({ type: 'usage', usage: { ...reply, cachedAudioIn: 30, audioOut: 5 } });
     provider.emit({ type: 'tool_call', callId: 'c2', name: 'end_call', argumentsJson: '{}' });
     provider.emit({ type: 'audio', pcm16: Buffer.from([1, 2]) });
     provider.emit({ type: 'reply_done' });
@@ -179,7 +181,15 @@ describe('voice call controller', () => {
     const o = outcomes[0];
     expect(o?.reason).toBe('ASSISTANT_ENDED');
     expect(o?.transcript.map((l) => l.role)).toEqual(['AUTHOR', 'ASSISTANT']);
-    expect(o).toMatchObject({ inputTokens: 100, outputTokens: 50 });
+    // Every reply's tokens are summed over the call, kept split for pricing.
+    expect(o?.usage).toEqual({
+      textIn: 20,
+      audioIn: 180,
+      cachedTextIn: 0,
+      cachedAudioIn: 30,
+      textOut: 10,
+      audioOut: 50,
+    });
     expect(unwatched).toBe(true);
   });
 

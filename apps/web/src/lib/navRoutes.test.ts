@@ -29,6 +29,7 @@ const STAFF_NAV = [
   '/admin/workspace/categories',
   '/admin/workspace/knowledge',
   '/admin/workspace/settings',
+  '/admin/usage',
   '/admin/workspace/api-keys',
   '/admin/workspace/webhooks',
 ];

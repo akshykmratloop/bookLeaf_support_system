@@ -124,7 +124,7 @@ export const CustomerUsageSchema = z.object({
   calls: z.int(),
   callMinutes: z.int(),
   aiRuns: z.int(),
-  /** Estimated text-model cost in micro-dollars (voice minutes are counted separately). */
+  /** AI cost in micro-dollars (text and voice calls), at the providers' published prices. */
   aiCostMicros: z.int(),
 });
 export type CustomerUsage = z.infer<typeof CustomerUsageSchema>;

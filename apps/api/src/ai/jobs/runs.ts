@@ -11,11 +11,21 @@ export interface RunRecord {
   model: string;
   promptVersion: string | null;
   usage: Usage | null;
+  /**
+   * The cost when the caller already knows it (a voice call priced by its speech provider). Wins
+   * over the text-model price list; left out, the cost is estimated from `usage`.
+   */
+  costMicros?: number | null;
   latencyMs: number;
   errorCode: string | null;
 }
 
-/** Every AI attempt (success or failure) is recorded: tokens, cost estimate, latency, outcome. */
+const costOf = (r: RunRecord, usage: Usage): number | null => {
+  if (r.costMicros !== undefined) return r.costMicros;
+  return r.usage ? estimateCostMicros(findModel(r.provider, r.model), usage) : null;
+};
+
+/** Every AI attempt (success or failure) is recorded: tokens, cost, latency, outcome. */
 export async function recordRun(db: Db, r: RunRecord): Promise<void> {
   const usage = r.usage ?? {
     inputTokens: 0,
@@ -35,7 +45,7 @@ export async function recordRun(db: Db, r: RunRecord): Promise<void> {
       outputTokens: usage.outputTokens,
       cacheReadTokens: usage.cacheReadTokens,
       cacheWriteTokens: usage.cacheWriteTokens,
-      costMicros: r.usage ? estimateCostMicros(findModel(r.provider, r.model), usage) : null,
+      costMicros: costOf(r, usage),
       latencyMs: r.latencyMs,
       outcome: r.errorCode ? 'ERROR' : 'OK',
       errorCode: r.errorCode,

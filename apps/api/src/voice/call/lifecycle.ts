@@ -18,7 +18,7 @@ export async function endCall(st: CallState, reason: VoiceEndReason): Promise<vo
     await st.deps.onEnd({
       reason,
       transcript,
-      ...usage,
+      usage,
       startedAt,
       endedAt: st.deps.now(),
     });

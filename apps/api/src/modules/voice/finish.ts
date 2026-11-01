@@ -4,6 +4,7 @@ import { recordRun } from '../../ai/jobs/runs.js';
 import type { Db } from '../../platform/db.js';
 import type { CallOutcome } from '../../voice/call/controller.js';
 import { VOICE_PROMPT_VERSION } from '../../voice/call/instructions.js';
+import { voiceUsageTotals } from '../../voice/providers/usage.js';
 import { saveIntoChat } from './chat-link.js';
 import { wordsToDigits } from '../../ai/checker/number-words.js';
 
@@ -36,6 +37,8 @@ export interface FinishInput {
   ignorePhrases: string[];
   /** The chat message limit; a call's saved lines never push a chat past it. */
   maxTurns: number;
+  /** What the call cost, priced by its speech provider; null when the model has no price. */
+  costMicros: number | null;
 }
 
 /**
@@ -49,6 +52,7 @@ async function saveEnded(
   seconds: number,
 ): Promise<string> {
   const { outcome } = input;
+  const tokens = voiceUsageTotals(outcome.usage);
   return db.$transaction(async (tx) => {
     const saved = await tx.voiceSession.update({
       where: { id: input.callId },
@@ -59,8 +63,8 @@ async function saveEnded(
         durationSeconds: seconds,
         transcript: outcome.transcript,
         spokenCheck: checkSpokenFigures(outcome, input.facts, input.ignorePhrases),
-        inputTokens: outcome.inputTokens,
-        outputTokens: outcome.outputTokens,
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens,
       },
       select: { id: true, chatSessionId: true, workspaceId: true },
     });
@@ -78,6 +82,7 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
     Math.round((outcome.endedAt.getTime() - outcome.startedAt.getTime()) / 1000),
   );
   const workspaceId = await saveEnded(db, input, failed, seconds);
+  const tokens = voiceUsageTotals(outcome.usage);
   await recordRun(db, {
     ticketId: null,
     workspaceId,
@@ -85,12 +90,14 @@ export async function finishCall(db: Db, input: FinishInput): Promise<void> {
     provider: input.providerId,
     model: input.model,
     promptVersion: VOICE_PROMPT_VERSION,
+    // All input (cached included), its cached part, and all output; priced by the provider.
     usage: {
-      inputTokens: outcome.inputTokens,
-      outputTokens: outcome.outputTokens,
-      cacheReadTokens: 0,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      cacheReadTokens: tokens.cachedInputTokens,
       cacheWriteTokens: 0,
     },
+    costMicros: input.costMicros,
     latencyMs: seconds * 1000,
     errorCode: failed ? 'VOICE_UNAVAILABLE' : null,
   });

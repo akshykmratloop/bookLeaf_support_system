@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError } from '../../platform/errors.js';
 import { asPlatform } from '../../platform/tenancy.js';
 import type { WorkspaceConfigs } from '../settings/configs.js';
 import { toPlanState, type PlanReader } from './plans.js';
+import { usageReport } from '../ai-usage/report.js';
 import { USAGE_DAYS, usageByWorkspace } from './usage.js';
 
 export interface CustomerDeps {
@@ -100,10 +101,21 @@ async function updatePlan(deps: CustomerDeps, workspaceId: string, input: Update
   return { ...toPlanState(row).plan, suspended: row.suspendedAt !== null, version: row.version };
 }
 
+/** One customer's AI cost per feature: the same report its own admins see. */
+async function customerUsage(deps: CustomerDeps, workspaceId: string) {
+  const exists = await deps.db.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { id: true },
+  });
+  if (!exists) throw new NotFoundError('Customer');
+  return usageReport(deps, workspaceId);
+}
+
 /** The console's customers (U-7). Platform scope only: the owner connection reads every workspace. */
 export function createCustomerService(deps: CustomerDeps) {
   return {
     list: () => asPlatform(() => listCustomers(deps)),
+    usage: (workspaceId: string) => asPlatform(() => customerUsage(deps, workspaceId)),
     updatePlan: (workspaceId: string, input: UpdatePlan) =>
       asPlatform(() => updatePlan(deps, workspaceId, input)),
   };

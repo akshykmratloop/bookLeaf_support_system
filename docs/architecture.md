@@ -271,6 +271,19 @@ support provider" (`modules/managed/routes.ts`). The console also shows how many
 hour ran without AI (fallback, failed, auth). The "last test" result is stored in `platform_settings`
 (migration `20261101110000_platform_last_test`).
 
+**AI cost.** Every AI call writes one `ai_runs` row with its tokens and `cost_micros` (USD × 10⁶).
+Text calls are priced from `ai/providers/catalog.ts`: Anthropic's published per-model rates for
+input, cache write, cache read and output (Sonnet's cache read is 0.05× input, not a fixed share).
+A voice call is priced by its speech provider: the OpenAI adapter keeps OpenAI's Realtime rates
+(text and audio, cached and fresh) in `voice/providers/openai/prices.ts`, maps each `response.done`
+usage report to a vendor-neutral `VoiceUsage`, and the core asks `provider.costMicros(usage)` once
+the call ends; that cost wins over the catalog estimate in `recordRun`. A model without a price is
+logged with no cost. Admins see the last 30 days per feature on `/admin/usage`
+(`GET /workspace/usage`, own workspace only) and the super admin sees the same card per customer
+(`GET /platform/customers/:id/usage`): sorting per ticket, drafts, chat replies and call minutes,
+in dollars and credits (1 credit = $0.001, `MICROS_PER_CREDIT` in `packages/shared`). Connection
+tests (task `TEST`) are the support provider's own cost and are left out of the customer's total.
+
 ---
 
 ## 8. Realtime and reconnection

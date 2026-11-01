@@ -51,6 +51,7 @@ const KnowledgePage = lazyPage(() =>
 const WorkspaceSettingsPage = lazyPage(() =>
   import('../pages/workspace/WorkspaceSettingsPage').then((m) => m.WorkspaceSettingsPage),
 );
+const UsagePage = lazyPage(() => import('../pages/admin/UsagePage').then((m) => m.UsagePage));
 const ApiKeysPage = lazyPage(() =>
   import('../pages/workspace/ApiKeysPage').then((m) => m.ApiKeysPage),
 );
@@ -73,6 +74,7 @@ export const adminRoutes = (
     <Route path="/admin/workspace/categories" element={loading(<CategoriesPage />)} />
     <Route path="/admin/workspace/knowledge" element={loading(<KnowledgePage />)} />
     <Route path="/admin/workspace/settings" element={loading(<WorkspaceSettingsPage />)} />
+    <Route path="/admin/usage" element={loading(<UsagePage />)} />
     <Route path="/admin/workspace/api-keys" element={loading(<ApiKeysPage />)} />
     <Route path="/admin/workspace/webhooks" element={loading(<WebhooksPage />)} />
   </Route>

@@ -1,5 +1,6 @@
 import type { VoiceEvent } from '../types.js';
 import type { ClientEvent, ProtocolState, Step } from './protocol.js';
+import { toVoiceUsage } from './usage-map.js';
 
 /**
  * OpenAI Realtime server events → domain events, as pure functions over the protocol state.
@@ -43,7 +44,6 @@ function onSpeechStarted(s: ProtocolState, now: number): Step {
 
 function onResponseDone(s: ProtocolState, m: Msg): Step {
   const response = obj(m.response);
-  const usage = obj(response.usage);
   s.responseActive = false;
   s.muted = false;
   s.item = null;
@@ -51,12 +51,8 @@ function onResponseDone(s: ProtocolState, m: Msg): Step {
   const ranTool = output.some((item) => obj(item).type === 'function_call');
   const final = response.status === 'completed' && !ranTool;
   const events: VoiceEvent[] = [{ type: 'reply_done', final }];
-  if (typeof usage.input_tokens === 'number' && typeof usage.output_tokens === 'number')
-    events.push({
-      type: 'usage',
-      inputTokens: usage.input_tokens,
-      outputTokens: usage.output_tokens,
-    });
+  const usage = toVoiceUsage(response.usage);
+  if (usage) events.push({ type: 'usage', usage });
   if (response.status === 'failed')
     events.push({
       type: 'error',

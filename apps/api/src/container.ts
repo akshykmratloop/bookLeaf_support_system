@@ -1,5 +1,5 @@
 import type { HostRecords } from './host/types.js';
-import { ALL_VOICES, VOICE_PROVIDER_IDS, voiceSamplesFor } from './voice/providers/registry.js';
+import { VOICE_PROVIDER_IDS } from './voice/providers/registry.js';
 import { createConnectorService } from './modules/connectors/service.js';
 import { connectorDepsFromEnv, ssrfPolicyFromEnv } from './modules/connectors/from-env.js';
 import { createWebhookService } from './modules/webhooks/service.js';
@@ -8,6 +8,7 @@ import { verifyApiKey } from './modules/workspaces/api-keys.js';
 import { limitsFromEnv, type AssistantLimits } from './modules/assistant/limits.js';
 import { createAssistantService } from './modules/assistant/service.js';
 import { createPlatformConsole } from './container-platform.js';
+import { createWorkspaceAdmin } from './container-workspace.js';
 import type { PlanReader } from './modules/platform/plans.js';
 import { createWorkspaceConfigs } from './modules/settings/configs.js';
 import { createEmbedOrigins } from './modules/settings/embed-origins.js';
@@ -18,7 +19,6 @@ import { createChatService } from './modules/chat/service.js';
 import { createConversationService } from './modules/conversations/service.js';
 import { createTicketDraftService } from './modules/ticket-drafts/service.js';
 import { createVoiceService } from './modules/voice/service.js';
-import { createSettingsService } from './modules/settings/service.js';
 import { createHostSignIn } from './modules/workspaces/host-sign-in.js';
 import { createWorkspaceService } from './modules/workspaces/service.js';
 import { systemClock, type Clock } from './platform/clock.js';
@@ -164,16 +164,7 @@ export function createContainer(env: Env, overrides: ContainerOverrides = {}) {
       secretFor: core.connectors.secretFor,
     }),
     workspaces: createWorkspaceService(core),
-    settings: createSettingsService({
-      db: core.db,
-      ai: core.ai,
-      voiceConfigured: async (ws: string) => (await core.voiceFor(ws)) !== null,
-      voices: core.voiceProvider?.voices ?? ALL_VOICES,
-      voiceSamples: voiceSamplesFor(env.VOICE_PROVIDER, core.voiceProvider?.voices ?? ALL_VOICES),
-      configs: core.configs,
-      plans: core.plans,
-      embedOrigins: core.embedOrigins,
-    }),
+    ...createWorkspaceAdmin(core),
     ...createIntegrations(core),
     books: createBooksService(core),
     categories: createCategoryService({ db: core.db }),
