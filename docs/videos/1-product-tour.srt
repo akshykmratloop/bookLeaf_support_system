@@ -1,107 +1,91 @@
 1
-00:00:00,600 --> 00:00:02,330
-Your customers need help.
+00:00:00,500 --> 00:00:02,750
+Twelve hundred books a month.
 
 2
-00:00:02,260 --> 00:00:05,510
-So why do they have to leave your app to get it?
+00:00:03,080 --> 00:00:04,050
+Thousands of authors.
 
 3
-00:00:06,500 --> 00:00:08,330
-Meet BookLeaf Support.
+00:00:04,300 --> 00:00:06,590
+And every question answered by hand.
 
 4
-00:00:08,680 --> 00:00:10,510
-Help that lives right inside your product.
+00:00:07,800 --> 00:00:13,930
+That means slow replies, answers that don't match, and a backlog that grows every busy week.
 
 5
-00:00:11,900 --> 00:00:17,510
-One tap, and your customers get chat, voice, and tickets, without ever leaving your app.
+00:00:14,900 --> 00:00:16,950
+Meet BookLeaf Support.
 
 6
-00:00:18,300 --> 00:00:19,410
-Ask anything.
+00:00:17,280 --> 00:00:18,990
+Built to fix exactly that.
 
 7
-00:00:19,740 --> 00:00:22,110
-Every answer comes from their real account data.
+00:00:20,300 --> 00:00:22,490
+First, the manual work.
 
 8
-00:00:22,620 --> 00:00:24,230
-Every number is checked.
+00:00:23,100 --> 00:00:30,130
+The AI now reads every new ticket, sorts it into the right category, sets its priority, and drafts a reply.
 
 9
-00:00:24,400 --> 00:00:25,310
-Nothing is made up.
+00:00:31,300 --> 00:00:34,150
+Urgent money problems no longer get buried.
 
 10
-00:00:26,300 --> 00:00:27,670
-Want to talk instead?
+00:00:34,600 --> 00:00:37,530
+The most urgent, oldest tickets always come first.
 
 11
-00:00:28,320 --> 00:00:29,710
-Switch to voice, mid-conversation.
+00:00:38,800 --> 00:00:45,770
+Every draft follows BookLeaf's own policies and tone, so every author gets the same right answer.
 
 12
-00:00:29,460 --> 00:00:34,090
-Chat and voice share one thread, so nobody repeats themselves.
+00:00:47,300 --> 00:00:51,850
+And it uses the author's real royalty data, fetched live from BookLeaf.
 
 13
-00:00:35,800 --> 00:00:37,610
-Just say what's wrong.
+00:00:52,120 --> 00:00:53,870
+Never guessed, never made up.
 
 14
-00:00:38,120 --> 00:00:40,590
-The assistant fills in the ticket while you talk.
+00:00:55,800 --> 00:01:01,330
+Authors see every ticket, its status, and every reply, live, without refreshing.
 
 15
-00:00:41,100 --> 00:00:44,170
-Say yes, or tap send, and it's on its way.
+00:01:02,300 --> 00:01:09,310
+A fact checker blocks any amount or date that isn't in the records, and a person always sends the reply.
 
 16
-00:00:44,260 --> 00:00:45,070
-No forms.
+00:01:10,300 --> 00:01:15,470
+If the AI goes down, tickets still arrive, get sorted, and get answered.
 
 17
-00:00:45,260 --> 00:00:46,450
-No hunting for buttons.
+00:01:16,300 --> 00:01:26,330
+Then I went beyond the brief: help inside the author's own dashboard, chat and voice in one conversation, and tickets that fill themselves as you talk.
 
 18
-00:00:47,800 --> 00:00:53,130
-Your team gets every ticket sorted, prioritized, and with a reply already drafted.
+00:01:27,300 --> 00:01:32,770
+It plugs into any product with one script tag and one endpoint, for any company.
 
 19
-00:00:53,460 --> 00:00:56,350
-A built-in fact checker blocks any figure that isn't real.
+00:01:33,800 --> 00:01:40,990
+It runs on fast, low-cost models, sends only what each answer needs, and shows admins exactly what the AI costs.
 
 20
-00:00:57,800 --> 00:01:00,450
-And if the AI ever goes down?
-
-21
-00:01:00,900 --> 00:01:02,430
-Your desk keeps working.
-
-22
-00:01:03,300 --> 00:01:07,710
-Plug it into any app with one endpoint and one script tag.
-
-23
-00:01:07,820 --> 00:01:08,550
-Your login.
-
-24
-00:01:08,800 --> 00:01:09,430
-Your data.
-
-25
-00:01:09,760 --> 00:01:10,430
-Your brand.
-
-26
-00:01:12,020 --> 00:01:13,230
+00:01:44,400 --> 00:01:45,610
 BookLeaf Support.
 
-27
-00:01:13,560 --> 00:01:14,990
-Help, built right in.
+21
+00:01:45,360 --> 00:01:46,910
+Faster replies.
+
+22
+00:01:46,660 --> 00:01:48,530
+The same right answer.
+
+23
+00:01:48,280 --> 00:01:50,570
+Real data, every time.

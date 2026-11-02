@@ -1,151 +1,187 @@
 1
-00:00:00,500 --> 00:00:02,510
-Twelve hundred books a month.
+00:00:00,500 --> 00:00:05,910
+BookLeaf's brief: thousands of author questions, all answered by hand.
 
 2
-00:00:03,200 --> 00:00:04,010
-Twenty-two thousand titles.
+00:00:06,420 --> 00:00:13,330
+Build an author portal, an admin portal, a REST API, and AI that sorts and drafts replies.
 
 3
-00:00:03,760 --> 00:00:06,850
-Every author question, answered by hand.
-
-4
-00:00:08,500 --> 00:00:11,750
+00:00:14,500 --> 00:00:17,750
 I built BookLeaf's new author support system.
 
-5
-00:00:12,160 --> 00:00:13,870
+4
+00:00:18,160 --> 00:00:19,870
 Here's how, and why.
 
-6
-00:00:14,800 --> 00:00:15,990
+5
+00:00:20,800 --> 00:00:21,990
 The obvious move?
 
-7
-00:00:16,380 --> 00:00:18,610
+6
+00:00:22,380 --> 00:00:24,610
 Bolt on AI to type replies faster.
 
-8
-00:00:19,200 --> 00:00:22,490
+7
+00:00:25,200 --> 00:00:28,490
 But a confident wrong number is worse than a slow reply.
 
-9
-00:00:23,800 --> 00:00:25,590
+8
+00:00:29,800 --> 00:00:31,590
 So I reframed it.
 
-10
-00:00:25,840 --> 00:00:28,350
+9
+00:00:31,840 --> 00:00:34,350
 Correct answers in front of a human, fast.
 
-11
-00:00:28,880 --> 00:00:29,950
+10
+00:00:34,880 --> 00:00:35,950
 Money issues first.
 
-12
-00:00:30,220 --> 00:00:32,850
+11
+00:00:36,220 --> 00:00:38,850
 And a desk that never stops when the AI does.
 
-13
-00:00:33,800 --> 00:00:35,110
+12
+00:00:39,800 --> 00:00:41,110
 Three rules.
 
-14
-00:00:35,560 --> 00:00:38,470
+13
+00:00:41,560 --> 00:00:44,470
 Code computes the facts, AI only writes the words.
 
-15
-00:00:38,660 --> 00:00:40,330
+14
+00:00:44,660 --> 00:00:46,330
 A human always sends.
 
-16
-00:00:40,640 --> 00:00:42,650
+15
+00:00:46,640 --> 00:00:48,650
 And tickets never depend on the AI.
 
+16
+00:00:49,800 --> 00:00:57,190
+Authors get a portal to sign in, see their books, raise tickets, and watch replies arrive live.
+
 17
-00:00:43,800 --> 00:00:47,750
-Then the big idea: don't make authors leave their dashboard.
+00:00:57,940 --> 00:01:01,870
+Staff get a queue with filters, status, notes, and assignment.
 
 18
-00:00:48,440 --> 00:00:52,190
-Support became a module that plugs into any product, for any company.
+00:01:03,300 --> 00:01:12,770
+The AI sorts every ticket into BookLeaf's six categories, sets one of four priorities, and drafts a reply from the knowledge base.
 
 19
-00:00:52,700 --> 00:00:55,410
-BookLeaf is just workspace number one.
+00:01:12,520 --> 00:01:15,870
+Staff can override all of it.
 
 20
-00:00:56,300 --> 00:01:02,690
-Under the hood: one TypeScript monorepo, four apps, and one shared set of Zod schemas.
-
-21
-00:01:05,300 --> 00:01:08,170
-Fastify and Postgres with row-level security.
-
-22
-00:01:07,920 --> 00:01:09,790
-React and Tailwind.
-
-23
-00:01:09,540 --> 00:01:11,930
-Claude for triage and drafts.
-
-24
-00:01:11,680 --> 00:01:14,210
-OpenAI Realtime for voice.
-
-25
-00:01:13,960 --> 00:01:16,990
-Real databases in every test.
-
-26
-00:01:18,300 --> 00:01:26,170
+00:01:16,800 --> 00:01:24,670
 Every ticket flows through a safe pipeline: triage, real data, an AI draft, then a checker that verifies every amount and date.
 
+21
+00:01:26,300 --> 00:01:33,750
+And I measured it: forty-five of forty-six test tickets classified right, Hindi and Hinglish included.
+
+22
+00:01:34,440 --> 00:01:39,210
+Even with the AI switched off, simple rules got eighty-seven percent.
+
+23
+00:01:40,300 --> 00:01:42,630
+Cost was a design choice.
+
+24
+00:01:43,080 --> 00:01:45,030
+A small, fast model sorts.
+
+25
+00:01:45,300 --> 00:01:47,770
+A stronger one only writes drafts.
+
+26
+00:01:48,120 --> 00:01:52,970
+Each prompt carries just the facts it needs, and admins can see the usage.
+
 27
-00:01:27,800 --> 00:01:35,890
-And I measured it: forty-five of forty-six tickets classified right, Hindi and Hinglish included, at nine cents per thousand.
+00:01:53,800 --> 00:02:01,610
+And if the AI fails, keyword rules and template drafts take over, so the desk never stops.
 
 28
-00:01:37,300 --> 00:01:44,330
-Then I went beyond the brief: chat and voice in one thread, and calls that fill in the ticket while you talk.
+00:02:03,800 --> 00:02:07,750
+Then the big idea: don't make authors leave their dashboard.
 
 29
-00:01:45,300 --> 00:01:47,110
-It wasn't all smooth.
+00:02:08,440 --> 00:02:12,190
+Support became a module that plugs into any product, for any company.
 
 30
-00:01:47,760 --> 00:01:51,670
-Vercel can't carry WebSockets, so calls get a one-time ticket to the API.
+00:02:12,700 --> 00:02:15,410
+BookLeaf is just workspace number one.
 
 31
-00:01:51,420 --> 00:01:56,890
-An audit found cross-company leaks, so I fixed them and added row-level security.
+00:02:16,300 --> 00:02:22,690
+Under the hood: one TypeScript monorepo, four apps, and one shared set of Zod schemas.
 
 32
-00:01:58,800 --> 00:02:05,810
-Quality was a habit: twelve hundred and forty tests, all green, on real databases.
+00:02:25,300 --> 00:02:28,170
+Fastify and Postgres with row-level security.
 
 33
-00:02:07,300 --> 00:02:09,730
-It's live on AWS and Vercel.
+00:02:27,920 --> 00:02:29,790
+React and Tailwind.
 
 34
-00:02:10,500 --> 00:02:15,010
-Deploys only when I ask, backups first, and one command tears it all down.
+00:02:29,540 --> 00:02:31,930
+Claude for triage and drafts.
 
 35
-00:02:15,340 --> 00:02:16,950
-About eighteen dollars a month.
+00:02:31,680 --> 00:02:34,210
+OpenAI Realtime for voice.
 
 36
-00:02:17,800 --> 00:02:22,710
-Next: a bigger real test set, one-click approvals, and email alerts.
+00:02:33,960 --> 00:02:36,990
+Real databases in every test.
 
 37
-00:02:24,400 --> 00:02:29,490
-From a support portal, to a support module any product can plug in.
+00:02:38,300 --> 00:02:47,850
+Everything runs through a versioned REST API, with sign-in, role-based access, validation on every request, and full Swagger docs.
 
 38
-00:02:29,900 --> 00:02:30,730
+00:02:50,300 --> 00:02:57,330
+Then I went beyond the brief: chat and voice in one thread, and calls that fill in the ticket while you talk.
+
+39
+00:02:58,300 --> 00:03:00,110
+It wasn't all smooth.
+
+40
+00:03:00,760 --> 00:03:04,670
+Vercel can't carry WebSockets, so calls get a one-time ticket to the API.
+
+41
+00:03:04,420 --> 00:03:09,890
+An audit found cross-company leaks, so I fixed them and added row-level security.
+
+42
+00:03:11,800 --> 00:03:19,310
+Quality was a habit: over twelve hundred automated tests, all green, on real databases.
+
+43
+00:03:22,300 --> 00:03:25,670
+It's live on AWS and Vercel.
+
+44
+00:03:26,220 --> 00:03:33,130
+It deploys only when I ask, backs up the database first, and one command tears it all down.
+
+45
+00:03:34,300 --> 00:03:39,210
+Next: a bigger real test set, one-click approvals, and email alerts.
+
+46
+00:03:40,900 --> 00:03:45,990
+From a support portal, to a support module any product can plug in.
+
+47
+00:03:46,400 --> 00:03:47,230
 Thanks for watching.

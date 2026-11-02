@@ -14,7 +14,7 @@ Chat, voice and tickets for BookLeaf's authors, with AI that drafts from real da
 ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?logo=openai&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-1%2C250%2B_passing-2EA44F)
 
-[🎬 Videos](#-watch-it) · [🚀 Live demo](#-try-it-live) · [🗺️ How it works](#%EF%B8%8F-how-it-works) · [💻 Run it](#-run-it-locally) · [📖 Docs](#-docs)
+[🎬 Videos](#-watch-it) · [🚀 Live demo](#-try-it-live) · [🗺️ How it works](#%EF%B8%8F-how-it-works) · [💰 AI cost](#-what-the-ai-costs) · [💻 Run it](#-run-it-locally) · [📖 Docs](#-docs)
 
 </div>
 
@@ -22,21 +22,21 @@ Chat, voice and tickets for BookLeaf's authors, with AI that drafts from real da
 
 ## 🎬 Watch it
 
-### 1 · Product tour · 1:16
+### 1 · Product tour · 1:51
 
-https://github.com/user-attachments/assets/41e9a751-9af8-499b-90b7-94b050c4de00
+https://github.com/user-attachments/assets/32bac149-7331-4c92-8586-cbb1b207cc44
 
-What it does: help inside your app, chat and voice in one thread, tickets filled in by voice, a desk that keeps working. [Script](docs/videos/1-product-tour-script.md)
+BookLeaf's six support problems, and how each one is solved. Then what was built beyond the brief. [Script](docs/videos/1-product-tour-script.md)
 
-### 2 · How I built it · 2:31
+### 2 · How I built it · 3:48
 
-https://github.com/user-attachments/assets/f5d2fb7e-0db6-4509-a13b-c5bdf7e98169
+https://github.com/user-attachments/assets/82fe221d-9724-4833-8614-2fa7b1ee71cc
 
-The problem, the architecture, the tech choices and why, what went wrong, and what is next. [Script](docs/videos/2-build-story-script.md)
+The brief, point by point: the portals, AI sorting and drafts, cost, what happens when the AI is down, the API, the architecture, what went wrong, and what is next. [Script](docs/videos/2-build-story-script.md)
 
-### 3 · Plug it into any product · 1:59
+### 3 · Plug it into any product · 2:02
 
-https://github.com/user-attachments/assets/a3a77552-cce4-45a4-883c-79ccb0cfd6af
+https://github.com/user-attachments/assets/8ef3e6c9-afee-4720-933b-d36538bf06b0
 
 Six steps: workspace → data → fields → one endpoint → one script tag → teach the AI. [Script](docs/videos/3-integration-guide-script.md)
 
@@ -121,7 +121,21 @@ flowchart LR
 | 🧑‍💻 A person always sends | Nothing goes out on its own |
 | 🎫 Tickets never wait for the AI | The desk keeps working in an outage |
 
-📈 Measured: **98%** of 46 test tickets sorted into the right category (87% with AI off), for about **$0.08 per 1,000 tickets**. [Details](docs/eval-results.md)
+📈 Measured: **98%** of 46 test tickets sorted into the right category (**87%** with the AI switched off). [Details](docs/eval-results.md)
+
+---
+
+## 💰 What the AI costs
+
+Measured on real runs of this app, at the providers' published prices (2 Nov 2026). **1 credit = $0.001.**
+
+| | What | Model | Cost | Credits |
+| :-: | --- | --- | --- | --: |
+| 🎫 | One ticket: sorted **and** a reply drafted | Claude Haiku + Sonnet | about $0.009 | 9 |
+| 💬 | One chat answer | Claude Haiku | about $0.0008 | 0.8 |
+| 🎙️ | One minute of a voice call | OpenAI Realtime | about $0.16 | 160 |
+
+Each admin sees their own usage under **AI Usage** in the support desk; the super admin sees every company's. Usage only, no billing yet. [How it is counted](docs/architecture.md#7-ai-configuration)
 
 ---
 

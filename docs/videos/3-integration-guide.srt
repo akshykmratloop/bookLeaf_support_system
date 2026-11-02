@@ -1,111 +1,111 @@
 1
-00:00:00,500 --> 00:00:02,690
-Want help that lives inside your app?
+00:00:00,500 --> 00:00:04,750
+BookLeaf's authors now get help right inside their own dashboard.
 
 2
-00:00:03,160 --> 00:00:06,090
-All it takes is one script tag, and one endpoint.
+00:00:05,140 --> 00:00:09,150
+Any product can do the same, with one script tag, and one endpoint.
 
 3
-00:00:07,400 --> 00:00:10,990
+00:00:10,400 --> 00:00:13,990
 Here's how to plug BookLeaf Support into any product.
 
 4
-00:00:12,300 --> 00:00:14,570
+00:00:15,300 --> 00:00:17,570
 Your page loads one script.
 
 5
-00:00:15,000 --> 00:00:17,830
+00:00:18,000 --> 00:00:20,830
 Your server says who the customer is, with a short-lived token.
 
 6
-00:00:17,580 --> 00:00:21,330
+00:00:20,580 --> 00:00:24,330
 And support reads facts from the APIs you already have.
 
 7
-00:00:21,080 --> 00:00:22,790
+00:00:24,080 --> 00:00:25,790
 Nothing is copied.
 
 8
-00:00:24,300 --> 00:00:26,790
+00:00:27,300 --> 00:00:29,790
 Step one: create your workspace.
 
 9
-00:00:27,140 --> 00:00:29,250
+00:00:30,140 --> 00:00:32,250
 Its id becomes your widget's address.
 
 10
-00:00:30,300 --> 00:00:34,650
+00:00:33,300 --> 00:00:37,650
 You get a checklist that ticks itself, as each step really starts working.
 
 11
-00:00:35,800 --> 00:00:37,950
+00:00:38,800 --> 00:00:40,950
 Step two: connect your data.
 
 12
-00:00:38,540 --> 00:00:44,970
+00:00:41,540 --> 00:00:47,970
 Add your API key and secret, list your data sources, and press Test to see exactly what comes back.
 
 13
-00:00:45,800 --> 00:00:49,930
+00:00:48,800 --> 00:00:52,930
 Step three: map your fields to the JSON your API already sends.
 
 14
-00:00:50,360 --> 00:00:52,730
+00:00:53,360 --> 00:00:55,730
 These are the only figures the AI is allowed to quote.
 
 15
-00:00:53,800 --> 00:01:01,510
+00:00:56,800 --> 00:01:04,510
 Step four is the only real code: one endpoint, behind your own login, that signs a five-minute token for the current customer.
 
 16
-00:01:02,800 --> 00:01:09,810
+00:01:05,800 --> 00:01:12,810
 That token works once, expires fast, stays out of server logs, and can only sign in your own customers.
 
 17
-00:01:11,300 --> 00:01:16,170
+00:01:14,300 --> 00:01:19,170
 Step five: paste one script tag, and list the websites allowed to show it.
 
 18
-00:01:17,800 --> 00:01:18,910
+00:01:20,800 --> 00:01:21,910
 And that's it.
 
 19
-00:01:19,060 --> 00:01:22,930
+00:01:22,060 --> 00:01:25,930
 The widget just appears, already signed in, in your brand colours.
 
 20
-00:01:23,800 --> 00:01:26,670
+00:01:26,800 --> 00:01:29,670
 Step six: teach the AI.
 
 21
-00:01:27,340 --> 00:01:31,590
+00:01:30,340 --> 00:01:34,590
 Add your categories, your knowledge articles, and how replies should sound.
 
 22
-00:01:32,800 --> 00:01:33,650
+00:01:35,800 --> 00:01:36,650
 Want more?
 
 23
-00:01:33,900 --> 00:01:39,690
+00:01:36,940 --> 00:01:42,690
 Scoped API keys let your backend create and read tickets, with every route documented in Swagger.
 
 24
-00:01:40,800 --> 00:01:47,010
+00:01:43,800 --> 00:01:50,010
 And signed webhooks tell your server about every new ticket, reply, and status change.
 
 25
-00:01:48,300 --> 00:01:52,430
+00:01:51,300 --> 00:01:55,430
 Send a test ticket, watch it land in your queue, and you're live.
 
 26
-00:01:53,900 --> 00:01:55,430
+00:01:56,900 --> 00:01:58,430
 One script tag.
 
 27
-00:01:55,640 --> 00:01:56,450
+00:01:58,640 --> 00:01:59,450
 One endpoint.
 
 28
-00:01:56,760 --> 00:01:58,210
+00:01:59,760 --> 00:02:01,210
 Everything else is configuration.

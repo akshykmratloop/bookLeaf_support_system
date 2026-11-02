@@ -1,63 +1,87 @@
-# Product tour — script
+# Product tour: BookLeaf's problems, solved — script
 
-10 scenes · 164 words of narration · 1:16 · AI voice (nova) · music and effects composed for the video.
+14 scenes · 228 words of narration · 1:51 · AI voice (nova) · music and effects composed for the video.
 
-## 1. Why leave the app?
+## 1. The scale
 
-*At 0:00 — on screen:* Kinetic title on a dark background
+*At 0:00 — on screen:* Counters: 1,200+ books a month, 22,000+ titles, every question answered by hand
 
-Your customers need help. So why do they have to leave your app to get it?
+Twelve hundred books a month. Thousands of authors. And every question answered by hand.
 
-## 2. Meet BookLeaf Support
+## 2. The cost of doing it by hand
 
-*At 0:06 — on screen:* Logo reveal with a flash and the music drop
+*At 0:07 — on screen:* Three cards: slow replies, answers that don't match, a growing backlog
 
-Meet BookLeaf Support. Help that lives right inside your product.
+That means slow replies, answers that don't match, and a backlog that grows every busy week.
 
-## 3. One tap
+## 3. Meet BookLeaf Support
 
-*At 0:11 — on screen:* The Help button opens the widget: chat, voice and tickets
+*At 0:14 — on screen:* Logo reveal with the music drop
 
-One tap, and your customers get chat, voice, and tickets, without ever leaving your app.
+Meet BookLeaf Support. Built to fix exactly that.
 
-## 4. Answers from real data
+## 4. Problem 1: every ticket is manual work
 
-*At 0:18 — on screen:* A chat answer with the checked figures highlighted
+*At 0:20 — on screen:* The queue with AI category and priority, and an AI draft reply
 
-Ask anything. Every answer comes from their real account data. Every number is checked. Nothing is made up.
+First, the manual work. The AI now reads every new ticket, sorts it into the right category, sets its priority, and drafts a reply.
 
-## 5. Switch to voice
+## 5. Problem 2: urgent issues get buried
 
-*At 0:26 — on screen:* A live call inside the same thread as the chat
+*At 0:31 — on screen:* The queue sorted "most urgent first"
 
-Want to talk instead? Switch to voice, mid-conversation. Chat and voice share one thread, so nobody repeats themselves.
+Urgent money problems no longer get buried. The most urgent, oldest tickets always come first.
 
-## 6. The ticket fills itself
+## 6. Problem 3: replies contradict policy
 
-*At 0:35 — on screen:* The voice ticket form filling in, field by field
+*At 0:38 — on screen:* The knowledge base and the tone settings the AI follows
 
-Just say what's wrong. The assistant fills in the ticket while you talk. Say yes, or tap send, and it's on its way. No forms. No hunting for buttons.
+Every draft follows BookLeaf's own policies and tone, so every author gets the same right answer.
 
-## 7. The support desk
+## 7. Problem 4: answers need the author's account
 
-*At 0:47 — on screen:* Queue sorted by priority, an AI draft, the fact checker blocking a figure
+*At 0:47 — on screen:* A chat answer with the figures checked against the author's records
 
-Your team gets every ticket sorted, prioritized, and with a reply already drafted. A built-in fact checker blocks any figure that isn't real.
+And it uses the author's real royalty data, fetched live from BookLeaf. Never guessed, never made up.
 
-## 8. If the AI goes down
+## 8. Problem 5: authors can't see what's happening
 
-*At 0:57 — on screen:* The desk with AI off: rules and templates keep working
+*At 0:55 — on screen:* The author's ticket list and a staff reply arriving live
 
-And if the AI ever goes down? Your desk keeps working.
+Authors see every ticket, its status, and every reply, live, without refreshing.
 
-## 9. Plug it into any app
+## 9. Problem 6: automation risks
 
-*At 1:03 — on screen:* One endpoint and one script tag
+*At 1:02 — on screen:* The fact checker blocking an invented amount; a person sends
 
-Plug it into any app with one endpoint and one script tag. Your login. Your data. Your brand.
+A fact checker blocks any amount or date that isn't in the records, and a person always sends the reply.
 
-## 10. Help, built right in
+## 10. If the AI goes down
 
-*At 1:11 — on screen:* Logo and tagline
+*At 1:10 — on screen:* A template draft and rule-based sorting while the AI is off
 
-BookLeaf Support. Help, built right in.
+If the AI goes down, tickets still arrive, get sorted, and get answered.
+
+## 11. Beyond the brief
+
+*At 1:16 — on screen:* Help inside the dashboard, chat and voice in one thread, a ticket filled by voice
+
+Then I went beyond the brief: help inside the author's own dashboard, chat and voice in one conversation, and tickets that fill themselves as you talk.
+
+## 12. Any product
+
+*At 1:27 — on screen:* The set-up checklist and the one script tag
+
+It plugs into any product with one script tag and one endpoint, for any company.
+
+## 13. Low cost, high value
+
+*At 1:33 — on screen:* Three cards: right-sized models, only the facts needed, cost visible to admins
+
+It runs on fast, low-cost models, sends only what each answer needs, and shows admins exactly what the AI costs.
+
+## 14. Outro
+
+*At 1:44 — on screen:* Logo and closing line
+
+BookLeaf Support. Faster replies. The same right answer. Real data, every time.
