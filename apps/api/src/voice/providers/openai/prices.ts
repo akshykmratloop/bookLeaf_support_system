@@ -24,6 +24,22 @@ const REALTIME_PRICES: Readonly<Record<string, RealtimePrice>> = {
     cachedAudioIn: 0.3,
     audioOut: 20,
   },
+  'gpt-realtime': {
+    textIn: 4,
+    cachedTextIn: 0.4,
+    textOut: 16,
+    audioIn: 32,
+    cachedAudioIn: 0.4,
+    audioOut: 64,
+  },
+  'gpt-realtime-mini': {
+    textIn: 0.6,
+    cachedTextIn: 0.06,
+    textOut: 2.4,
+    audioIn: 10,
+    cachedAudioIn: 0.3,
+    audioOut: 20,
+  },
 };
 
 /** The cost of the tokens given, in whole micro-dollars; null for a model without a price. */

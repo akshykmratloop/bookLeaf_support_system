@@ -42,6 +42,18 @@ describe('OpenAI Realtime prices (USD per million tokens, OpenAI pricing page)',
     );
   });
 
+  it('prices gpt-realtime: text out is $16, the rest matches 2.1', () => {
+    expect(realtimeCostMicros('gpt-realtime', only('textOut'))).toBe(16 * MILLION);
+    expect(realtimeCostMicros('gpt-realtime', only('audioIn'))).toBe(32 * MILLION);
+    expect(realtimeCostMicros('gpt-realtime', only('audioOut'))).toBe(64 * MILLION);
+  });
+
+  it('prices gpt-realtime-mini the same as 2.1-mini', () => {
+    expect(realtimeCostMicros('gpt-realtime-mini', only('textIn'))).toBe(0.6 * MILLION);
+    expect(realtimeCostMicros('gpt-realtime-mini', only('cachedAudioIn'))).toBe(0.3 * MILLION);
+    expect(realtimeCostMicros('gpt-realtime-mini', only('audioOut'))).toBe(20 * MILLION);
+  });
+
   it('has no price for a model it does not know', () => {
     expect(realtimeCostMicros('gpt-realtime-unknown', only('audioIn'))).toBeNull();
   });
