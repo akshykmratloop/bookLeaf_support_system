@@ -6,7 +6,7 @@ export const ENDED_TEXT: Record<VoiceEndReason, string> = {
   USER_HANGUP: 'You ended the call.',
   TIME_LIMIT: 'The call reached its time limit.',
   ASSISTANT_ENDED: 'The call has ended.',
-  IDLE: 'The call ended because no audio was heard for a while.',
+  IDLE: "The call ended because we couldn't hear you.",
   DISCONNECTED: 'The connection was lost.',
   DISABLED_BY_ADMIN: 'Voice calls were switched off by the BookLeaf team.',
   PROVIDER_ERROR: 'The voice service had a problem, so the call ended.',

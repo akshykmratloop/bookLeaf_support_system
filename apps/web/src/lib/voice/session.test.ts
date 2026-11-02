@@ -192,6 +192,18 @@ describe('VoiceCallSession', () => {
     expect(session.snapshot().phase).toBe('ending');
   });
 
+  it('tells the server when the caller mutes and unmutes, so it can say they are on mute', async () => {
+    const { session, ws } = await startedCall();
+    ws.server({ type: 'ready', maxSeconds: 300 });
+    session.toggleMute();
+    session.toggleMute();
+    expect(mic.setMuted.mock.calls).toEqual([[true], [false]]);
+    expect(ws.sent).toEqual([
+      JSON.stringify({ type: 'mute', muted: true }),
+      JSON.stringify({ type: 'mute', muted: false }),
+    ]);
+  });
+
   it('explains a refused connection using the server close code', async () => {
     const { session, ws } = await startedCall();
     ws.onclose?.({ code: 4503 });

@@ -31,7 +31,8 @@ export interface CallOutcome {
 export interface CallLimits {
   maxSeconds: number;
   warnBeforeEndSeconds: number;
-  idleSeconds: number;
+  /** Seconds of silence before each nudge: two nudges, then a spoken reason and the hang-up. */
+  silenceNudgeSeconds: number;
   /** How often the admin switch is re-checked during the call. */
   recheckSeconds: number;
   /** Longest wait for the goodbye after end_call before hanging up anyway. */
@@ -62,9 +63,18 @@ export interface DraftPort {
 }
 
 /** Fixed lines the assistant speaks during a call, in the configured voice style. */
-export interface SpokenLines {
+export interface SpokenLines extends SilenceLines {
   timeWarning: string;
   turnLimitGoodbye: string;
+}
+
+/** What the assistant says when the author goes quiet or is muted (scripted, never generated). */
+export interface SilenceLines {
+  stillThere: string;
+  stillCantHear: string;
+  onMute: string;
+  silenceGoodbye: string;
+  muteGoodbye: string;
 }
 
 export interface CallDeps {
@@ -86,6 +96,8 @@ export interface CallHandle {
   onCallerAudio(pcm16: Buffer): void;
   onCallerHangup(): void;
   onCallerGone(): void;
+  /** The caller muted or unmuted their microphone. */
+  onCallerMute(muted: boolean): void;
 }
 
 export interface CallState {
@@ -111,6 +123,10 @@ export interface CallState {
    * audio. Raw caller frames do not count, because the browser streams silence continuously.
    */
   lastActivityAt: number;
+  /** Silence nudges said since the author last spoke. */
+  silenceNudges: number;
+  /** The author's mic is muted (the browser says so; it still streams silent audio). */
+  callerMuted: boolean;
   /** The assistant asked to end the call; hang up once its goodbye has been spoken. */
   endRequested: boolean;
   /** Assistant audio arrived after end_call, so the next finished reply is the goodbye. */

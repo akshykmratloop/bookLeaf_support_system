@@ -1,4 +1,8 @@
-import { VoiceClientMessageSchema, type VoiceServerMessage } from '@bookleaf/shared';
+import {
+  VoiceClientMessageSchema,
+  type VoiceClientMessage,
+  type VoiceServerMessage,
+} from '@bookleaf/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { RawData, WebSocket } from 'ws';
 import { startCall, type CallHandle, type CallerChannel } from '../../voice/call/controller.js';
@@ -46,28 +50,33 @@ interface Line {
   hungUpEarly: boolean;
 }
 
-function isHangup(data: RawData): boolean {
+/** A valid control message, or null for anything else (ignored: the call goes on). */
+function controlMessage(data: RawData): VoiceClientMessage | null {
   try {
     const msg = VoiceClientMessageSchema.safeParse(JSON.parse(data.toString()));
-    return msg.success && msg.data.type === 'hangup';
+    return msg.success ? msg.data : null;
   } catch {
-    return false; // not JSON: ignore the frame, the call goes on
+    return null; // not JSON
   }
 }
 
-/** Audio frames are size-checked and rate-limited; anything else may only be "hangup". */
+/** "hangup" ends the call (or cancels it before it is live); "mute" is passed to the call. */
+function onControl(line: Line, data: RawData): void {
+  const msg = controlMessage(data);
+  if (msg?.type === 'mute') line.handle?.onCallerMute(msg.muted);
+  if (msg?.type !== 'hangup') return;
+  if (line.handle) line.handle.onCallerHangup();
+  else line.hungUpEarly = true;
+}
+
+/** Audio frames are size-checked and rate-limited; text frames may only be "hangup" or "mute". */
 function listen(socket: WebSocket, line: Line): void {
   const accept = audioBudget();
   socket.on('message', (data, isBinary) => {
-    if (isBinary) {
-      const frame = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
-      if (frame.length === 0 || frame.length % 2 !== 0 || frame.length > MAX_FRAME_BYTES) return;
-      if (accept(frame.length)) line.handle?.onCallerAudio(frame);
-      return;
-    }
-    if (!isHangup(data)) return;
-    if (line.handle) line.handle.onCallerHangup();
-    else line.hungUpEarly = true;
+    if (!isBinary) return onControl(line, data);
+    const frame = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+    if (frame.length === 0 || frame.length % 2 !== 0 || frame.length > MAX_FRAME_BYTES) return;
+    if (accept(frame.length)) line.handle?.onCallerAudio(frame);
   });
   socket.on('close', () => line.handle?.onCallerGone());
 }

@@ -45,7 +45,7 @@ export function callLimits(limits: AssistantLimits): CallLimits {
   return {
     maxSeconds: limits.voice.maxCallSeconds,
     warnBeforeEndSeconds: 30,
-    idleSeconds: 45,
+    silenceNudgeSeconds: 15,
     recheckSeconds: 15,
     goodbyeSeconds: 8,
   };

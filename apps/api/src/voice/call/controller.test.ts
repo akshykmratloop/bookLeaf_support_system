@@ -7,7 +7,7 @@ import type { DraftPort, DraftUpdate } from './types.js';
 const LIMITS = {
   maxSeconds: 300,
   warnBeforeEndSeconds: 30,
-  idleSeconds: 45,
+  silenceNudgeSeconds: 15,
   recheckSeconds: 15,
   goodbyeSeconds: 8,
 };
@@ -137,16 +137,38 @@ describe('voice call controller', () => {
     expect(callerClosed).toBe(true);
   });
 
-  it('hangs up after 45 seconds without conversation', async () => {
+  it('hangs up, after two nudges and a goodbye, when nobody speaks', async () => {
     await call();
-    await vi.advanceTimersByTimeAsync(46_000);
+    await vi.advanceTimersByTimeAsync(56_000);
+    expect(provider.said).toHaveLength(3);
     expect(endedWith()).toEqual({ type: 'ended', reason: 'IDLE' });
+  });
+
+  it('shows amounts in the transcript as figures, while the author line stays as heard', async () => {
+    const handle = await call();
+    provider.emit({ type: 'transcript', role: 'AUTHOR', text: 'Is it one thousand rupees?' });
+    provider.emit({
+      type: 'transcript',
+      role: 'ASSISTANT',
+      text: 'The minimum payout threshold is one thousand rupees.',
+    });
+    expect(sent).toContainEqual({
+      type: 'transcript',
+      role: 'ASSISTANT',
+      text: 'The minimum payout threshold is ₹1,000.',
+    });
+    handle.onCallerHangup();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(outcomes[0]?.transcript.map((l) => l.text)).toEqual([
+      'Is it one thousand rupees?',
+      'The minimum payout threshold is ₹1,000.',
+    ]);
   });
 
   it('still hangs up when the browser streams only silence (muted or walked away)', async () => {
     const handle = await call();
     const silence = setInterval(() => handle.onCallerAudio(Buffer.alloc(1920)), 40);
-    await vi.advanceTimersByTimeAsync(46_000);
+    await vi.advanceTimersByTimeAsync(56_000);
     clearInterval(silence);
     expect(endedWith()).toEqual({ type: 'ended', reason: 'IDLE' });
   });

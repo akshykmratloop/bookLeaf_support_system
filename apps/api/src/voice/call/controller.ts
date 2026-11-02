@@ -1,7 +1,9 @@
+import { spokenRupeesToFigures } from '../../ai/checker/number-words.js';
 import type { VoiceEvent } from '../providers/types.js';
 import { addVoiceUsage, NO_VOICE_USAGE } from '../providers/usage.js';
 import { onDraftUpdate, runDraftTool } from './draft-sync.js';
 import { armLimits, endCall, endSoon, markActivity, secondsLeft } from './lifecycle.js';
+import { authorIsBack } from './silence.js';
 import { DRAFT_TOOLS, END_CALL } from './tool-defs.js';
 import { countAuthorTurn, sayLimitGoodbye } from './turn-limit.js';
 import type { CallDeps, CallHandle, CallState } from './types.js';
@@ -13,6 +15,7 @@ const NOOP_HANDLE: CallHandle = {
   onCallerAudio: () => undefined,
   onCallerHangup: () => undefined,
   onCallerGone: () => undefined,
+  onCallerMute: () => undefined,
 };
 
 function runTool(st: CallState, callId: string, name: string, argumentsJson: string): void {
@@ -43,15 +46,18 @@ const ON_EVENT: EventHandlers = {
   },
   transcript: (st, e) => {
     markActivity(st);
-    st.transcript.push({ role: e.role, text: e.text, at: st.deps.now().toISOString() });
-    st.deps.caller.send({ type: 'transcript', role: e.role, text: e.text });
+    // The voice says amounts in words; the transcript shows them as figures ("₹1,000").
+    const text = e.role === 'ASSISTANT' ? spokenRupeesToFigures(e.text) : e.text;
+    st.transcript.push({ role: e.role, text, at: st.deps.now().toISOString() });
+    st.deps.caller.send({ type: 'transcript', role: e.role, text });
     if (e.role !== 'AUTHOR' || !e.text.trim()) return;
+    authorIsBack(st);
     // Only words count as the author's answer to "Shall I send it?", never noise or silence.
     st.answeredSinceConfirm = true;
     countAuthorTurn(st);
   },
   barge_in: (st) => {
-    markActivity(st);
+    authorIsBack(st);
     st.deps.caller.send({ type: 'interrupt' });
   },
   tool_call: (st, e) => runTool(st, e.callId, e.name, e.argumentsJson),
@@ -86,6 +92,8 @@ function newState(deps: CallDeps): CallState {
     answeredSinceConfirm: false,
     unwatch: null,
     lastActivityAt: performance.now(),
+    silenceNudges: 0,
+    callerMuted: false,
     endRequested: false,
     goodbyeStarted: false,
     endReason: 'ASSISTANT_ENDED',
@@ -133,5 +141,9 @@ export async function startCall(deps: CallDeps): Promise<CallHandle> {
     },
     onCallerHangup: () => endSoon(st, 'USER_HANGUP'),
     onCallerGone: () => endSoon(st, 'DISCONNECTED'),
+    onCallerMute: (muted) => {
+      st.callerMuted = muted;
+      if (!muted) authorIsBack(st);
+    },
   };
 }

@@ -113,5 +113,7 @@ export type VoiceServerMessage = z.infer<typeof VoiceServerMessageSchema>;
 /** JSON control messages the browser may send (audio goes as binary frames). */
 export const VoiceClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hangup') }),
+  /** The caller muted or unmuted their mic, so a silence nudge can say "you're on mute". */
+  z.object({ type: z.literal('mute'), muted: z.boolean() }),
 ]);
 export type VoiceClientMessage = z.infer<typeof VoiceClientMessageSchema>;

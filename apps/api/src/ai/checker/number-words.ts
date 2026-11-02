@@ -109,3 +109,23 @@ export function wordsToDigits(text: string): string {
   }
   return out + text.slice(at);
 }
+
+/** "rupees" (or the Hinglish "rupaye") right after a run of number words. */
+const RUPEES_AFTER = /^\s+(?:rupees|rupee|rupaye|rupaiye)\b/i;
+
+/**
+ * Spoken amounts to figures, for showing a call transcript: "one thousand rupees" → "₹1,000",
+ * with Indian digit grouping. Only runs followed by "rupees" change, so spoken ISBN digits and
+ * phrases like "one moment" read as said. The voice still says amounts in words.
+ */
+export function spokenRupeesToFigures(text: string): string {
+  let out = '';
+  let at = 0;
+  for (const r of runsIn(text)) {
+    const rupees = RUPEES_AFTER.exec(text.slice(r.end));
+    if (!rupees) continue;
+    out += `${text.slice(at, r.start)}₹${valueOf(r.words).toLocaleString('en-IN')}`;
+    at = r.end + rupees[0].length;
+  }
+  return out + text.slice(at);
+}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleCustomer } from '../../../test/fixtures/host.js';
 import { factsFor } from '../../host/facts.js';
 import { checkSpokenFigures } from '../../modules/voice/finish.js';
-import { wordsToDigits } from './number-words.js';
+import { spokenRupeesToFigures, wordsToDigits } from './number-words.js';
 
 describe('wordsToDigits', () => {
   it.each([
@@ -51,5 +51,32 @@ describe('spoken-figure check on amounts said in words (audit F-07)', () => {
     const r = said('You have three thousand five hundred rupees pending.');
     expect(r.passed).toBe(false);
     expect(r.issues.map((i) => i.code)).toContain('UNSUPPORTED_AMOUNT');
+  });
+});
+
+describe('spokenRupeesToFigures (call transcripts show amounts as figures)', () => {
+  it.each([
+    [
+      'The pending amount is three thousand five hundred and seventy rupees.',
+      'The pending amount is ₹3,570.',
+    ],
+    [
+      'The minimum payout threshold is one thousand rupees.',
+      'The minimum payout threshold is ₹1,000.',
+    ],
+    ['One lakh rupees, paid in full.', '₹1,00,000, paid in full.'],
+    ['Aapke two thousand rupaye pending hain.', 'Aapke ₹2,000 pending hain.'],
+    ['just one rupee', 'just ₹1'],
+  ])('%s → %s', (spoken, shown) => {
+    expect(spokenRupeesToFigures(spoken)).toBe(shown);
+  });
+
+  it.each([
+    'Give me one moment, please.',
+    'The ISBN starts nine seven eight nine three.',
+    'Payouts close by fourteenth February.',
+    'Teen hazaar rupees nahi.',
+  ])('leaves text without a spoken amount alone: %s', (text) => {
+    expect(spokenRupeesToFigures(text)).toBe(text);
   });
 });

@@ -1,4 +1,5 @@
 import type { VoiceEndReason } from '@bookleaf/shared';
+import { checkSilence } from './silence.js';
 import type { CallState } from './types.js';
 
 export const TIME_WARNING = 'Just so you know, we have about thirty seconds left on this call.';
@@ -54,7 +55,7 @@ export function secondsLeft(st: CallState): number {
   return Math.max(0, Math.ceil(st.deps.limits.maxSeconds - elapsed));
 }
 
-/** Hard time cap with a spoken warning, idle hang-up, and the admin switch re-check. */
+/** Hard time cap with a spoken warning, silence nudges and hang-up, and the admin switch re-check. */
 export function armLimits(st: CallState): void {
   const { limits, caller } = st.deps;
   st.armedAt = performance.now();
@@ -68,9 +69,7 @@ export function armLimits(st: CallState): void {
       (limits.maxSeconds - limits.warnBeforeEndSeconds) * 1000,
     ),
     setTimeout(() => endSoon(st, 'TIME_LIMIT'), limits.maxSeconds * 1000),
-    setInterval(() => {
-      if (performance.now() - st.lastActivityAt > limits.idleSeconds * 1000) endSoon(st, 'IDLE');
-    }, 1000),
+    setInterval(() => checkSilence(st, endSoon), 1000),
     setInterval(() => void recheckSwitch(st), limits.recheckSeconds * 1000),
   );
 }

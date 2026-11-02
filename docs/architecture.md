@@ -675,6 +675,14 @@ sequenceDiagram
   server answers with `bookleaf.v1` only. Request logs drop query strings.
 - Every call has a hard time cap (`VOICE_MAX_CALL_SECONDS`, at most 300) with a spoken warning
   before it. There are per-author hourly and daily limits, and one call at a time.
+- A silent call does not run on (`voice/call/silence.ts`, the same ladder as `voice_agent`). After
+  each 15 s of quiet, once the assistant has stopped talking, it asks twice ("Are you still
+  there?"), then says why it is hanging up and ends the call (`IDLE`). The browser sends
+  `{type:"mute"}` when the author mutes, because it still streams silent audio; the nudges and the
+  goodbye then say "you're on mute". The lines are scripted per voice style, not generated. Any
+  speech from the author starts the ladder over.
+- The voice says amounts in words, so they sound right in English and Hinglish. The transcript
+  shows them as figures ("one thousand rupees" → "₹1,000"); other spoken numbers are left as said.
 - A call that ended without a ticket can be continued within 60 minutes. It joins the same thread
   and is listed once in History.
 

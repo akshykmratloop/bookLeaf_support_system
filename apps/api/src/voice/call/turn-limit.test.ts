@@ -2,7 +2,9 @@ import type { TicketDraft, VoiceServerMessage } from '@bookleaf/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeVoiceProvider, type FakeVoiceProvider } from '../providers/fake/provider.js';
 import { startCall, type CallOutcome } from './controller.js';
+import { SILENCE_LINES } from './silence.js';
 import { TURN_LIMIT_GOODBYE, TURN_LIMIT_GRACE_SECONDS } from './turn-limit.js';
+import type { SpokenLines } from './types.js';
 
 const DRAFT: TicketDraft = {
   id: '33333333-3333-4333-8333-333333333333',
@@ -22,7 +24,7 @@ let provider: FakeVoiceProvider;
 let sent: VoiceServerMessage[];
 let outcomes: CallOutcome[];
 
-function call(turnsLeft: number | null, lines?: { timeWarning: string; turnLimitGoodbye: string }) {
+function call(turnsLeft: number | null, lines?: SpokenLines) {
   return startCall({
     lines,
     provider,
@@ -31,7 +33,7 @@ function call(turnsLeft: number | null, lines?: { timeWarning: string; turnLimit
     limits: {
       maxSeconds: 300,
       warnBeforeEndSeconds: 30,
-      idleSeconds: 45,
+      silenceNudgeSeconds: 15,
       recheckSeconds: 15,
       goodbyeSeconds: 8,
       turnsLeft,
@@ -97,7 +99,7 @@ describe('the conversation limit on a call', () => {
 
   it("says the goodbye in the call's voice style", async () => {
     const goodbye = 'Is conversation ki limit poori ho gayi hai.';
-    await call(1, { timeWarning: 'x', turnLimitGoodbye: goodbye });
+    await call(1, { ...SILENCE_LINES, timeWarning: 'x', turnLimitGoodbye: goodbye });
     exchange('Hello?');
     expect(provider.said).toEqual([goodbye]);
   });

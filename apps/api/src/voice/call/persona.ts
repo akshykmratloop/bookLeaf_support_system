@@ -7,6 +7,7 @@ import {
   genericPersonaWords,
   hinglishPersona,
 } from './persona-text.js';
+import { SILENCE_LINES } from './silence.js';
 import { TURN_LIMIT_GOODBYE } from './turn-limit.js';
 import type { SpokenLines } from './types.js';
 
@@ -38,6 +39,7 @@ const LINES: Record<VoiceStyle, StyleLines> = {
     },
     timeWarning: TIME_WARNING,
     turnLimitGoodbye: TURN_LIMIT_GOODBYE,
+    ...SILENCE_LINES,
   },
   hinglish: {
     greeting: {
@@ -51,6 +53,14 @@ const LINES: Record<VoiceStyle, StyleLines> = {
     timeWarning: 'Bas ek chhota sa heads-up, is call mein about thirty seconds bache hain.',
     turnLimitGoodbye:
       'Is conversation ki message limit poori ho gayi hai, isliye main yahin rukti hoon. Aap kabhi bhi ek new conversation shuru kar sakte hain. Dhanyavaad ji, take care!',
+    stillThere: 'Sorry ji, mujhe aapki awaaz nahi aa rahi. Kya aap line par hain?',
+    stillCantHear:
+      'Abhi bhi aapki awaaz nahi aa rahi. Agar aap mujhe sun pa rahe hain, toh please kuch boliye.',
+    onMute: 'Lagta hai aap mute par hain. Please unmute kijiye, taaki main aapko sun sakoon.',
+    silenceGoodbye:
+      'Mujhe kuch sunai nahi de raha, isliye aapka time bachane ke liye main yeh call yahin end kar rahi hoon. Aap kabhi bhi dobara call kar sakte hain. Dhanyavaad ji!',
+    muteGoodbye:
+      'Lagta hai aap mute par hain, isliye main yeh call yahin end kar rahi hoon. Unmute karke kabhi bhi dobara call kijiye. Dhanyavaad ji!',
   },
 };
 

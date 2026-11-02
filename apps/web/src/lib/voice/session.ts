@@ -1,6 +1,4 @@
 import {
-  VOICE_SOCKET_PROTOCOL,
-  VOICE_TICKET_PROTOCOL_PREFIX,
   VoiceServerMessageSchema,
   type StartVoiceCall,
   type VoiceServerMessage,
@@ -8,9 +6,11 @@ import {
 import { api, errorMessage } from '../api';
 import { openMicrophone, type Microphone } from './microphone';
 import { PcmPlayer } from './player';
+import { sendControl, socketProtocols } from './socket';
 import { canStart, closeMessage, INITIAL_VIEW, micMessage, type CallView } from './view';
 
 export type { CallPhase, CallView } from './view';
+export { socketProtocols } from './socket';
 
 export interface StartCallOptions {
   /** Continue the last dropped call (same conversation and draft). */
@@ -21,11 +21,6 @@ export interface StartCallOptions {
 
 const HANGUP_GRACE_MS = 3000;
 
-/** The ticket rides as a subprotocol beside `bookleaf.v1`: never in the URL, so never logged. */
-export const socketProtocols = (ticket?: string): string[] =>
-  ticket
-    ? [VOICE_SOCKET_PROTOCOL, `${VOICE_TICKET_PROTOCOL_PREFIX}${ticket}`]
-    : [VOICE_SOCKET_PROTOCOL];
 /** Longest the goodbye may keep playing after the server ends the call. */
 const DRAIN_LIMIT_MS = 8000;
 
@@ -90,7 +85,7 @@ export class VoiceCallSession {
     if (this.view.phase !== 'live' && this.view.phase !== 'connecting') return;
     this.set({ phase: 'ending' });
     const ws = this.ws;
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'hangup' }));
+    sendControl(ws, { type: 'hangup' });
     this.hangupTimer = setTimeout(() => ws?.close(), HANGUP_GRACE_MS);
   }
 
@@ -98,6 +93,8 @@ export class VoiceCallSession {
     const muted = !this.view.muted;
     this.mic?.setMuted(muted);
     this.set({ muted });
+    // The browser keeps streaming silence while muted, so the server can only know from this.
+    sendControl(this.ws, { type: 'mute', muted });
   }
 
   /** Back to idle after a finished call (New conversation); a goodbye still playing finishes. */

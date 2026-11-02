@@ -69,8 +69,8 @@ function connect(path: string, cookie: string, origin = ORIGIN): Client {
 const settle = () => new Promise((r) => setTimeout(r, 150));
 
 /** Polls until the check passes (socket messages and tool results arrive asynchronously). */
-async function waitUntil(check: () => boolean, what: string): Promise<void> {
-  for (let i = 0; i < 100; i += 1) {
+async function waitUntil(check: () => boolean, what: string, timeoutMs = 2_000): Promise<void> {
+  for (let i = 0; i < timeoutMs / 20; i += 1) {
     if (check()) return;
     await new Promise((r) => setTimeout(r, 20));
   }
@@ -356,6 +356,18 @@ describe('voice: live ticket draft', () => {
       'Yes, three copies',
     ]);
   });
+
+  it("tells a muted author they are on mute (the browser's mute signal reaches the call)", async () => {
+    const started = await startCall(priya);
+    const c = connect(started.socketPath, priya);
+    await c.waitFor('ready');
+    c.ws.send('{"type":"mute","muted":"yes"}'); // malformed: ignored, the call goes on
+    c.ws.send(JSON.stringify({ type: 'mute', muted: true }));
+    await waitUntil(() => fake.said.length > 0, 'first silence nudge', 20_000);
+    expect(fake.said[0]).toMatch(/mute/i);
+    c.ws.send(JSON.stringify({ type: 'hangup' }));
+    expect(await c.closed).toBe(1000);
+  }, 30_000);
 
   it('offers nothing to continue when only the greeting was said', async () => {
     const started = await startCall(arjun);

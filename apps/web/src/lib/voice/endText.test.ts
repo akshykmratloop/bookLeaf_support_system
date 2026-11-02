@@ -11,6 +11,14 @@ describe('callNotice', () => {
     });
   });
 
+  it('says the call ended because the caller could not be heard', () => {
+    const view = { ...INITIAL_VIEW, phase: 'ended' as const, endReason: 'IDLE' as const };
+    expect(callNotice(view, null)).toEqual({
+      text: "The call ended because we couldn't hear you.",
+      isError: false,
+    });
+  });
+
   it('shows a start problem or a failed call as an error', () => {
     expect(callNotice(INITIAL_VIEW, 'Could not start the call.')?.isError).toBe(true);
     const failed = { ...INITIAL_VIEW, phase: 'failed' as const, error: 'Microphone blocked' };
