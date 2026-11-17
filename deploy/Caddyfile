@@ -37,3 +37,7 @@
 	respond @internal 404
 	reverse_proxy 127.0.0.1:3200
 }
+
+# Sites of other apps sharing this box (one *.caddy file each, written by their own deploy, e.g.
+# Help Wala's deploy/box/up.sh). An empty folder is fine: BookLeaf then serves only the two above.
+import /etc/caddy/sites/*.caddy

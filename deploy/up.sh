@@ -83,6 +83,9 @@ wait_https() {
   return 1
 }
 
+# The shared site folder Caddy imports (other apps' HTTPS sites); must exist before Caddy starts.
+mkdir -p "${EDGE_SITES_DIR:-/opt/edge/sites}"
+
 log "Starting Postgres and Redis"
 compose up -d --wait postgres redis
 

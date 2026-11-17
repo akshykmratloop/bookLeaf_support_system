@@ -108,6 +108,8 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Other apps on this box add their own HTTPS sites here (Help Wala: helpwala.caddy).
+      - ${EDGE_SITES_DIR:-/opt/edge/sites}:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     mem_limit: 128m
